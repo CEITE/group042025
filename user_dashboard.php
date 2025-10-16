@@ -381,41 +381,384 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --pink: #ffd6e7;
-            --pink-2: #f7c5e0;
-            --pink-light: #fff4f8;
-            --blue: #4a6cf7;
-            --blue-light: #e8f0fe;
-            --green: #2ecc71;
-            --green-light: #eafaf1;
-            --orange: #f39c12;
-            --orange-light: #fef5e7;
-            --red: #e74c3c;
-            --red-light: #fdedec;
-            --radius: 16px;
-            --shadow: 0 3px 10px rgba(0,0,0,0.1);
+            --primary: #4a6cf7;
+            --primary-light: #e8f0fe;
+            --secondary: #ff6b9d;
+            --secondary-light: #ffd6e7;
+            --success: #2ecc71;
+            --success-light: #eafaf1;
+            --warning: #f39c12;
+            --warning-light: #fef5e7;
+            --danger: #e74c3c;
+            --danger-light: #fdedec;
+            --info: #3498db;
+            --info-light: #e8f4fd;
+            --dark: #2c3e50;
+            --light: #f8f9fa;
+            --radius: 12px;
+            --shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --transition: all 0.3s ease;
         }
         
-        /* ... (keep existing styles) ... */
-        
-        /* NEW STYLES FOR VACCINATION ALERTS AND RECOMMENDATIONS */
-        
-        .alert-vaccination {
-            border-left: 4px solid var(--red);
-            background: var(--red-light);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
-        .alert-wellness {
-            border-left: 4px solid var(--green);
-            background: var(--green-light);
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fb;
+            color: var(--dark);
+        }
+        
+        /* Layout */
+        .wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(135deg, var(--primary), #3a57d8);
+            color: white;
+            padding: 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: var(--transition);
+        }
+        
+        .brand {
+            padding: 1.5rem 1.5rem 1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .brand i {
+            margin-right: 0.5rem;
+            color: var(--secondary-light);
+        }
+        
+        .profile {
+            padding: 1.5rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .profile img {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.2);
+            margin-bottom: 0.75rem;
+        }
+        
+        .profile h6 {
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+        }
+        
+        .sidebar a {
+            display: flex;
+            align-items: center;
+            padding: 0.875rem 1.5rem;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar a:hover, .sidebar a.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: var(--secondary);
+        }
+        
+        .sidebar a.logout {
+            margin-top: auto;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .sidebar a.logout:hover {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .sidebar .icon {
+            width: 24px;
+            margin-right: 0.75rem;
+            text-align: center;
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 0;
+            transition: var(--transition);
+        }
+        
+        /* Topbar */
+        .topbar {
+            background: white;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-bottom: 1px solid #eaeaea;
+        }
+        
+        .topbar h5 {
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .topbar .text-end {
+            text-align: right;
+        }
+        
+        .topbar strong {
+            font-size: 0.9rem;
+            color: var(--dark);
+        }
+        
+        .topbar small {
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        
+        /* Content Area */
+        .content-area {
+            padding: 2rem;
+        }
+        
+        /* Stats Cards */
+        .stats-row {
+            margin-bottom: 2rem;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: none;
+            transition: var(--transition);
+            height: 100%;
+            text-align: center;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+        
+        .stats-card i {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        .stats-card h6 {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .stats-card h4 {
+            font-weight: 700;
+            margin: 0;
+            color: var(--dark);
+        }
+        
+        /* Cards */
+        .card-custom {
+            background: white;
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: none;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-custom h4, .card-custom h5 {
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        /* Pet Cards */
+        .pet-card {
+            background: white;
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            margin-bottom: 1.5rem;
+            border: none;
+        }
+        
+        .pet-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        }
+        
+        .pet-card-header {
+            padding: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .pet-card-body {
+            padding: 1.25rem;
+        }
+        
+        .pet-species-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        
+        /* QR Code */
+        .qr-preview {
+            width: 80px;
+            height: 80px;
+            border: 1px solid #eaeaea;
+            border-radius: 8px;
+            padding: 5px;
+            background: white;
+        }
+        
+        /* Health Status */
+        .health-status {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-bottom: 0.5rem;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .status-good { background: var(--success); }
+        .status-warning { background: var(--warning); }
+        .status-bad { background: var(--danger); }
+        
+        /* Alerts */
+        .alert-custom {
+            border-radius: var(--radius);
+            border: none;
+            box-shadow: var(--shadow);
+        }
+        
+        /* Buttons */
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: var(--transition);
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .btn-primary:hover {
+            background: #3a57d8;
+            border-color: #3a57d8;
+            transform: translateY(-2px);
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #6c757d;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #dee2e6;
+        }
+        
+        /* Debug Info */
+        .debug-info {
+            background: #f8f9fa;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-bottom: 1.5rem;
+            border-left: 3px solid var(--warning);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 70px;
+                overflow: visible;
+            }
+            
+            .sidebar .brand span, 
+            .sidebar a span:not(.icon),
+            .profile h6, 
+            .profile small {
+                display: none;
+            }
+            
+            .profile img {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .main-content {
+                margin-left: 70px;
+            }
+            
+            .topbar {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            
+            .content-area {
+                padding: 1rem;
+            }
+        }
+        
+        /* Wellness Section */
+        .wellness-section {
+            background: white;
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
         }
         
         .recommendation-card {
-            border-radius: 12px;
+            border-radius: 8px;
             padding: 1rem;
             margin-bottom: 1rem;
             border: 1px solid #e9ecef;
-            transition: transform 0.2s;
+            transition: var(--transition);
+            border-left: 4px solid var(--primary);
         }
         
         .recommendation-card:hover {
@@ -423,18 +766,11 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
             box-shadow: var(--shadow);
         }
         
-        .recommendation-high {
-            border-left: 4px solid var(--red);
-        }
+        .recommendation-high { border-left-color: var(--danger); }
+        .recommendation-medium { border-left-color: var(--warning); }
+        .recommendation-low { border-left-color: var(--success); }
         
-        .recommendation-medium {
-            border-left: 4px solid var(--orange);
-        }
-        
-        .recommendation-low {
-            border-left: 4px solid var(--green);
-        }
-        
+        /* Vaccination Timeline */
         .vaccination-timeline {
             position: relative;
             padding-left: 2rem;
@@ -463,70 +799,64 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: var(--blue);
+            background: var(--primary);
         }
         
-        .timeline-item.due::before {
-            background: var(--red);
-        }
-        
-        .timeline-item.upcoming::before {
-            background: var(--orange);
-        }
+        .timeline-item.due::before { background: var(--danger); }
+        .timeline-item.upcoming::before { background: var(--warning); }
         
         .prediction-badge {
             font-size: 0.75rem;
             padding: 0.25rem 0.5rem;
         }
         
-        .wellness-section {
-            background: white;
-            border-radius: var(--radius);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: var(--shadow);
+        /* Search Bar */
+        .search-container {
+            position: relative;
         }
         
-        .risk-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 0.5rem;
+        .search-container .form-control {
+            border-radius: 20px;
+            padding-left: 2.5rem;
         }
         
-        .risk-high { background-color: var(--red); }
-        .risk-medium { background-color: var(--orange); }
-        .risk-low { background-color: var(--green); }
+        .search-container .fa-search {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            z-index: 5;
+        }
     </style>
 </head>
 <body>
 <div class="wrapper">
     <!-- Sidebar -->
     <div class="sidebar">
-        <div class="brand"><i class="fa-solid fa-paw"></i> PetMedQR</div>
+        <div class="brand"><i class="fa-solid fa-paw"></i> <span>PetMedQR</span></div>
         <div class="profile">
             <img src="https://i.pravatar.cc/100?u=<?php echo urlencode($user['name']); ?>" alt="User">
-            <h6 id="ownerNameSidebar"><?php echo htmlspecialchars($user['name']); ?></h6>
-            <small class="text-muted"><?php echo htmlspecialchars($user['role']); ?></small>
+            <h6><?php echo htmlspecialchars($user['name']); ?></h6>
+            <small><?php echo htmlspecialchars($user['role']); ?></small>
         </div>
         <a href="user_dashboard.php" class="active">
-            <div class="icon"><i class="fa-solid fa-gauge"></i></div> Dashboard
+            <div class="icon"><i class="fa-solid fa-gauge"></i></div> <span>Dashboard</span>
         </a>
         <a href="user_pet_profile.php">
-            <div class="icon"><i class="fa-solid fa-dog"></i></div> My Pets
+            <div class="icon"><i class="fa-solid fa-dog"></i></div> <span>My Pets</span>
         </a>
         <a href="qr_code.php">
-            <div class="icon"><i class="fa-solid fa-qrcode"></i></div> QR Codes
+            <div class="icon"><i class="fa-solid fa-qrcode"></i></div> <span>QR Codes</span>
         </a>
         <a href="register_pet.php">
-            <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> Register Pet
+            <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> <span>Register Pet</span>
         </a>
         <a href="#">
-            <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
+            <div class="icon"><i class="fa-solid fa-gear"></i></div> <span>Settings</span>
         </a>
         <a href="logout.php" class="logout">
-            <div class="icon"><i class="fa-solid fa-right-from-bracket"></i></div> Logout
+            <div class="icon"><i class="fa-solid fa-right-from-bracket"></i></div> <span>Logout</span>
         </a>
     </div>
 
@@ -534,13 +864,13 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
         <!-- Topbar -->
         <div class="topbar">
             <div>
-                <h5 class="mb-0">Good Morning, <span id="ownerName"><?php echo htmlspecialchars($user['name']); ?></span> 👋</h5>
+                <h5 class="mb-1">Good Morning, <span id="ownerName"><?php echo htmlspecialchars($user['name']); ?></span> 👋</h5>
                 <small class="text-muted">Here's your pet health overview</small>
             </div>
             <div class="d-flex align-items-center gap-3">
-                <div class="input-group" style="width:300px">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
                     <input type="text" placeholder="Search pet, vaccine, vet..." class="form-control">
-                    <button class="btn btn-outline-secondary" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
                 </div>
                 <div class="text-end">
                     <strong id="currentDate"></strong><br>
@@ -549,321 +879,199 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
             </div>
         </div>
 
-        <!-- Success/Error Messages -->
-        <?php if (isset($_SESSION['success'])): ?>
-            <div class="alert alert-success alert-custom alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle me-2"></i><?php echo $_SESSION['success']; ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-            <?php unset($_SESSION['success']); ?>
-        <?php endif; ?>
-        
-        <?php if (isset($_SESSION['error'])): ?>
-            <div class="alert alert-danger alert-custom alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-circle me-2"></i><?php echo $_SESSION['error']; ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-            <?php unset($_SESSION['error']); ?>
-        <?php endif; ?>
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Success/Error Messages -->
+            <?php if (isset($_SESSION['success'])): ?>
+                <div class="alert alert-success alert-custom alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i><?php echo $_SESSION['success']; ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <?php unset($_SESSION['success']); ?>
+            <?php endif; ?>
+            
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="alert alert-danger alert-custom alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i><?php echo $_SESSION['error']; ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <?php unset($_SESSION['error']); ?>
+            <?php endif; ?>
 
-        <!-- VACCINATION ALERTS -->
-        <?php if ($petsNeedingVaccination > 0): ?>
-            <div class="alert alert-vaccination alert-dismissible fade show" role="alert">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-exclamation-triangle fa-2x me-3 text-danger"></i>
-                    <div>
-                        <h6 class="alert-heading mb-1">Vaccination Alert!</h6>
-                        <p class="mb-0"><?php echo $petsNeedingVaccination; ?> of your pets need vaccination updates.</p>
+            <!-- Debug Info -->
+            <div class="debug-info">
+                <strong>Debug Info:</strong> 
+                User ID: <?php echo $user_id; ?> | 
+                Total Pets: <?php echo $totalPets; ?> | 
+                Pets Needing Vaccination: <?php echo $petsNeedingVaccination; ?> |
+                Total Records: <?php 
+                    $totalRecords = 0;
+                    foreach ($pets as $pet) {
+                        $totalRecords += count($pet['records']);
+                    }
+                    echo $totalRecords;
+                ?>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row stats-row">
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="stats-card">
+                        <i class="fa-solid fa-paw text-primary"></i>
+                        <h6>Registered Pets</h6>
+                        <h4 id="totalPets"><?php echo $totalPets; ?></h4>
                     </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="stats-card">
+                        <i class="fa-solid fa-syringe text-success"></i>
+                        <h6>Vaccinated Pets</h6>
+                        <h4 id="vaccinatedPets"><?php echo $vaccinatedPets; ?></h4>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="stats-card">
+                        <i class="fa-solid fa-bell text-warning"></i>
+                        <h6>Vaccination Due</h6>
+                        <h4 id="upcomingVaccines"><?php echo $petsNeedingVaccination; ?></h4>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="stats-card">
+                        <i class="fa-solid fa-stethoscope text-info"></i>
+                        <h6>Recent Visits</h6>
+                        <h4 id="recentVisits"><?php echo $recentVisits; ?></h4>
+                    </div>
+                </div>
             </div>
-        <?php endif; ?>
 
-        <!-- Debug Info -->
-        <div class="debug-info">
-            <strong>Debug Info:</strong> 
-            User ID: <?php echo $user_id; ?> | 
-            Total Pets: <?php echo $totalPets; ?> | 
-            Pets Needing Vaccination: <?php echo $petsNeedingVaccination; ?> |
-            Total Records: <?php 
-                $totalRecords = 0;
-                foreach ($pets as $pet) {
-                    $totalRecords += count($pet['records']);
-                }
-                echo $totalRecords;
-            ?>
-        </div>
-
-        <!-- Stats Cards -->
-        <div class="row stats-row mb-4">
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background-color: var(--blue-light);">
-                    <i class="fa-solid fa-paw text-primary"></i>
-                    <h6>Registered Pets</h6>
-                    <h4 id="totalPets"><?php echo $totalPets; ?></h4>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background-color: var(--green-light);">
-                    <i class="fa-solid fa-syringe text-success"></i>
-                    <h6>Vaccinated Pets</h6>
-                    <h4 id="vaccinatedPets"><?php echo $vaccinatedPets; ?></h4>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background-color: <?php echo $petsNeedingVaccination > 0 ? 'var(--red-light)' : 'var(--orange-light)'; ?>;">
-                    <i class="fa-solid fa-bell text-<?php echo $petsNeedingVaccination > 0 ? 'danger' : 'warning'; ?>"></i>
-                    <h6>Vaccination Due</h6>
-                    <h4 id="upcomingVaccines"><?php echo $petsNeedingVaccination; ?></h4>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background-color: var(--pink-light);">
-                    <i class="fa-solid fa-stethoscope text-danger"></i>
-                    <h6>Recent Visits</h6>
-                    <h4 id="recentVisits"><?php echo $recentVisits; ?></h4>
-                </div>
-            </div>
-        </div>
-
-        <!-- WELLNESS RECOMMENDATIONS SECTION -->
-        <?php if (!empty($pets)): ?>
-        <div class="wellness-section">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0"><i class="fas fa-heartbeat me-2"></i>Health & Wellness Recommendations</h4>
-                <small class="text-muted">AI-powered insights for your pets</small>
-            </div>
-            
-            <div class="row">
-                <?php foreach ($pets as $petId => $pet): ?>
-                    <?php $recommendations = $wellnessRecommendations[$petId] ?? []; ?>
-                    <?php if (!empty($recommendations)): ?>
-                    <div class="col-lg-6 mb-3">
-                        <div class="card-custom">
-                            <h6 class="mb-3">
-                                <i class="fas fa-paw me-2"></i><?php echo htmlspecialchars($pet['pet_name']); ?>
-                                <span class="badge bg-<?php echo $vaccinationPredictions[$petId]['risk_level'] === 'high' ? 'danger' : 
-                                                       ($vaccinationPredictions[$petId]['risk_level'] === 'medium' ? 'warning' : 'success'); ?> prediction-badge ms-2">
-                                    <?php echo ucfirst($vaccinationPredictions[$petId]['risk_level']); ?> Risk
-                                </span>
-                            </h6>
-                            
-                            <?php foreach ($recommendations as $rec): ?>
-                                <div class="recommendation-card recommendation-<?php echo $rec['priority']; ?>">
-                                    <div class="d-flex align-items-start">
-                                        <i class="fas <?php echo $rec['icon']; ?> fa-lg text-<?php echo $rec['color']; ?> me-3 mt-1"></i>
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-1"><?php echo $rec['title']; ?></h6>
-                                            <p class="mb-1 small"><?php echo $rec['message']; ?></p>
-                                            <small class="text-muted">
-                                                <i class="fas fa-lightbulb me-1"></i><?php echo $rec['action']; ?>
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
+            <!-- VACCINATION ALERTS -->
+            <?php if ($petsNeedingVaccination > 0): ?>
+                <div class="alert alert-warning alert-custom alert-dismissible fade show" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle fa-lg me-3"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1">Vaccination Alert!</h6>
+                            <p class="mb-0"><?php echo $petsNeedingVaccination; ?> of your pets need vaccination updates.</p>
                         </div>
                     </div>
-                    <?php endif; ?>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endif; ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
 
-        <!-- VACCINATION PREDICTION TIMELINE -->
-        <?php if (!empty($pets)): ?>
-        <div class="wellness-section">
-            <h4 class="mb-4"><i class="fas fa-calendar-alt me-2"></i>Vaccination Schedule</h4>
-            
-            <div class="vaccination-timeline">
-                <?php foreach ($pets as $petId => $pet): ?>
-                    <?php $prediction = $vaccinationPredictions[$petId]; ?>
-                    <div class="timeline-item <?php echo $prediction['needs_vaccination'] ? 'due' : 'upcoming'; ?>">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="mb-1"><?php echo htmlspecialchars($pet['pet_name']); ?></h6>
-                                <p class="mb-1 small"><?php echo $prediction['message']; ?></p>
-                                <?php if (!empty($prediction['recommended_vaccines'])): ?>
-                                    <div class="mt-1">
-                                        <?php foreach ($prediction['recommended_vaccines'] as $vaccine): ?>
-                                            <span class="badge bg-danger me-1"><?php echo $vaccine; ?></span>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                            <div class="text-end">
-                                <?php if ($prediction['next_vaccination_date']): ?>
-                                    <small class="text-muted d-block">
-                                        <?php echo $prediction['needs_vaccination'] ? 'Overdue since' : 'Next due'; ?>
-                                    </small>
-                                    <strong class="<?php echo $prediction['needs_vaccination'] ? 'text-danger' : 'text-warning'; ?>">
-                                        <?php echo date('M j, Y', strtotime($prediction['next_vaccination_date'])); ?>
-                                    </strong>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- Quick Add Pet Button -->
-        <div class="card-custom text-center">
-            <h5><i class="fa-solid fa-paw me-2"></i>Manage Your Pets</h5>
-            <p class="text-muted">Register your pets to track their medical records and generate QR codes</p>
-            <a href="register_pet.php" class="btn btn-primary">
-                <i class="fa-solid fa-plus-circle me-1"></i> Add New Pet
-            </a>
-        </div>
-
-        <!-- Pets Section -->
-        <div class="card-custom">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0"><i class="fa-solid fa-paw me-2"></i>Your Pets & Medical Records</h4>
-                <a href="register_pet.php" class="btn btn-sm btn-primary">
-                    <i class="fa-solid fa-plus me-1"></i> Add Pet
+            <!-- Quick Actions -->
+            <div class="card-custom text-center">
+                <h5><i class="fa-solid fa-paw me-2"></i>Manage Your Pets</h5>
+                <p class="text-muted mb-3">Register your pets to track their medical records and generate QR codes</p>
+                <a href="register_pet.php" class="btn btn-primary">
+                    <i class="fa-solid fa-plus-circle me-1"></i> Add New Pet
                 </a>
             </div>
-            
-            <?php if (empty($pets)): ?>
-                <div class="empty-state">
-                    <i class="fa-solid fa-paw"></i>
-                    <h5>No Pets Registered</h5>
-                    <p class="text-muted">You haven't added any pets yet. Register your first pet to get started!</p>
-                    <a href="register_pet.php" class="btn btn-primary">
-                        <i class="fa-solid fa-plus me-1"></i> Add Your First Pet
+
+            <!-- Pets Section -->
+            <div class="card-custom">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0"><i class="fa-solid fa-paw me-2"></i>Your Pets & Medical Records</h4>
+                    <a href="register_pet.php" class="btn btn-primary btn-sm">
+                        <i class="fa-solid fa-plus me-1"></i> Add Pet
                     </a>
                 </div>
-            <?php else: ?>
-                <div class="row">
-                    <?php foreach ($pets as $pet): ?>
-                        <?php
-                        $hasVaccination = false;
-                        $hasRecentVisit = false;
-                        $prediction = $vaccinationPredictions[$pet['pet_id']];
-                        
-                        foreach ($pet['records'] as $record) {
-                            if (!empty($record['service_type']) && stripos($record['service_type'], 'vaccin') !== false) {
-                                $hasVaccination = true;
+                
+                <?php if (empty($pets)): ?>
+                    <div class="empty-state">
+                        <i class="fa-solid fa-paw"></i>
+                        <h5>No Pets Registered</h5>
+                        <p class="text-muted">You haven't added any pets yet. Register your first pet to get started!</p>
+                        <a href="register_pet.php" class="btn btn-primary">
+                            <i class="fa-solid fa-plus me-1"></i> Add Your First Pet
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <div class="row">
+                        <?php foreach ($pets as $pet): ?>
+                            <?php
+                            $hasVaccination = false;
+                            $hasRecentVisit = false;
+                            $prediction = $vaccinationPredictions[$pet['pet_id']];
+                            
+                            foreach ($pet['records'] as $record) {
+                                if (!empty($record['service_type']) && stripos($record['service_type'], 'vaccin') !== false) {
+                                    $hasVaccination = true;
+                                }
+                                if (!empty($record['service_date']) && $record['service_date'] >= $thirtyDaysAgo) {
+                                    $hasRecentVisit = true;
+                                }
                             }
-                            if (!empty($record['service_date']) && $record['service_date'] >= $thirtyDaysAgo) {
-                                $hasRecentVisit = true;
-                            }
-                        }
-                        
-                        // Enhanced health status with vaccination prediction
-                        if ($prediction['needs_vaccination']) {
-                            $healthStatus = 'Vaccination Due';
-                            $statusClass = 'status-bad';
-                        } else {
-                            $healthStatus = $hasVaccination ? 'Good Health' : 'Needs Vaccination';
-                            $statusClass = $hasVaccination ? 'status-good' : 'status-warning';
-                            if (!$hasVaccination && !$hasRecentVisit) {
-                                $healthStatus = 'Needs Checkup';
+                            
+                            // Enhanced health status with vaccination prediction
+                            if ($prediction['needs_vaccination']) {
+                                $healthStatus = 'Vaccination Due';
                                 $statusClass = 'status-bad';
+                            } else {
+                                $healthStatus = $hasVaccination ? 'Good Health' : 'Needs Vaccination';
+                                $statusClass = $hasVaccination ? 'status-good' : 'status-warning';
+                                if (!$hasVaccination && !$hasRecentVisit) {
+                                    $healthStatus = 'Needs Checkup';
+                                    $statusClass = 'status-bad';
+                                }
                             }
-                        }
-                        ?>
-                        <div class="col-md-6 col-lg-6 mb-3">
-                            <div class="pet-card">
-                                <div class="pet-card-header" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#e8f4fd' : '#fde8f2'; ?>">
-                                    <div>
-                                        <h5 class="mb-0"><?php echo htmlspecialchars($pet['pet_name']); ?></h5>
-                                        <small class="text-muted"><?php echo htmlspecialchars($pet['species']) . " • " . htmlspecialchars($pet['breed']); ?></small>
-                                    </div>
-                                    <div class="pet-species-icon" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bbdefb' : '#f8bbd0'; ?>">
-                                        <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
-                                    </div>
-                                </div>
-                                <div class="pet-card-body">
-                                    <!-- Vaccination Alert Badge -->
-                                    <?php if ($prediction['needs_vaccination']): ?>
-                                        <div class="alert alert-warning alert-sm d-flex align-items-center mb-3 py-2">
-                                            <i class="fas fa-exclamation-triangle me-2"></i>
-                                            <small class="flex-grow-1">Vaccination due: <?php echo implode(', ', $prediction['recommended_vaccines']); ?></small>
+                            ?>
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="pet-card">
+                                    <div class="pet-card-header" style="background: <?php echo strtolower($pet['species']) == 'dog' ? 'var(--info-light)' : 'var(--secondary-light)'; ?>">
+                                        <div>
+                                            <h5 class="mb-0"><?php echo htmlspecialchars($pet['pet_name']); ?></h5>
+                                            <small class="text-muted"><?php echo htmlspecialchars($pet['species']) . " • " . htmlspecialchars($pet['breed']); ?></small>
                                         </div>
-                                    <?php endif; ?>
-                                    
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div id="qrcode-<?php echo $pet['pet_id']; ?>" class="me-3 qr-preview"></div>
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex justify-content-between">
-                                                <div>
-                                                    <strong>Age:</strong> <?php echo htmlspecialchars($pet['age']); ?> years<br>
-                                                    <strong>Gender:</strong> <?php echo htmlspecialchars($pet['gender']) ?: 'Not specified'; ?><br>
-                                                    <strong>Registered:</strong> <?php echo date('M j, Y', strtotime($pet['date_registered'])); ?>
-                                                </div>
-                                                <div class="text-end">
-                                                    <div class="health-status">
-                                                        <span class="status-dot <?php echo $statusClass; ?>"></span>
-                                                        <small><?php echo $healthStatus; ?></small>
+                                        <div class="pet-species-icon" style="background: <?php echo strtolower($pet['species']) == 'dog' ? 'var(--info)' : 'var(--secondary)'; ?>">
+                                            <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?> text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div class="pet-card-body">
+                                        <!-- Vaccination Alert Badge -->
+                                        <?php if ($prediction['needs_vaccination']): ?>
+                                            <div class="alert alert-warning alert-sm d-flex align-items-center mb-3 py-2">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                <small class="flex-grow-1">Vaccination due</small>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <div class="d-flex align-items-center mb-3">
+                                            <div id="qrcode-<?php echo $pet['pet_id']; ?>" class="me-3 qr-preview"></div>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between">
+                                                    <div>
+                                                        <strong>Age:</strong> <?php echo htmlspecialchars($pet['age']); ?> years<br>
+                                                        <strong>Gender:</strong> <?php echo htmlspecialchars($pet['gender']) ?: 'Not specified'; ?><br>
+                                                        <strong>Registered:</strong> <?php echo date('M j, Y', strtotime($pet['date_registered'])); ?>
                                                     </div>
-                                                    <small class="text-muted">ID: <?php echo htmlspecialchars($pet['pet_id']); ?></small>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div>
-                                            <button class="btn btn-sm btn-outline-primary" onclick="downloadQRCode(<?php echo $pet['pet_id']; ?>)">
-                                                <i class="fas fa-download"></i>
+                                        
+                                        <div class="health-status">
+                                            <span class="status-dot <?php echo $statusClass; ?>"></span>
+                                            <small><?php echo $healthStatus; ?></small>
+                                        </div>
+                                        
+                                        <div class="d-flex justify-content-between mt-3">
+                                            <button class="btn btn-outline-primary btn-sm" onclick="showQRModal(<?php echo $pet['pet_id']; ?>)">
+                                                <i class="fas fa-qrcode me-1"></i> View QR
                                             </button>
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="downloadQRCode(<?php echo $pet['pet_id']; ?>)">
+                                                <i class="fas fa-download me-1"></i> Download
+                                            </button>
+                                            <a href="user_pet_profile.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-primary btn-sm">
+                                                <i class="fas fa-eye me-1"></i> View Details
+                                            </a>
                                         </div>
                                     </div>
-                                    
-                                    <!-- QR Data Preview -->
-                                    <div id="qr-data-<?php echo $pet['pet_id']; ?>" class="qr-data-preview" style="display: none;"></div>
-                                    
-                                    <?php if (!empty($pet['records'])): ?>
-                                        <div class="table-responsive">
-                                            <table class="table table-sm medical-table">
-                                                <thead class="table-light">
-                                                    <tr>
-                                                        <th>Date</th>
-                                                        <th>Service Type</th>
-                                                        <th>Description</th>
-                                                        <th>Veterinarian</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ($pet['records'] as $record): ?>
-                                                        <?php if (!empty($record['service_date']) && $record['service_date'] !== '0000-00-00'): ?>
-                                                            <tr>
-                                                                <td><?php echo date('M j, Y', strtotime($record['service_date'])); ?></td>
-                                                                <td>
-                                                                    <?php if (!empty($record['service_type'])): ?>
-                                                                        <?php 
-                                                                        $badgeClass = 'badge-service';
-                                                                        if (stripos($record['service_type'], 'vaccin') !== false) {
-                                                                            $badgeClass = 'badge-vaccine';
-                                                                        } elseif (stripos($record['service_type'], 'check') !== false) {
-                                                                            $badgeClass = 'badge-checkup';
-                                                                        }
-                                                                        ?>
-                                                                        <span class="<?php echo $badgeClass; ?>"><?php echo htmlspecialchars($record['service_type']); ?></span>
-                                                                    <?php else: ?>
-                                                                        -
-                                                                    <?php endif; ?>
-                                                                </td>
-                                                                <td><?php echo htmlspecialchars($record['service_description'] ?? '-'); ?></td>
-                                                                <td><?php echo htmlspecialchars($record['veterinarian'] ?? '-'); ?></td>
-                                                            </tr>
-                                                        <?php endif; ?>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    <?php else: ?>
-                                        <div class="alert alert-info mb-0">
-                                            <i class="fas fa-info-circle me-1"></i> No medical records found for <?php echo htmlspecialchars($pet['pet_name']); ?>.
-                                        </div>
-                                    <?php endif; ?>
                                 </div>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </div>
@@ -878,7 +1086,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
             </div>
             <div class="modal-body text-center">
                 <div id="modalQrContainer" class="mb-3"></div>
-                <div id="modalQrData" class="qr-data-preview mb-3"></div>
                 <p class="text-muted">Scan this QR code to view medical records</p>
             </div>
             <div class="modal-footer">
@@ -886,18 +1093,10 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
                 <button type="button" class="btn btn-primary" id="downloadModalQr">
                     <i class="fas fa-download me-1"></i> Download
                 </button>
-                <button type="button" class="btn btn-info" onclick="toggleQrData()">
-                    <i class="fas fa-eye me-1"></i> View Data
-                </button>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Test Button -->
-<button class="btn btn-info test-btn" onclick="testAllQRCodes()">
-    <i class="fas fa-bug me-1"></i> Test QR Codes
-</button>
 
 <!-- Bootstrap & jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -924,20 +1123,7 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
                 gender: '<?php echo addslashes($pet['gender']); ?>',
                 medicalNotes: '<?php echo addslashes($pet['medical_notes']); ?>',
                 vetContact: '<?php echo addslashes($pet['vet_contact']); ?>',
-                registered: '<?php echo $pet['date_registered']; ?>',
-                vaccinationPrediction: <?php echo json_encode($vaccinationPredictions[$pet['pet_id']]); ?>,
-                wellnessRecommendations: <?php echo json_encode($wellnessRecommendations[$pet['pet_id']]); ?>,
-                records: [
-                    <?php foreach ($pet['records'] as $record): ?>
-                        { 
-                            service_date: '<?php echo $record['service_date'] ?? ''; ?>', 
-                            service_type: '<?php echo addslashes($record['service_type'] ?? ''); ?>', 
-                            service_description: '<?php echo addslashes($record['service_description'] ?? ''); ?>', 
-                            veterinarian: '<?php echo addslashes($record['veterinarian'] ?? ''); ?>',
-                            notes: '<?php echo addslashes($record['notes'] ?? ''); ?>'
-                        },
-                    <?php endforeach; ?>
-                ]
+                registered: '<?php echo $pet['date_registered']; ?>'
             });
         <?php endforeach; ?>
         
@@ -958,9 +1144,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
                 bsAlert.close();
             });
         }, 5000);
-        
-        // Initialize vaccination reminder tooltips
-        initializeVaccinationTooltips();
     });
 
     // Update date and time display
@@ -996,37 +1179,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
         qrData += `Medical Notes: ${petData.medicalNotes || 'None'}\n`;
         qrData += `Veterinarian: ${petData.vetContact || 'Not specified'}\n\n`;
         
-        // Add vaccination prediction if available
-        if (petData.vaccinationPrediction) {
-            qrData += `VACCINATION STATUS:\n`;
-            qrData += `-------------------\n`;
-            qrData += `Status: ${petData.vaccinationPrediction.needs_vaccination ? 'VACCINATION DUE' : 'Up to date'}\n`;
-            qrData += `Message: ${petData.vaccinationPrediction.message}\n`;
-            if (petData.vaccinationPrediction.recommended_vaccines.length > 0) {
-                qrData += `Recommended: ${petData.vaccinationPrediction.recommended_vaccines.join(', ')}\n`;
-            }
-            qrData += `\n`;
-        }
-        
-        qrData += `MEDICAL HISTORY:\n`;
-        qrData += `----------------\n`;
-        
-        if (petData.records && petData.records.length > 0) {
-            petData.records.forEach((record, index) => {
-                if (record.service_date) {
-                    qrData += `VISIT ${index + 1}:\n`;
-                    qrData += `Date: ${record.service_date}\n`;
-                    if (record.service_type) qrData += `Service: ${record.service_type}\n`;
-                    if (record.service_description) qrData += `Description: ${record.service_description}\n`;
-                    if (record.veterinarian) qrData += `Veterinarian: ${record.veterinarian}\n`;
-                    if (record.notes) qrData += `Notes: ${record.notes}\n`;
-                    qrData += `\n`;
-                }
-            });
-        } else {
-            qrData += `No medical records available.\n`;
-        }
-        
         qrData += `\nGenerated on: ${new Date().toLocaleDateString()}`;
         qrData += `\nOwner: ${document.getElementById('ownerName').textContent}`;
         qrData += `\nPet ID: ${petData.petId}`;
@@ -1047,35 +1199,23 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
         container.setAttribute('data-qr-content', qrData);
         container.setAttribute('data-pet-name', petData.petName);
         container.setAttribute('data-pet-id', petData.petId);
-        
-        // Also update the QR data preview
-        const qrDataPreview = document.getElementById(`qr-data-${petData.petId}`);
-        if (qrDataPreview) {
-            qrDataPreview.textContent = qrData;
-        }
     }
 
     // Function to show QR code in modal
     function showQRModal(petId) {
         const qrContainer = document.getElementById(`qrcode-${petId}`);
         const modalQrContainer = document.getElementById('modalQrContainer');
-        const modalQrData = document.getElementById('modalQrData');
         const qrModalTitle = document.getElementById('qrModalTitle');
         
         if (!qrContainer || !modalQrContainer) return;
         
         const petName = qrContainer.getAttribute('data-pet-name');
-        const qrContent = qrContainer.getAttribute('data-qr-content');
         
         // Update modal title
         qrModalTitle.textContent = `QR Code - ${petName}`;
         
         // Copy QR code to modal
         modalQrContainer.innerHTML = qrContainer.innerHTML;
-        
-        // Set QR data
-        modalQrData.textContent = qrContent;
-        modalQrData.style.display = 'none';
         
         // Update download button
         const downloadBtn = document.getElementById('downloadModalQr');
@@ -1086,16 +1226,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
         // Show modal
         const qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
         qrModal.show();
-    }
-
-    // Function to toggle QR data visibility in modal
-    function toggleQrData() {
-        const qrData = document.getElementById('modalQrData');
-        if (qrData.style.display === 'none') {
-            qrData.style.display = 'block';
-        } else {
-            qrData.style.display = 'none';
-        }
     }
 
     // Function to download QR code as SVG
@@ -1140,105 +1270,41 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
         URL.revokeObjectURL(url);
     }
 
-    // Initialize vaccination tooltips
-    function initializeVaccinationTooltips() {
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    }
-
-    // Function to test all QR codes (for development)
-    function testAllQRCodes() {
-        const qrContainers = document.querySelectorAll('[id^="qrcode-"]');
-        console.log(`Testing ${qrContainers.length} QR codes...`);
-        
-        qrContainers.forEach(container => {
-            const petId = container.id.replace('qrcode-', '');
-            const petName = container.getAttribute('data-pet-name');
-            const hasContent = container.getAttribute('data-qr-content');
-            
-            console.log(`Pet ID: ${petId}, Name: ${petName}, Has Data: ${!!hasContent}`);
-            
-            if (!hasContent) {
-                console.warn(`No QR data for pet ${petName} (ID: ${petId})`);
-            }
-        });
-        
-        alert(`Tested ${qrContainers.length} QR codes. Check console for details.`);
-    }
-
     // Search functionality
     document.addEventListener('keydown', function(e) {
         // Ctrl+K for search focus (common shortcut)
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
             e.preventDefault();
-            const searchInput = document.querySelector('.input-group input');
+            const searchInput = document.querySelector('.search-container input');
             if (searchInput) searchInput.focus();
         }
-    });
-
-    // Pet card interactions
-    document.querySelectorAll('.pet-card').forEach(card => {
-        card.addEventListener('click', function(e) {
-            // Don't trigger if clicking on buttons or links
-            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button') || e.target.closest('a')) {
-                return;
-            }
-            
-            // Expand/collapse medical records
-            const recordsTable = this.querySelector('.table-responsive');
-            if (recordsTable) {
-                recordsTable.style.display = recordsTable.style.display === 'none' ? 'block' : 'none';
-            }
-        });
-    });
-
-    // Health status tooltips
-    document.querySelectorAll('.health-status').forEach(status => {
-        status.setAttribute('title', 'Click for details');
-        status.style.cursor = 'help';
-        
-        status.addEventListener('click', function() {
-            const petCard = this.closest('.pet-card');
-            const petName = petCard.querySelector('h5').textContent;
-            const statusText = this.querySelector('small').textContent;
-            
-            alert(`Health Status for ${petName}: ${statusText}\n\nThis status is based on vaccination records and recent vet visits.`);
-        });
     });
 
     // Responsive sidebar toggle for mobile
     function toggleSidebar() {
         const sidebar = document.querySelector('.sidebar');
-        sidebar.style.display = sidebar.style.display === 'none' ? 'flex' : 'none';
+        const mainContent = document.querySelector('.main-content');
+        
+        if (window.innerWidth <= 768) {
+            if (sidebar.style.width === '260px') {
+                sidebar.style.width = '70px';
+                mainContent.style.marginLeft = '70px';
+            } else {
+                sidebar.style.width = '260px';
+                mainContent.style.marginLeft = '260px';
+            }
+        }
     }
 
     // Add mobile menu button if needed
     if (window.innerWidth <= 768) {
-        const topbar = document.querySelector('.topbar');
+        const topbar = document.querySelector('.topbar > div:first-child');
         const menuButton = document.createElement('button');
-        menuButton.className = 'btn btn-primary d-md-none';
+        menuButton.className = 'btn btn-primary d-md-none me-3';
         menuButton.innerHTML = '<i class="fas fa-bars"></i>';
         menuButton.onclick = toggleSidebar;
         topbar.insertBefore(menuButton, topbar.firstChild);
     }
-
-    // Auto-refresh data every 5 minutes
-    setInterval(() => {
-        console.log('Auto-refreshing dashboard data...');
-        // In a real application, you might want to fetch updated data
-        // location.reload(); // Simple refresh for demo
-    }, 300000); // 5 minutes
-
-    // Export functions for global access (for debugging)
-    window.PetMedQR = {
-        generateQRCode,
-        showQRModal,
-        downloadQRCode,
-        testAllQRCodes,
-        toggleQrData
-    };
 
     console.log('PetMedQR Dashboard initialized successfully!');
 </script>
