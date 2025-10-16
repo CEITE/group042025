@@ -1,10 +1,5 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-session_start();
 include("conn.php");
-
 // PHPMailer includes
 require 'PHPMailer/src/Exception.php';
 require 'PHPMailer/src/PHPMailer.php';
@@ -312,5 +307,6 @@ if (isset($_POST['resend_otp'])) {
     }
 }
 ?>
+
 
 
