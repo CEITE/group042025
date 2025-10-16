@@ -157,13 +157,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['verify_otp']) && !iss
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
     $phone_number = trim($_POST['phone_number'] ?? '');
-    $address = trim($_POST['address'] ?? '');
+    
+    // Address fields
+    $region = trim($_POST['region'] ?? '');
+    $province = trim($_POST['province'] ?? '');
+    $city = trim($_POST['city'] ?? '');
+    $barangay = trim($_POST['barangay'] ?? '');
+    $street = trim($_POST['street'] ?? '');
+    $zip_code = trim($_POST['zip_code'] ?? '');
+    
+    // Combine address fields
+    $address = "{$street}, {$barangay}, {$city}, {$province}, {$region}, {$zip_code}";
     
     // Role is always 'user'
     $role = "user";
 
     // Validate inputs
-    if (empty($name) || empty($email) || empty($password)) {
+    if (empty($name) || empty($email) || empty($password) || empty($region) || empty($province) || empty($city) || empty($barangay)) {
         $error = "Please fill in all required fields";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Please enter a valid email address";
@@ -301,7 +311,7 @@ if (isset($_POST['resend_otp'])) {
     .form-label { font-weight: 600; margin-bottom: 8px; color: var(--ink); font-size: 14px; }
     .input-group { position: relative; }
     .input-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #6c757d; z-index: 5; }
-    .form-control { border-radius: 12px; padding: 0.85rem 1rem 0.85rem 3rem; }
+    .form-control, .form-select { border-radius: 12px; padding: 0.85rem 1rem 0.85rem 3rem; }
     .btn-pink { background: var(--pink-dark); color: #fff; border: none; border-radius: 12px; padding: 0.9rem 1.2rem; font-weight: 700; }
     .otp-inputs { display: flex; gap: 10px; justify-content: center; margin: 20px 0; }
     .otp-input { width: 50px; height: 60px; text-align: center; font-size: 24px; font-weight: bold; border: 2px solid #e9ecef; border-radius: 12px; }
@@ -311,6 +321,9 @@ if (isset($_POST['resend_otp'])) {
     .password-strength-bar { height: 100%; width: 0; transition: width 0.3s ease; border-radius: 5px; }
     .password-requirements { font-size: 12px; color: #6c757d; margin-top: 5px; }
     .password-toggle { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #6c757d; cursor: pointer; z-index: 5; }
+    
+    .address-section { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+    .section-title { font-weight: 600; color: var(--pink-dark); margin-bottom: 15px; font-size: 16px; }
   </style>
 </head>
 <body>
@@ -354,7 +367,7 @@ if (isset($_POST['resend_otp'])) {
         <!-- Registration Form -->
         <form method="POST">
           <div class="mb-3">
-            <label class="form-label">Full Name</label>
+            <label class="form-label">Full Name <span class="text-danger">*</span></label>
             <div class="input-group">
               <span class="input-icon"><i class="fas fa-user"></i></span>
               <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars($name ?? ''); ?>" required>
@@ -362,7 +375,7 @@ if (isset($_POST['resend_otp'])) {
           </div>
           
           <div class="mb-3">
-            <label class="form-label">Email</label>
+            <label class="form-label">Email <span class="text-danger">*</span></label>
             <div class="input-group">
               <span class="input-icon"><i class="fas fa-envelope"></i></span>
               <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars($email ?? ''); ?>" required>
@@ -373,20 +386,102 @@ if (isset($_POST['resend_otp'])) {
             <label class="form-label">Phone Number</label>
             <div class="input-group">
               <span class="input-icon"><i class="fas fa-phone"></i></span>
-              <input type="tel" name="phone_number" class="form-control" value="<?php echo htmlspecialchars($phone_number ?? ''); ?>">
+              <input type="tel" name="phone_number" class="form-control" value="<?php echo htmlspecialchars($phone_number ?? ''); ?>" placeholder="+63 XXX XXX XXXX">
+            </div>
+          </div>
+
+          <!-- Address Section -->
+          <div class="address-section">
+            <h6 class="section-title"><i class="fas fa-map-marker-alt me-2"></i>Address Information</h6>
+            
+            <div class="mb-3">
+              <label class="form-label">Region <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-icon"><i class="fas fa-map"></i></span>
+                <select name="region" class="form-select" required>
+                  <option value="">Select Region</option>
+                  <option value="CALABARZON" <?php echo ($region ?? '') == 'CALABARZON' ? 'selected' : ''; ?>>CALABARZON</option>
+                  <option value="Metro Manila" <?php echo ($region ?? '') == 'Metro Manila' ? 'selected' : ''; ?>>Metro Manila</option>
+                  <option value="Central Luzon" <?php echo ($region ?? '') == 'Central Luzon' ? 'selected' : ''; ?>>Central Luzon</option>
+                  <option value="Bicol Region" <?php echo ($region ?? '') == 'Bicol Region' ? 'selected' : ''; ?>>Bicol Region</option>
+                  <option value="Ilocos Region" <?php echo ($region ?? '') == 'Ilocos Region' ? 'selected' : ''; ?>>Ilocos Region</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Province <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-icon"><i class="fas fa-map"></i></span>
+                <select name="province" class="form-select" required>
+                  <option value="">Select Province</option>
+                  <option value="Laguna" <?php echo ($province ?? '') == 'Laguna' ? 'selected' : ''; ?>>Laguna</option>
+                  <option value="Cavite" <?php echo ($province ?? '') == 'Cavite' ? 'selected' : ''; ?>>Cavite</option>
+                  <option value="Batangas" <?php echo ($province ?? '') == 'Batangas' ? 'selected' : ''; ?>>Batangas</option>
+                  <option value="Rizal" <?php echo ($province ?? '') == 'Rizal' ? 'selected' : ''; ?>>Rizal</option>
+                  <option value="Quezon" <?php echo ($province ?? '') == 'Quezon' ? 'selected' : ''; ?>>Quezon</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">City/Municipality <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-icon"><i class="fas fa-city"></i></span>
+                <select name="city" class="form-select" required>
+                  <option value="">Select City/Municipality</option>
+                  <option value="Santa Rosa" <?php echo ($city ?? '') == 'Santa Rosa' ? 'selected' : ''; ?>>Santa Rosa</option>
+                  <option value="Calamba" <?php echo ($city ?? '') == 'Calamba' ? 'selected' : ''; ?>>Calamba</option>
+                  <option value="San Pedro" <?php echo ($city ?? '') == 'San Pedro' ? 'selected' : ''; ?>>San Pedro</option>
+                  <option value="Binan" <?php echo ($city ?? '') == 'Binan' ? 'selected' : ''; ?>>Binan</option>
+                  <option value="Cabuyao" <?php echo ($city ?? '') == 'Cabuyao' ? 'selected' : ''; ?>>Cabuyao</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Barangay <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-icon"><i class="fas fa-location-dot"></i></span>
+                <select name="barangay" class="form-select" required>
+                  <option value="">Select Barangay</option>
+                  <option value="Aplaya" <?php echo ($barangay ?? '') == 'Aplaya' ? 'selected' : ''; ?>>Aplaya</option>
+                  <option value="Balibago" <?php echo ($barangay ?? '') == 'Balibago' ? 'selected' : ''; ?>>Balibago</option>
+                  <option value="Caingin" <?php echo ($barangay ?? '') == 'Caingin' ? 'selected' : ''; ?>>Caingin</option>
+                  <option value="Dila" <?php echo ($barangay ?? '') == 'Dila' ? 'selected' : ''; ?>>Dila</option>
+                  <option value="Labas" <?php echo ($barangay ?? '') == 'Labas' ? 'selected' : ''; ?>>Labas</option>
+                  <option value="Macabling" <?php echo ($barangay ?? '') == 'Macabling' ? 'selected' : ''; ?>>Macabling</option>
+                  <option value="Malitlit" <?php echo ($barangay ?? '') == 'Malitlit' ? 'selected' : ''; ?>>Malitlit</option>
+                  <option value="Malusak" <?php echo ($barangay ?? '') == 'Malusak' ? 'selected' : ''; ?>>Malusak</option>
+                  <option value="Market Area" <?php echo ($barangay ?? '') == 'Market Area' ? 'selected' : ''; ?>>Market Area</option>
+                  <option value="Pook" <?php echo ($barangay ?? '') == 'Pook' ? 'selected' : ''; ?>>Pook</option>
+                  <option value="Pulong Santa Cruz" <?php echo ($barangay ?? '') == 'Pulong Santa Cruz' ? 'selected' : ''; ?>>Pulong Santa Cruz</option>
+                  <option value="Santo Domingo" <?php echo ($barangay ?? '') == 'Santo Domingo' ? 'selected' : ''; ?>>Santo Domingo</option>
+                  <option value="Sinalhan" <?php echo ($barangay ?? '') == 'Sinalhan' ? 'selected' : ''; ?>>Sinalhan</option>
+                  <option value="Tagapo" <?php echo ($barangay ?? '') == 'Tagapo' ? 'selected' : ''; ?>>Tagapo</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Street/Purok/Subdivision</label>
+              <div class="input-group">
+                <span class="input-icon"><i class="fas fa-road"></i></span>
+                <input type="text" name="street" class="form-control" value="<?php echo htmlspecialchars($street ?? ''); ?>" placeholder="Street name, Purok, or Subdivision">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">ZIP Code</label>
+              <div class="input-group">
+                <span class="input-icon"><i class="fas fa-mail-bulk"></i></span>
+                <input type="text" name="zip_code" class="form-control" value="<?php echo htmlspecialchars($zip_code ?? ''); ?>" placeholder="e.g., 4026">
+              </div>
             </div>
           </div>
           
           <div class="mb-3">
-            <label class="form-label">Address</label>
-            <div class="input-group">
-              <span class="input-icon"><i class="fas fa-home"></i></span>
-              <input type="text" name="address" class="form-control" value="<?php echo htmlspecialchars($address ?? ''); ?>">
-            </div>
-          </div>
-          
-          <div class="mb-3">
-            <label class="form-label">Password</label>
+            <label class="form-label">Password <span class="text-danger">*</span></label>
             <div class="input-group">
               <span class="input-icon"><i class="fas fa-lock"></i></span>
               <input type="password" name="password" id="password" class="form-control" placeholder="Create a strong password" required>
@@ -403,7 +498,7 @@ if (isset($_POST['resend_otp'])) {
           </div>
           
           <div class="mb-4">
-            <label class="form-label">Confirm Password</label>
+            <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
             <div class="input-group">
               <span class="input-icon"><i class="fas fa-lock"></i></span>
               <input type="password" name="confirm_password" id="confirmPassword" class="form-control" placeholder="Confirm your password" required>
@@ -420,6 +515,7 @@ if (isset($_POST['resend_otp'])) {
 
       <div class="text-center mt-3">
         <p class="mb-0">Already have an account? <a href="login.php" class="text-decoration-none">Sign In</a></p>
+        <small class="text-muted"><span class="text-danger">*</span> indicates required fields</small>
       </div>
     </div>
   </section>
@@ -510,6 +606,21 @@ if (isset($_POST['resend_otp'])) {
       });
       otpInputs[0].focus();
     }
+
+    // Simple address dependency (you can enhance this with API calls)
+    document.querySelector('select[name="region"]')?.addEventListener('change', function() {
+      if (this.value === 'CALABARZON') {
+        const provinceSelect = document.querySelector('select[name="province"]');
+        provinceSelect.innerHTML = `
+          <option value="">Select Province</option>
+          <option value="Laguna">Laguna</option>
+          <option value="Cavite">Cavite</option>
+          <option value="Batangas">Batangas</option>
+          <option value="Rizal">Rizal</option>
+          <option value="Quezon">Quezon</option>
+        `;
+      }
+    });
   </script>
 </body>
 </html>
