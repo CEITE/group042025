@@ -123,31 +123,19 @@ if ($currentPetId !== null) {
     $pets[$currentPetId]['records'] = $petRecords;
 }
 
-// ✅ 5. Enhanced Dashboard Statistics with Vaccination Prediction
+// ✅ 5. Dashboard statistics
 $totalPets = count($pets);
 $vaccinatedPets = 0;
 $upcomingReminders = 0;
 $recentVisits = 0;
-$petsNeedingVaccination = 0;
 $thirtyDaysAgo = date('Y-m-d', strtotime('-30 days'));
 
-// Store vaccination predictions and wellness recommendations
-$vaccinationPredictions = [];
-$wellnessRecommendations = [];
-
-foreach ($pets as $petId => $pet) {
+foreach ($pets as $pet) {
     $hasVaccination = false;
-    $lastVaccinationDate = null;
-    $petVaccinationDue = false;
-    $petRecommendations = [];
-    
     foreach ($pet['records'] as $record) {
         // Check if service type indicates vaccination
         if (!empty($record['service_type']) && stripos($record['service_type'], 'vaccin') !== false) {
             $hasVaccination = true;
-            if ($record['service_date'] && (!$lastVaccinationDate || $record['service_date'] > $lastVaccinationDate)) {
-                $lastVaccinationDate = $record['service_date'];
-            }
         }
         
         // Check for upcoming reminders
@@ -161,212 +149,9 @@ foreach ($pets as $petId => $pet) {
         }
     }
     
-    // Predict vaccination schedule
-    $vaccinationPrediction = predictVaccinationSchedule($pet, $lastVaccinationDate);
-    $vaccinationPredictions[$petId] = $vaccinationPrediction;
-    
-    if ($vaccinationPrediction['needs_vaccination']) {
-        $petsNeedingVaccination++;
-        $petVaccinationDue = true;
-    }
-    
-    // Generate wellness recommendations
-    $wellnessRecommendations[$petId] = generateWellnessRecommendations($pet, $vaccinationPrediction);
-    
     if ($hasVaccination) {
         $vaccinatedPets++;
     }
-}
-
-// ✅ 6. Vaccination Prediction Algorithm
-function predictVaccinationSchedule($pet, $lastVaccinationDate) {
-    $prediction = [
-        'needs_vaccination' => false,
-        'next_vaccination_date' => null,
-        'recommended_vaccines' => [],
-        'risk_level' => 'low',
-        'days_until_due' => null,
-        'message' => ''
-    ];
-    
-    $species = strtolower($pet['species']);
-    $age = floatval($pet['age']);
-    $currentDate = new DateTime();
-    
-    // Core vaccination schedule based on species and age
-    $coreVaccines = [];
-    
-    if ($species === 'dog') {
-        $coreVaccines = [
-            'Rabies' => 365, // Annual
-            'DHPP' => 365,   // Annual
-            'Bordetella' => 180, // Every 6 months
-            'Leptospirosis' => 365
-        ];
-        
-        // Puppy schedule
-        if ($age < 1) {
-            $coreVaccines['Puppy Series'] = 30; // Every 3-4 weeks until 16 weeks
-        }
-    } elseif ($species === 'cat') {
-        $coreVaccines = [
-            'Rabies' => 365, // Annual
-            'FVRCP' => 365,  // Annual
-            'Feline Leukemia' => 365
-        ];
-        
-        // Kitten schedule
-        if ($age < 1) {
-            $coreVaccines['Kitten Series'] = 30; // Every 3-4 weeks until 16 weeks
-        }
-    }
-    
-    // If no vaccination history, pet needs initial vaccination
-    if (!$lastVaccinationDate) {
-        $prediction['needs_vaccination'] = true;
-        $prediction['recommended_vaccines'] = array_keys($coreVaccines);
-        $prediction['risk_level'] = 'high';
-        $prediction['message'] = "Your {$species} needs initial vaccination series";
-        return $prediction;
-    }
-    
-    $lastVaxDate = new DateTime($lastVaccinationDate);
-    $daysSinceLastVax = $currentDate->diff($lastVaxDate)->days;
-    
-    // Check which vaccines are due
-    $dueVaccines = [];
-    foreach ($coreVaccines as $vaccine => $frequencyDays) {
-        if ($daysSinceLastVax >= $frequencyDays) {
-            $dueVaccines[] = $vaccine;
-        }
-    }
-    
-    if (!empty($dueVaccines)) {
-        $prediction['needs_vaccination'] = true;
-        $prediction['recommended_vaccines'] = $dueVaccines;
-        $prediction['risk_level'] = count($dueVaccines) > 2 ? 'high' : 'medium';
-        
-        // Calculate next due date (soonest overdue vaccine)
-        $soonestDueDays = min(array_map(function($vaccine) use ($coreVaccines, $daysSinceLastVax) {
-            return $coreVaccines[$vaccine] - $daysSinceLastVax;
-        }, $dueVaccines));
-        
-        $prediction['days_until_due'] = abs($soonestDueDays);
-        $nextDueDate = clone $currentDate;
-        $nextDueDate->modify("+{$prediction['days_until_due']} days");
-        $prediction['next_vaccination_date'] = $nextDueDate->format('Y-m-d');
-        
-        $prediction['message'] = "Vaccination due for: " . implode(', ', $dueVaccines);
-    } else {
-        // Find next vaccination date
-        $nextVaxDays = min(array_map(function($frequency) use ($daysSinceLastVax) {
-            return $frequency - $daysSinceLastVax;
-        }, $coreVaccines));
-        
-        $prediction['days_until_due'] = $nextVaxDays;
-        $nextDueDate = clone $currentDate;
-        $nextDueDate->modify("+{$nextVaxDays} days");
-        $prediction['next_vaccination_date'] = $nextDueDate->format('Y-m-d');
-        $prediction['message'] = "Next vaccination due in {$nextVaxDays} days";
-    }
-    
-    return $prediction;
-}
-
-// ✅ 7. Wellness Recommendations Algorithm
-function generateWellnessRecommendations($pet, $vaccinationPrediction) {
-    $recommendations = [];
-    $species = strtolower($pet['species']);
-    $age = floatval($pet['age']);
-    $weight = floatval($pet['weight']);
-    
-    // Vaccination recommendations
-    if ($vaccinationPrediction['needs_vaccination']) {
-        $riskColor = $vaccinationPrediction['risk_level'] === 'high' ? 'danger' : 
-                    ($vaccinationPrediction['risk_level'] === 'medium' ? 'warning' : 'info');
-        
-        $recommendations[] = [
-            'type' => 'vaccination',
-            'priority' => 'high',
-            'title' => 'Vaccination Required',
-            'message' => $vaccinationPrediction['message'],
-            'action' => 'Schedule vet appointment',
-            'icon' => 'fa-syringe',
-            'color' => $riskColor
-        ];
-    }
-    
-    // Age-based recommendations
-    if ($age < 1) {
-        $recommendations[] = [
-            'type' => 'developmental',
-            'priority' => 'medium',
-            'title' => 'Young Pet Care',
-            'message' => "Your {$species} is still developing. Regular checkups are essential.",
-            'action' => 'Monthly wellness check',
-            'icon' => 'fa-baby',
-            'color' => 'info'
-        ];
-    } elseif ($age > 7) {
-        $recommendations[] = [
-            'type' => 'senior_care',
-            'priority' => 'medium',
-            'title' => 'Senior Pet Care',
-            'message' => "Senior pets need more frequent health monitoring.",
-            'action' => 'Bi-annual senior screening',
-            'icon' => 'fa-heart',
-            'color' => 'warning'
-        ];
-    }
-    
-    // Weight monitoring
-    if ($weight) {
-        $idealWeightRange = $species === 'dog' ? [5, 40] : [3, 7]; // Simplified ranges
-        if ($weight < $idealWeightRange[0] || $weight > $idealWeightRange[1]) {
-            $recommendations[] = [
-                'type' => 'nutrition',
-                'priority' => 'medium',
-                'title' => 'Weight Management',
-                'message' => "Your pet's weight may need adjustment for optimal health.",
-                'action' => 'Consult vet about diet',
-                'icon' => 'fa-weight-scale',
-                'color' => 'warning'
-            ];
-        }
-    }
-    
-    // Seasonal recommendations
-    $currentMonth = date('n');
-    if ($currentMonth >= 3 && $currentMonth <= 6) {
-        $recommendations[] = [
-            'type' => 'seasonal',
-            'priority' => 'low',
-            'title' => 'Seasonal Alert',
-            'message' => "Warmer months increase risk of parasites and heat-related issues.",
-            'action' => 'Update parasite prevention',
-            'icon' => 'fa-sun',
-            'color' => 'info'
-        ];
-    }
-    
-    // General wellness
-    $recommendations[] = [
-        'type' => 'general',
-        'priority' => 'low',
-        'title' => 'Regular Exercise',
-        'message' => "Daily exercise maintains physical and mental health.",
-        'action' => '30 min daily activity',
-        'icon' => 'fa-person-running',
-        'color' => 'success'
-    ];
-    
-    // Sort by priority
-    usort($recommendations, function($a, $b) {
-        $priorityOrder = ['high' => 3, 'medium' => 2, 'low' => 1];
-        return $priorityOrder[$b['priority']] - $priorityOrder[$a['priority']];
-    });
-    
-    return array_slice($recommendations, 0, 5); // Return top 5 recommendations
 }
 ?>
 
@@ -390,114 +175,303 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
             --green-light: #eafaf1;
             --orange: #f39c12;
             --orange-light: #fef5e7;
-            --red: #e74c3c;
-            --red-light: #fdedec;
             --radius: 16px;
             --shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
         
-        /* ... (keep existing styles) ... */
-        
-        /* NEW STYLES FOR VACCINATION ALERTS AND RECOMMENDATIONS */
-        
-        .alert-vaccination {
-            border-left: 4px solid var(--red);
-            background: var(--red-light);
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            color: #333;
         }
         
-        .alert-wellness {
-            border-left: 4px solid var(--green);
-            background: var(--green-light);
+        .wrapper {
+            display: flex;
+            min-height: 100vh;
         }
         
-        .recommendation-card {
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border: 1px solid #e9ecef;
-            transition: transform 0.2s;
-        }
-        
-        .recommendation-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow);
-        }
-        
-        .recommendation-high {
-            border-left: 4px solid var(--red);
-        }
-        
-        .recommendation-medium {
-            border-left: 4px solid var(--orange);
-        }
-        
-        .recommendation-low {
-            border-left: 4px solid var(--green);
-        }
-        
-        .vaccination-timeline {
-            position: relative;
-            padding-left: 2rem;
-        }
-        
-        .vaccination-timeline::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: #e9ecef;
-        }
-        
-        .timeline-item {
-            position: relative;
-            margin-bottom: 1.5rem;
-        }
-        
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: -2rem;
-            top: 0.25rem;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--blue);
-        }
-        
-        .timeline-item.due::before {
-            background: var(--red);
-        }
-        
-        .timeline-item.upcoming::before {
-            background: var(--orange);
-        }
-        
-        .prediction-badge {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-        }
-        
-        .wellness-section {
-            background: white;
+        .sidebar {
+            width: 260px;
+            background: var(--pink-2);
+            padding: 2rem 1rem;
             border-radius: var(--radius);
-            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar .brand {
+            font-weight: 800;
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .sidebar .profile {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .sidebar .profile img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin-bottom: .5rem;
+            border: 3px solid rgba(0,0,0,0.1);
+            object-fit: cover;
+        }
+        
+        .sidebar a {
+            display: flex;
+            align-items: center;
+            padding: 12px 14px;
+            border-radius: 12px;
+            margin: .3rem 0;
+            text-decoration: none;
+            color: #333;
+            font-weight: 600;
+            transition: .2s;
+        }
+        
+        .sidebar a .icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            background: rgba(255,255,255,.6);
+            margin-right: 10px;
+        }
+        
+        .sidebar a.active, .sidebar a:hover {
+            background: var(--pink);
+            color: #000;
+        }
+        
+        .sidebar .logout {
+            margin-top: auto;
+            font-weight: 600;
+            color: #fff;
+            background: #dc3545;
+            text-align: center;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 1.5rem 2rem;
+            overflow-y: auto;
+        }
+        
+        .topbar {
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
             margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-custom {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            border: none;
+        }
+        
+        .stats-card {
+            text-align: center;
+            padding: 1.5rem 1rem;
+            border-radius: 16px;
+            height: 100%;
+        }
+        
+        .stats-card i {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .pet-card {
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.3s;
+            height: 100%;
+            border: none;
             box-shadow: var(--shadow);
         }
         
-        .risk-indicator {
+        .pet-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .pet-card-header {
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .pet-card-body {
+            padding: 1rem;
+        }
+        
+        .pet-species-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .health-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .status-dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
             display: inline-block;
-            margin-right: 0.5rem;
         }
         
-        .risk-high { background-color: var(--red); }
-        .risk-medium { background-color: var(--orange); }
-        .risk-low { background-color: var(--green); }
+        .status-good {
+            background-color: var(--green);
+        }
+        
+        .status-warning {
+            background-color: var(--orange);
+        }
+        
+        .status-bad {
+            background-color: #e74c3c;
+        }
+        
+        .medical-table {
+            font-size: 0.9rem;
+        }
+        
+        .medical-table th {
+            background-color: #f8f9fa;
+        }
+        
+        .qr-preview {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .qr-preview:hover {
+            transform: scale(1.05);
+        }
+        
+        .qr-data-preview {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .badge-service {
+            background: linear-gradient(to right, var(--blue), #4a6cf7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+        
+        .badge-vaccine {
+            background: linear-gradient(to right, var(--green), #2ecc71);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+        
+        .badge-checkup {
+            background: linear-gradient(to right, var(--orange), #f39c12);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+        
+        .form-section {
+            margin-bottom: 2rem;
+        }
+        
+        .form-section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--blue);
+            border-bottom: 2px solid var(--pink);
+            padding-bottom: 0.5rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #6c757d;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .debug-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+        
+        .alert-custom {
+            border-radius: 12px;
+            border: none;
+        }
+        
+        @media (max-width: 768px) {
+            .wrapper {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                padding: 1rem;
+            }
+            
+            .topbar {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
+        
+        .test-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -513,9 +487,9 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
         <a href="user_dashboard.php" class="active">
             <div class="icon"><i class="fa-solid fa-gauge"></i></div> Dashboard
         </a>
-        <a href="user_pet_profile.php">
-            <div class="icon"><i class="fa-solid fa-dog"></i></div> My Pets
-        </a>
+            <a href="user_pet_profile.php">
+             <div class="icon"><i class="fa-solid fa-dog"></i></div> My Pets
+            </a>
         <a href="qr_code.php">
             <div class="icon"><i class="fa-solid fa-qrcode"></i></div> QR Codes
         </a>
@@ -566,26 +540,11 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
-        <!-- VACCINATION ALERTS -->
-        <?php if ($petsNeedingVaccination > 0): ?>
-            <div class="alert alert-vaccination alert-dismissible fade show" role="alert">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-exclamation-triangle fa-2x me-3 text-danger"></i>
-                    <div>
-                        <h6 class="alert-heading mb-1">Vaccination Alert!</h6>
-                        <p class="mb-0"><?php echo $petsNeedingVaccination; ?> of your pets need vaccination updates.</p>
-                    </div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        <?php endif; ?>
-
         <!-- Debug Info -->
         <div class="debug-info">
             <strong>Debug Info:</strong> 
             User ID: <?php echo $user_id; ?> | 
             Total Pets: <?php echo $totalPets; ?> | 
-            Pets Needing Vaccination: <?php echo $petsNeedingVaccination; ?> |
             Total Records: <?php 
                 $totalRecords = 0;
                 foreach ($pets as $pet) {
@@ -612,10 +571,10 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
                 </div>
             </div>
             <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background-color: <?php echo $petsNeedingVaccination > 0 ? 'var(--red-light)' : 'var(--orange-light)'; ?>;">
-                    <i class="fa-solid fa-bell text-<?php echo $petsNeedingVaccination > 0 ? 'danger' : 'warning'; ?>"></i>
-                    <h6>Vaccination Due</h6>
-                    <h4 id="upcomingVaccines"><?php echo $petsNeedingVaccination; ?></h4>
+                <div class="stats-card" style="background-color: var(--orange-light);">
+                    <i class="fa-solid fa-calendar-check text-warning"></i>
+                    <h6>Upcoming Reminders</h6>
+                    <h4 id="upcomingVaccines"><?php echo $upcomingReminders; ?></h4>
                 </div>
             </div>
             <div class="col-xl-3 col-md-6 mb-3">
@@ -626,88 +585,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
                 </div>
             </div>
         </div>
-
-        <!-- WELLNESS RECOMMENDATIONS SECTION -->
-        <?php if (!empty($pets)): ?>
-        <div class="wellness-section">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0"><i class="fas fa-heartbeat me-2"></i>Health & Wellness Recommendations</h4>
-                <small class="text-muted">AI-powered insights for your pets</small>
-            </div>
-            
-            <div class="row">
-                <?php foreach ($pets as $petId => $pet): ?>
-                    <?php $recommendations = $wellnessRecommendations[$petId] ?? []; ?>
-                    <?php if (!empty($recommendations)): ?>
-                    <div class="col-lg-6 mb-3">
-                        <div class="card-custom">
-                            <h6 class="mb-3">
-                                <i class="fas fa-paw me-2"></i><?php echo htmlspecialchars($pet['pet_name']); ?>
-                                <span class="badge bg-<?php echo $vaccinationPredictions[$petId]['risk_level'] === 'high' ? 'danger' : 
-                                                       ($vaccinationPredictions[$petId]['risk_level'] === 'medium' ? 'warning' : 'success'); ?> prediction-badge ms-2">
-                                    <?php echo ucfirst($vaccinationPredictions[$petId]['risk_level']); ?> Risk
-                                </span>
-                            </h6>
-                            
-                            <?php foreach ($recommendations as $rec): ?>
-                                <div class="recommendation-card recommendation-<?php echo $rec['priority']; ?>">
-                                    <div class="d-flex align-items-start">
-                                        <i class="fas <?php echo $rec['icon']; ?> fa-lg text-<?php echo $rec['color']; ?> me-3 mt-1"></i>
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-1"><?php echo $rec['title']; ?></h6>
-                                            <p class="mb-1 small"><?php echo $rec['message']; ?></p>
-                                            <small class="text-muted">
-                                                <i class="fas fa-lightbulb me-1"></i><?php echo $rec['action']; ?>
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- VACCINATION PREDICTION TIMELINE -->
-        <?php if (!empty($pets)): ?>
-        <div class="wellness-section">
-            <h4 class="mb-4"><i class="fas fa-calendar-alt me-2"></i>Vaccination Schedule</h4>
-            
-            <div class="vaccination-timeline">
-                <?php foreach ($pets as $petId => $pet): ?>
-                    <?php $prediction = $vaccinationPredictions[$petId]; ?>
-                    <div class="timeline-item <?php echo $prediction['needs_vaccination'] ? 'due' : 'upcoming'; ?>">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="mb-1"><?php echo htmlspecialchars($pet['pet_name']); ?></h6>
-                                <p class="mb-1 small"><?php echo $prediction['message']; ?></p>
-                                <?php if (!empty($prediction['recommended_vaccines'])): ?>
-                                    <div class="mt-1">
-                                        <?php foreach ($prediction['recommended_vaccines'] as $vaccine): ?>
-                                            <span class="badge bg-danger me-1"><?php echo $vaccine; ?></span>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                            <div class="text-end">
-                                <?php if ($prediction['next_vaccination_date']): ?>
-                                    <small class="text-muted d-block">
-                                        <?php echo $prediction['needs_vaccination'] ? 'Overdue since' : 'Next due'; ?>
-                                    </small>
-                                    <strong class="<?php echo $prediction['needs_vaccination'] ? 'text-danger' : 'text-warning'; ?>">
-                                        <?php echo date('M j, Y', strtotime($prediction['next_vaccination_date'])); ?>
-                                    </strong>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endif; ?>
 
         <!-- Quick Add Pet Button -->
         <div class="card-custom text-center">
@@ -742,8 +619,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
                         <?php
                         $hasVaccination = false;
                         $hasRecentVisit = false;
-                        $prediction = $vaccinationPredictions[$pet['pet_id']];
-                        
                         foreach ($pet['records'] as $record) {
                             if (!empty($record['service_type']) && stripos($record['service_type'], 'vaccin') !== false) {
                                 $hasVaccination = true;
@@ -753,17 +628,12 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
                             }
                         }
                         
-                        // Enhanced health status with vaccination prediction
-                        if ($prediction['needs_vaccination']) {
-                            $healthStatus = 'Vaccination Due';
+                        // Determine health status
+                        $healthStatus = $hasVaccination ? 'Good Health' : 'Needs Vaccination';
+                        $statusClass = $hasVaccination ? 'status-good' : 'status-warning';
+                        if (!$hasVaccination && !$hasRecentVisit) {
+                            $healthStatus = 'Needs Checkup';
                             $statusClass = 'status-bad';
-                        } else {
-                            $healthStatus = $hasVaccination ? 'Good Health' : 'Needs Vaccination';
-                            $statusClass = $hasVaccination ? 'status-good' : 'status-warning';
-                            if (!$hasVaccination && !$hasRecentVisit) {
-                                $healthStatus = 'Needs Checkup';
-                                $statusClass = 'status-bad';
-                            }
                         }
                         ?>
                         <div class="col-md-6 col-lg-6 mb-3">
@@ -778,14 +648,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
                                     </div>
                                 </div>
                                 <div class="pet-card-body">
-                                    <!-- Vaccination Alert Badge -->
-                                    <?php if ($prediction['needs_vaccination']): ?>
-                                        <div class="alert alert-warning alert-sm d-flex align-items-center mb-3 py-2">
-                                            <i class="fas fa-exclamation-triangle me-2"></i>
-                                            <small class="flex-grow-1">Vaccination due: <?php echo implode(', ', $prediction['recommended_vaccines']); ?></small>
-                                        </div>
-                                    <?php endif; ?>
-                                    
                                     <div class="d-flex align-items-center mb-3">
                                         <div id="qrcode-<?php echo $pet['pet_id']; ?>" class="me-3 qr-preview"></div>
                                         <div class="flex-grow-1">
@@ -925,8 +787,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
                 medicalNotes: '<?php echo addslashes($pet['medical_notes']); ?>',
                 vetContact: '<?php echo addslashes($pet['vet_contact']); ?>',
                 registered: '<?php echo $pet['date_registered']; ?>',
-                vaccinationPrediction: <?php echo json_encode($vaccinationPredictions[$pet['pet_id']]); ?>,
-                wellnessRecommendations: <?php echo json_encode($wellnessRecommendations[$pet['pet_id']]); ?>,
                 records: [
                     <?php foreach ($pet['records'] as $record): ?>
                         { 
@@ -958,9 +818,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
                 bsAlert.close();
             });
         }, 5000);
-        
-        // Initialize vaccination reminder tooltips
-        initializeVaccinationTooltips();
     });
 
     // Update date and time display
@@ -995,18 +852,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
         qrData += `--------------------\n`;
         qrData += `Medical Notes: ${petData.medicalNotes || 'None'}\n`;
         qrData += `Veterinarian: ${petData.vetContact || 'Not specified'}\n\n`;
-        
-        // Add vaccination prediction if available
-        if (petData.vaccinationPrediction) {
-            qrData += `VACCINATION STATUS:\n`;
-            qrData += `-------------------\n`;
-            qrData += `Status: ${petData.vaccinationPrediction.needs_vaccination ? 'VACCINATION DUE' : 'Up to date'}\n`;
-            qrData += `Message: ${petData.vaccinationPrediction.message}\n`;
-            if (petData.vaccinationPrediction.recommended_vaccines.length > 0) {
-                qrData += `Recommended: ${petData.vaccinationPrediction.recommended_vaccines.join(', ')}\n`;
-            }
-            qrData += `\n`;
-        }
         
         qrData += `MEDICAL HISTORY:\n`;
         qrData += `----------------\n`;
@@ -1048,7 +893,7 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
         container.setAttribute('data-pet-name', petData.petName);
         container.setAttribute('data-pet-id', petData.petId);
         
-        // Also update the QR data preview
+               // Also update the QR data preview
         const qrDataPreview = document.getElementById(`qr-data-${petData.petId}`);
         if (qrDataPreview) {
             qrDataPreview.textContent = qrData;
@@ -1138,14 +983,6 @@ function generateWellnessRecommendations($pet, $vaccinationPrediction) {
         downloadLink.click();
         document.body.removeChild(downloadLink);
         URL.revokeObjectURL(url);
-    }
-
-    // Initialize vaccination tooltips
-    function initializeVaccinationTooltips() {
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
     }
 
     // Function to test all QR codes (for development)
