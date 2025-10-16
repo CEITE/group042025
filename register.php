@@ -166,9 +166,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['verify_otp']) && !iss
     $street = trim($_POST['street'] ?? '');
     $zip_code = trim($_POST['zip_code'] ?? '');
     
-    // Combine address fields
-    $address = "{$street}, {$barangay}, {$city}, {$province}, {$region}, {$zip_code}";
-    
     // Role is always 'user'
     $role = "user";
 
@@ -214,18 +211,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['verify_otp']) && !iss
                     
                     $user_saved = false;
                     if ($check_result->num_rows > 0) {
-                        // Update existing unverified user
-                        $update_stmt = $conn->prepare("UPDATE users SET name = ?, password = ?, phone_number = ?, address = ?, otp_code = ?, otp_expiry = ? WHERE email = ? AND is_verified = 0");
+                        // Update existing unverified user with new address fields
+                        $update_stmt = $conn->prepare("UPDATE users SET name = ?, password = ?, phone_number = ?, region = ?, province = ?, city = ?, barangay = ?, street = ?, zip_code = ?, otp_code = ?, otp_expiry = ? WHERE email = ? AND is_verified = 0");
                         if ($update_stmt) {
-                            $update_stmt->bind_param("sssssss", $name, $hashed_password, $phone_number, $address, $otp, $otp_expiry, $email);
+                            $update_stmt->bind_param("ssssssssssss", $name, $hashed_password, $phone_number, $region, $province, $city, $barangay, $street, $zip_code, $otp, $otp_expiry, $email);
                             $user_saved = $update_stmt->execute();
                             $update_stmt->close();
                         }
                     } else {
-                        // Insert new user
-                        $insert_stmt = $conn->prepare("INSERT INTO users (name, email, password, role, phone_number, address, otp_code, otp_expiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                        // Insert new user with new address fields
+                        $insert_stmt = $conn->prepare("INSERT INTO users (name, email, password, role, phone_number, region, province, city, barangay, street, zip_code, otp_code, otp_expiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                         if ($insert_stmt) {
-                            $insert_stmt->bind_param("ssssssss", $name, $email, $hashed_password, $role, $phone_number, $address, $otp, $otp_expiry);
+                            $insert_stmt->bind_param("sssssssssssss", $name, $email, $hashed_password, $role, $phone_number, $region, $province, $city, $barangay, $street, $zip_code, $otp, $otp_expiry);
                             $user_saved = $insert_stmt->execute();
                             $insert_stmt->close();
                         }
@@ -624,3 +621,4 @@ if (isset($_POST['resend_otp'])) {
   </script>
 </body>
 </html>
+
