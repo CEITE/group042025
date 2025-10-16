@@ -23,6 +23,15 @@ $error = "";
 $success = "";
 $show_otp_form = false;
 
+// Check if OTP columns exist, add them if missing
+$checkColumns = $conn->query("SHOW COLUMNS FROM users LIKE 'otp_code'");
+if ($checkColumns->num_rows == 0) {
+    $conn->query("ALTER TABLE users 
+        ADD COLUMN is_verified TINYINT(1) DEFAULT 0,
+        ADD COLUMN otp_code VARCHAR(6),
+        ADD COLUMN otp_expiry DATETIME");
+}
+
 // Function to generate OTP
 function generateOTP() {
     return sprintf("%06d", mt_rand(1, 999999));
@@ -296,6 +305,12 @@ if (isset($_POST['resend_otp'])) {
     .btn-pink { background: var(--pink-dark); color: #fff; border: none; border-radius: 12px; padding: 0.9rem 1.2rem; font-weight: 700; }
     .otp-inputs { display: flex; gap: 10px; justify-content: center; margin: 20px 0; }
     .otp-input { width: 50px; height: 60px; text-align: center; font-size: 24px; font-weight: bold; border: 2px solid #e9ecef; border-radius: 12px; }
+    
+    /* Password Strength Styles */
+    .password-strength { height: 5px; margin-top: 5px; border-radius: 5px; background: #e9ecef; overflow: hidden; }
+    .password-strength-bar { height: 100%; width: 0; transition: width 0.3s ease; border-radius: 5px; }
+    .password-requirements { font-size: 12px; color: #6c757d; margin-top: 5px; }
+    .password-toggle { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #6c757d; cursor: pointer; z-index: 5; }
   </style>
 </head>
 <body>
@@ -374,7 +389,16 @@ if (isset($_POST['resend_otp'])) {
             <label class="form-label">Password</label>
             <div class="input-group">
               <span class="input-icon"><i class="fas fa-lock"></i></span>
-              <input type="password" name="password" class="form-control" required>
+              <input type="password" name="password" id="password" class="form-control" placeholder="Create a strong password" required>
+              <button type="button" class="password-toggle" id="passwordToggle">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="password-strength mt-2">
+              <div class="password-strength-bar" id="passwordStrengthBar"></div>
+            </div>
+            <div class="password-requirements">
+              Must be at least 8 characters with letters and numbers
             </div>
           </div>
           
@@ -382,8 +406,12 @@ if (isset($_POST['resend_otp'])) {
             <label class="form-label">Confirm Password</label>
             <div class="input-group">
               <span class="input-icon"><i class="fas fa-lock"></i></span>
-              <input type="password" name="confirm_password" class="form-control" required>
+              <input type="password" name="confirm_password" id="confirmPassword" class="form-control" placeholder="Confirm your password" required>
+              <button type="button" class="password-toggle" id="confirmPasswordToggle">
+                <i class="fas fa-eye"></i>
+              </button>
             </div>
+            <div id="passwordMatch" class="mt-2 small"></div>
           </div>
           
           <button type="submit" class="btn btn-pink w-100">Create Account</button>
@@ -397,6 +425,76 @@ if (isset($_POST['resend_otp'])) {
   </section>
 
   <script>
+    // Password visibility toggle
+    document.getElementById('passwordToggle')?.addEventListener('click', function() {
+      const passwordInput = document.getElementById('password');
+      const icon = this.querySelector('i');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+      } else {
+        passwordInput.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+      }
+    });
+
+    // Confirm password visibility toggle
+    document.getElementById('confirmPasswordToggle')?.addEventListener('click', function() {
+      const passwordInput = document.getElementById('confirmPassword');
+      const icon = this.querySelector('i');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+      } else {
+        passwordInput.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+      }
+    });
+
+    // Password strength indicator
+    document.getElementById('password')?.addEventListener('input', function() {
+      const password = this.value;
+      const strengthBar = document.getElementById('passwordStrengthBar');
+      let strength = 0;
+      
+      if (password.length >= 8) strength += 25;
+      if (/[A-Z]/.test(password)) strength += 25;
+      if (/[0-9]/.test(password)) strength += 25;
+      if (/[^A-Za-z0-9]/.test(password)) strength += 25;
+      
+      // Update strength bar
+      strengthBar.style.width = strength + '%';
+      
+      // Update color
+      if (strength < 50) {
+        strengthBar.style.backgroundColor = '#dc3545';
+      } else if (strength < 75) {
+        strengthBar.style.backgroundColor = '#fd7e14';
+      } else {
+        strengthBar.style.backgroundColor = '#28a745';
+      }
+    });
+
+    // Password match checking
+    document.getElementById('confirmPassword')?.addEventListener('input', function() {
+      const password = document.getElementById('password').value;
+      const confirmPassword = this.value;
+      const matchElement = document.getElementById('passwordMatch');
+      
+      if (confirmPassword === '') {
+        matchElement.textContent = '';
+        matchElement.style.color = '';
+      } else if (password === confirmPassword) {
+        matchElement.textContent = 'Passwords match';
+        matchElement.style.color = '#28a745';
+      } else {
+        matchElement.textContent = 'Passwords do not match';
+        matchElement.style.color = '#dc3545';
+      }
+    });
+
     // OTP Input handling
     const otpInputs = document.querySelectorAll('.otp-input');
     if (otpInputs.length > 0) {
