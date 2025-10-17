@@ -36,13 +36,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
         $_SESSION['error'] = "❌ Pet name and species are required fields.";
     } else {
         try {
-            // Insert pet into database (initially without QR code)
+            // Generate unique QR code filename
+            $qrCodeFilename = 'qr_' . uniqid() . '_' . time() . '.svg';
+            
+            // Insert pet into database
             $stmt = $conn->prepare("
-                INSERT INTO pets (user_id, name, species, breed, age, color, weight, birth_date, gender, medical_notes, vet_contact, date_registered) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                INSERT INTO pets (user_id, name, species, breed, age, color, weight, birth_date, gender, medical_notes, vet_contact, qr_code, date_registered) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             
-            $stmt->bind_param("isssisdssss", 
+            $stmt->bind_param("isssisdsssss", 
                 $user_id, 
                 $petName, 
                 $species, 
@@ -53,48 +56,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 $birthDate, 
                 $gender, 
                 $medicalNotes, 
-                $vetContact
+                $vetContact, 
+                $qrCodeFilename
             );
             
             if ($stmt->execute()) {
                 $pet_id = $stmt->insert_id;
                 
-                // ✅ Generate QR code with both URL and readable pet info
-                require_once 'phpqrcode/qrlib.php';
+                    // ✅ Generate direct link to view this pet's medical record
+                    $qrURL = "https://group042025.ceitesystems.com/view_pet_record.php?pet_id=" . $pet_id;
+
+                    // ✅ Generate the actual QR code image
+                    require_once 'phpqrcode/qrlib.php'; // make sure you have phpqrcode library
+
+                    $qrDir = 'qrcodes/';
+                    if (!is_dir($qrDir)) mkdir($qrDir, 0755, true);
+
+                    $qrPath = $qrDir . 'qr_' . $pet_id . '.png';
+                    QRcode::png($qrURL, $qrPath, QR_ECLEVEL_L, 4);
+
+                    // ✅ Update the pet record in DB with QR code file and link
+                    $updateStmt = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
+                    $updateStmt->bind_param("ssi", $qrPath, $qrURL, $pet_id);
+                    $updateStmt->execute();
+                    $updateStmt->close();
+
                 
-                $qrBaseURL = "https://group042025.ceitesystems.com/view_pet_record.php?pet_id=" . $pet_id;
-
-                // Combine the link + readable info
-                $qrContent = $qrBaseURL . "\n\n" .
-                    "🐾 Pet Information 🐾\n" .
-                    "Name: " . $petName . "\n" .
-                    "Species: " . $species . "\n" .
-                    "Breed: " . ($breed ?: 'Unknown') . "\n" .
-                    "Color: " . ($color ?: 'Not specified') . "\n" .
-                    "Age: " . ($age ? $age . ' years' : 'Unknown') . "\n" .
-                    "Gender: " . ($gender ?: 'Not specified') . "\n" .
-                    "Weight: " . ($weight ? $weight . " kg" : 'Not specified') . "\n" .
-                    "Vet Contact: " . ($vetContact ?: 'Not specified');
-
-                // Define path for QR image
-                $qrDir = 'qrcodes/';
-                if (!is_dir($qrDir)) mkdir($qrDir, 0755, true);
-                
-                $qrFile = $qrDir . "qr_" . $pet_id . ".png";
-
-                // Generate the QR image
-                QRcode::png($qrContent, $qrFile, QR_ECLEVEL_L, 5);
-
-                // Save QR data and file path in DB
-                $updateQR = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
-                $updateQR->bind_param("ssi", $qrFile, $qrBaseURL, $pet_id);
-                $updateQR->execute();
-                $updateQR->close();
+                // Update the pet record with the actual QR data
+                $updateStmt = $conn->prepare("UPDATE pets SET qr_code_data = ? WHERE pet_id = ?");
+                $updateStmt->bind_param("si", $qrData, $pet_id);
+                $updateStmt->execute();
+                $updateStmt->close();
                 
                 $_SESSION['success'] = "🎉 Pet '$petName' has been successfully registered! QR code has been generated.";
                 $_SESSION['new_pet_id'] = $pet_id;
+                $_SESSION['new_pet_data'] = $qrData;
                 $_SESSION['new_pet_name'] = $petName;
-                $_SESSION['new_pet_qr_path'] = $qrFile;
                 
                 // Redirect to success page
                 header("Location: register_pet.php?success=1");
@@ -110,6 +107,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             $_SESSION['error'] = $e->getMessage();
         }
     }
+}
+
+// Function to generate QR code data
+function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $ownerName = '', $ownerEmail = '') {
+    $data = "PET MEDICAL RECORD - PETMEDQR\n";
+    $data .= "================================\n\n";
+    
+    $data .= "BASIC INFORMATION:\n";
+    $data .= "------------------\n";
+    $data .= "Pet ID: PMQ-" . str_pad($pet_id, 6, '0', STR_PAD_LEFT) . "\n";
+    $data .= "Name: " . ($petName ?: 'Not specified') . "\n";
+    $data .= "Species: " . ($species ?: 'Not specified') . "\n";
+    $data .= "Breed: " . ($breed ?: 'Unknown') . "\n";
+    $data .= "Age: " . ($age ? $age . ' years' : 'Unknown') . "\n";
+    $data .= "Color: " . ($color ?: 'Not specified') . "\n";
+    $data .= "Weight: " . ($weight ? $weight . ' kg' : 'Not specified') . "\n";
+    $data .= "Birth Date: " . ($birthDate ? date('M j, Y', strtotime($birthDate)) : 'Unknown') . "\n";
+    $data .= "Gender: " . ($gender ?: 'Not specified') . "\n\n";
+    
+    $data .= "MEDICAL INFORMATION:\n";
+    $data .= "--------------------\n";
+    $data .= "Medical Notes: " . ($medicalNotes ?: 'None') . "\n";
+    $data .= "Veterinarian: " . ($vetContact ?: 'Not specified') . "\n\n";
+    
+    $data .= "OWNER INFORMATION:\n";
+    $data .= "------------------\n";
+    $data .= "Owner: " . ($ownerName ?: 'Not specified') . "\n";
+    $data .= "Contact: " . ($ownerEmail ?: 'Not specified') . "\n\n";
+    
+    $data .= "REGISTRATION INFO:\n";
+    $data .= "------------------\n";
+    $data .= "Registered: " . date('M j, Y \a\t g:i A') . "\n";
+    $data .= "Pet ID: " . $pet_id . "\n\n";
+    
+    $data .= "EMERGENCY CONTACT:\n";
+    $data .= "==================\n";
+    $data .= "If found, please contact owner immediately.\n";
+    $data .= "Scan this QR code or visit PetMedQR system.\n\n";
+    
+    $data .= "Generated by PetMedQR - Your Pet's Health Companion";
+    
+    return $data;
+}
+
+// Function to save QR code as file
+function saveQRCode($qrData, $filename) {
+    $qrDir = 'qrcodes/';
+    
+    // Create directory if it doesn't exist
+    if (!is_dir($qrDir)) {
+        mkdir($qrDir, 0755, true);
+    }
+    
+    $filePath = $qrDir . $filename;
+    return file_put_contents($filePath, $qrData) !== false;
 }
 
 // Check for success redirect
@@ -543,13 +595,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             opacity: 0.7;
             pointer-events: none;
         }
-
-        .qr-image {
-            max-width: 200px;
-            height: auto;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-        }
     </style>
 </head>
 <body>
@@ -663,9 +708,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     <option value="">Select Species</option>
                                     <option value="Dog" <?php echo ($_POST['species'] ?? '') == 'Dog' ? 'selected' : ''; ?>>🐕 Dog</option>
                                     <option value="Cat" <?php echo ($_POST['species'] ?? '') == 'Cat' ? 'selected' : ''; ?>>🐈 Cat</option>
-                                    <option value="Bird" <?php echo ($_POST['species'] ?? '') == 'Bird' ? 'selected' : ''; ?>>🐦 Bird</option>
-                                    <option value="Rabbit" <?php echo ($_POST['species'] ?? '') == 'Rabbit' ? 'selected' : ''; ?>>🐇 Rabbit</option>
-                                    <option value="Other" <?php echo ($_POST['species'] ?? '') == 'Other' ? 'selected' : ''; ?>>🐾 Other</option>
                                 </select>
                                 <div class="form-text">What type of pet do you have?</div>
                             </div>
@@ -852,9 +894,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         has been registered successfully and a medical QR code has been generated.
                     </p>
                     
-                    <div class="qr-preview" id="successQrCode">
-                        <!-- QR code will be displayed here -->
-                    </div>
+                    <div class="qr-preview" id="successQrCode"></div>
                     
                     <div class="alert alert-info mt-3">
                         <i class="fas fa-info-circle me-2"></i>
@@ -863,7 +903,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                     </div>
                     
                     <div class="d-grid gap-2 col-md-8 mx-auto mt-4">
-                        <a href="user_pet_profile.php" class="btn btn-submit">
+                        <a href="pet_profile.php" class="btn btn-submit">
                             <i class="fas fa-dog"></i> View My Pets
                         </a>
                         <a href="register_pet.php" class="btn btn-prev">
@@ -873,13 +913,14 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                 </div>
                 <?php 
                 // Clear success session data
-                unset($_SESSION['new_pet_id'], $_SESSION['new_pet_name'], $_SESSION['new_pet_qr_path']);
+                unset($_SESSION['new_pet_id'], $_SESSION['new_pet_data'], $_SESSION['new_pet_name']);
                 endif; 
                 ?>
             </div>
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script>
         let currentStep = 1;
         const totalSteps = 4;
@@ -990,34 +1031,20 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         });
         
         function generateSuccessQRCode() {
-            const petId = "<?php echo $_SESSION['new_pet_id'] ?? '000000'; ?>";
             const petName = "<?php echo $_SESSION['new_pet_name'] ?? 'Your Pet'; ?>";
-            const qrPath = "<?php echo $_SESSION['new_pet_qr_path'] ?? ''; ?>";
+            const petId = "<?php echo $_SESSION['new_pet_id'] ?? '000000'; ?>";
+            const qrData = `PET: ${petName}\nID: PMQ-${String(petId).padStart(6, '0')}\nRegistered: ${new Date().toLocaleDateString()}\nStatus: Active 🐾`;
             
-            if (qrPath) {
-                // Display the actual QR code image
-                const qrImage = document.createElement('img');
-                qrImage.src = qrPath;
-                qrImage.alt = `QR Code for ${petName}`;
-                qrImage.className = 'qr-image';
-                
-                const container = document.getElementById('successQrCode');
-                container.innerHTML = '';
-                container.appendChild(qrImage);
-                
-                // Add download button
-                const downloadBtn = document.createElement('button');
-                downloadBtn.className = 'btn btn-primary mt-3';
-                downloadBtn.innerHTML = '<i class="fas fa-download me-2"></i>Download QR Code';
-                downloadBtn.onclick = function() {
-                    const link = document.createElement('a');
-                    link.href = qrPath;
-                    link.download = `petmedqr-${petName.toLowerCase().replace(/\s+/g, '-')}.png`;
-                    link.click();
-                };
-                
-                container.appendChild(downloadBtn);
-            }
+            const qr = qrcode(0, 'M');
+            qr.addData(qrData);
+            qr.make();
+            
+            document.getElementById('successQrCode').innerHTML = qr.createSvgTag({
+                scalable: true,
+                margin: 2,
+                color: '#000',
+                background: '#fff'
+            });
         }
         
         // Initialize
