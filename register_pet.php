@@ -20,7 +20,7 @@ $stmt->close();
 // ✅ Handle pet registration
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     // Collect and sanitize form data
-    $name = trim($_POST['name'] ?? '');
+    $petName = trim($_POST['petName'] ?? '');
     $species = trim($_POST['species'] ?? '');
     $breed = trim($_POST['breed'] ?? '');
     $age = !empty($_POST['age']) ? floatval($_POST['age']) : 0;
@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     $birthDate = !empty($_POST['birthDate']) ? $_POST['birthDate'] : null;
     $gender = trim($_POST['gender'] ?? '');
     $medicalNotes = trim($_POST['medicalNotes'] ?? '');
-    $vet_contact = trim($_POST['vet_contact'] ?? '');
+    $vetContact = trim($_POST['vetContact'] ?? '');
     
     // Validate required fields
     if (empty($petName) || empty($species)) {
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 $birthDate, 
                 $gender, 
                 $medicalNotes, 
-                $vet_contact
+                $vetContact
             );
             
             if ($stmt->execute()) {
@@ -67,14 +67,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 // Combine the link + readable info
                 $qrContent = $qrBaseURL . "\n\n" .
                     "🐾 Pet Information 🐾\n" .
-                    "Name: " . $name . "\n" .
+                    "Name: " . $petName . "\n" .
                     "Species: " . $species . "\n" .
                     "Breed: " . ($breed ?: 'Unknown') . "\n" .
                     "Color: " . ($color ?: 'Not specified') . "\n" .
                     "Age: " . ($age ? $age . ' years' : 'Unknown') . "\n" .
                     "Gender: " . ($gender ?: 'Not specified') . "\n" .
                     "Weight: " . ($weight ? $weight . " kg" : 'Not specified') . "\n" .
-                    "Vet Contact: " . ($vet_contact ?: 'Not specified');
+                    "Vet Contact: " . ($vetContact ?: 'Not specified');
 
                 // Define path for QR image
                 $qrDir = 'qrcodes/';
