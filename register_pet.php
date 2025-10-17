@@ -63,11 +63,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             if ($stmt->execute()) {
                 $pet_id = $stmt->insert_id;
                 
-                // Generate QR code data
-                $qrData = generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $user['name'], $user['email']);
-                
-                // Save QR code as file
-                saveQRCode($qrData, $qrCodeFilename);
+                    // ✅ Generate direct link to view this pet's medical record
+                    $qrURL = "https://yourdomain.com/view_pet_record.php?pet_id=" . $pet_id;
+
+                    // ✅ Generate the actual QR code image
+                    require_once 'phpqrcode/qrlib.php'; // make sure you have phpqrcode library
+
+                    $qrDir = 'qrcodes/';
+                    if (!is_dir($qrDir)) mkdir($qrDir, 0755, true);
+
+                    $qrPath = $qrDir . 'qr_' . $pet_id . '.png';
+                    QRcode::png($qrURL, $qrPath, QR_ECLEVEL_L, 4);
+
+                    // ✅ Update the pet record in DB with QR code file and link
+                    $updateStmt = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
+                    $updateStmt->bind_param("ssi", $qrPath, $qrURL, $pet_id);
+                    $updateStmt->execute();
+                    $updateStmt->close();
+
                 
                 // Update the pet record with the actual QR data
                 $updateStmt = $conn->prepare("UPDATE pets SET qr_code_data = ? WHERE pet_id = ?");
@@ -890,7 +903,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                     </div>
                     
                     <div class="d-grid gap-2 col-md-8 mx-auto mt-4">
-                        <a href="pet_profile.php" class="btn btn-submit">
+                        <a href="user_pet_profile.php" class="btn btn-submit">
                             <i class="fas fa-dog"></i> View My Pets
                         </a>
                         <a href="register_pet.php" class="btn btn-prev">
