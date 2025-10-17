@@ -20,7 +20,7 @@ $stmt->close();
 // ✅ Handle pet registration
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     // Collect and sanitize form data
-    $petName = trim($_POST['petName'] ?? '');
+    $name = trim($_POST['name'] ?? '');
     $species = trim($_POST['species'] ?? '');
     $breed = trim($_POST['breed'] ?? '');
     $age = !empty($_POST['age']) ? floatval($_POST['age']) : 0;
@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     $birthDate = !empty($_POST['birthDate']) ? $_POST['birthDate'] : null;
     $gender = trim($_POST['gender'] ?? '');
     $medicalNotes = trim($_POST['medicalNotes'] ?? '');
-    $vetContact = trim($_POST['vetContact'] ?? '');
+    $vet_contact = trim($_POST['vet_contact'] ?? '');
     
     // Validate required fields
     if (empty($petName) || empty($species)) {
@@ -53,38 +53,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 $birthDate, 
                 $gender, 
                 $medicalNotes, 
-                $vetContact
+                $vet_contact
             );
             
             if ($stmt->execute()) {
                 $pet_id = $stmt->insert_id;
                 
-                // ✅ Generate direct link to view this pet's medical record
-                $qrURL = "https://group042025.ceitesystems.com/view_pet_record.php?pet_id=" . $pet_id;
-
-                // ✅ Generate the actual QR code image
+                // ✅ Generate QR code with both URL and readable pet info
                 require_once 'phpqrcode/qrlib.php';
+                
+                $qrBaseURL = "https://group042025.ceitesystems.com/view_pet_record.php?pet_id=" . $pet_id;
 
+                // Combine the link + readable info
+                $qrContent = $qrBaseURL . "\n\n" .
+                    "🐾 Pet Information 🐾\n" .
+                    "Name: " . $name . "\n" .
+                    "Species: " . $species . "\n" .
+                    "Breed: " . ($breed ?: 'Unknown') . "\n" .
+                    "Color: " . ($color ?: 'Not specified') . "\n" .
+                    "Age: " . ($age ? $age . ' years' : 'Unknown') . "\n" .
+                    "Gender: " . ($gender ?: 'Not specified') . "\n" .
+                    "Weight: " . ($weight ? $weight . " kg" : 'Not specified') . "\n" .
+                    "Vet Contact: " . ($vet_contact ?: 'Not specified');
+
+                // Define path for QR image
                 $qrDir = 'qrcodes/';
                 if (!is_dir($qrDir)) mkdir($qrDir, 0755, true);
+                
+                $qrFile = $qrDir . "qr_" . $pet_id . ".png";
 
-                $qrPath = $qrDir . 'qr_' . $pet_id . '.png';
-                QRcode::png($qrURL, $qrPath, QR_ECLEVEL_L, 4);
+                // Generate the QR image
+                QRcode::png($qrContent, $qrFile, QR_ECLEVEL_L, 5);
 
-                // ✅ Generate QR code data for text display
-                $qrData = generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $user['name'], $user['email']);
-
-                // ✅ Update the pet record in DB with QR code file and data
-                $updateStmt = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
-                $updateStmt->bind_param("ssi", $qrPath, $qrData, $pet_id);
-                $updateStmt->execute();
-                $updateStmt->close();
+                // Save QR data and file path in DB
+                $updateQR = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
+                $updateQR->bind_param("ssi", $qrFile, $qrBaseURL, $pet_id);
+                $updateQR->execute();
+                $updateQR->close();
                 
                 $_SESSION['success'] = "🎉 Pet '$petName' has been successfully registered! QR code has been generated.";
                 $_SESSION['new_pet_id'] = $pet_id;
-                $_SESSION['new_pet_data'] = $qrData;
                 $_SESSION['new_pet_name'] = $petName;
-                $_SESSION['new_pet_qr_path'] = $qrPath;
+                $_SESSION['new_pet_qr_path'] = $qrFile;
                 
                 // Redirect to success page
                 header("Location: register_pet.php?success=1");
@@ -100,43 +110,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             $_SESSION['error'] = $e->getMessage();
         }
     }
-}
-
-// Compact medical booklet version for QR codes
-function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $ownerName = '', $ownerEmail = '') {
-    $data = "╔══════════════════════════════╗\n";
-    $data .= "║     PET MEDICAL RECORD      ║\n";
-    $data .= "║        🏥 PETMEDQR         ║\n";
-    $data .= "╚══════════════════════════════╝\n\n";
-    
-    $data .= "┌── IDENTIFICATION ───────────┐\n";
-    $data .= "│ 🆔 PMQ-" . str_pad($pet_id, 6, '0', STR_PAD_LEFT) . "              │\n";
-    $data .= "│ 🐾 " . str_pad(substr($petName ?: 'Unknown', 0, 18), 18) . " │\n";
-    $data .= "│ 🏷️ " . str_pad(substr($species ?: 'Unknown', 0, 18), 18) . " │\n";
-    $data .= "│ 🧬 " . str_pad(substr($breed ?: 'Unknown', 0, 18), 18) . " │\n";
-    $data .= "│ 📅 " . str_pad(($age ? $age . 'yrs' : 'Unknown'), 18) . " │\n";
-    $data .= "└─────────────────────────────┘\n\n";
-    
-    $data .= "┌── MEDICAL INFO ─────────────┐\n";
-    $data .= "│ " . str_pad("Notes: " . substr($medicalNotes ?: 'None', 0, 22), 25) . " │\n";
-    $data .= "│ " . str_pad("Vet: " . substr($vetContact ?: 'None', 0, 22), 25) . " │\n";
-    $data .= "└─────────────────────────────┘\n\n";
-    
-    $data .= "┌── OWNER ────────────────────┐\n";
-    $data .= "│ 👤 " . str_pad(substr($ownerName ?: 'Owner', 0, 20), 20) . " │\n";
-    $data .= "│ 📧 " . str_pad(substr($ownerEmail ?: 'Contact', 0, 20), 20) . " │\n";
-    $data .= "└─────────────────────────────┘\n\n";
-    
-    $data .= "┌── EMERGENCY ────────────────┐\n";
-    $data .= "│ 🚨 SCAN FOR FULL RECORDS    │\n";
-    $data .= "│ 📞 CONTACT OWNER FIRST      │\n";
-    $data .= "│ 🏥 SHARE WITH VET           │\n";
-    $data .= "└─────────────────────────────┘\n\n";
-    
-    $data .= "Registered: " . date('M j, Y') . "\n";
-    $data .= "PetMedQR Medical System";
-    
-    return $data;
 }
 
 // Check for success redirect
@@ -690,6 +663,9 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     <option value="">Select Species</option>
                                     <option value="Dog" <?php echo ($_POST['species'] ?? '') == 'Dog' ? 'selected' : ''; ?>>🐕 Dog</option>
                                     <option value="Cat" <?php echo ($_POST['species'] ?? '') == 'Cat' ? 'selected' : ''; ?>>🐈 Cat</option>
+                                    <option value="Bird" <?php echo ($_POST['species'] ?? '') == 'Bird' ? 'selected' : ''; ?>>🐦 Bird</option>
+                                    <option value="Rabbit" <?php echo ($_POST['species'] ?? '') == 'Rabbit' ? 'selected' : ''; ?>>🐇 Rabbit</option>
+                                    <option value="Other" <?php echo ($_POST['species'] ?? '') == 'Other' ? 'selected' : ''; ?>>🐾 Other</option>
                                 </select>
                                 <div class="form-text">What type of pet do you have?</div>
                             </div>
@@ -897,7 +873,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                 </div>
                 <?php 
                 // Clear success session data
-                unset($_SESSION['new_pet_id'], $_SESSION['new_pet_data'], $_SESSION['new_pet_name'], $_SESSION['new_pet_qr_path']);
+                unset($_SESSION['new_pet_id'], $_SESSION['new_pet_name'], $_SESSION['new_pet_qr_path']);
                 endif; 
                 ?>
             </div>
@@ -1071,5 +1047,3 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
-
-
