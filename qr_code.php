@@ -45,6 +45,11 @@ $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// ✅ Get your domain for QR code URLs
+$domain = $_SERVER['HTTP_HOST'];
+$is_https = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+$base_url = ($is_https ? 'https://group042025.ceitesystems.com/' : 'http://group042025.ceitesystems.com/') . $domain;
 ?>
 
 <!DOCTYPE html>
@@ -696,6 +701,19 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             color: #065f46;
             border-radius: var(--radius);
         }
+
+        .qr-type-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--pink-darker);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
     </style>
 </head>
 <body>
@@ -746,7 +764,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     QR Codes 
                     <span class="badge bg-primary ms-2"><?php echo count($pets); ?></span>
                 </h5>
-                <small class="text-muted">Manage and download medical QR codes for your pets</small>
+                <small class="text-muted">Professional medical QR codes that direct to our landing page</small>
             </div>
             <div class="d-flex align-items-center gap-3">
                 <button class="btn btn-success no-print" onclick="printAllQRCodes()">
@@ -799,6 +817,20 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             </div>
         </div>
 
+        <!-- QR Type Info -->
+        <div class="card-custom no-print">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6><i class="fas fa-info-circle me-2 text-primary"></i>About Our QR Codes</h6>
+                    <p class="mb-0 text-muted">These QR codes direct to our professional medical landing page where clinics can view pet information and access our full system.</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <span class="badge bg-primary me-2">Professional</span>
+                    <span class="badge bg-success">Secure</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Bulk Actions -->
         <div class="bulk-actions no-print">
             <div class="position-relative">
@@ -812,6 +844,9 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     </button>
                     <button class="btn btn-outline-light" onclick="showQRDataModal()">
                         <i class="fas fa-eye me-1"></i> View All QR Data
+                    </button>
+                    <button class="btn btn-outline-light" onclick="testLandingPage()">
+                        <i class="fas fa-external-link me-1"></i> Test Landing Page
                     </button>
                 </div>
             </div>
@@ -849,6 +884,9 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             </div>
                         </div>
                         <div class="qr-card-body">
+                            <div class="qr-type-badge">
+                                <i class="fas fa-external-link me-1"></i> Landing Page
+                            </div>
                             <div class="qr-container">
                                 <div id="qrcode-<?php echo $pet['pet_id']; ?>" class="qr-preview-large"></div>
                             </div>
@@ -877,6 +915,9 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                 </button>
                                 <button class="btn btn-success btn-action" onclick="printQRCode(<?php echo $pet['pet_id']; ?>)">
                                     <i class="fas fa-print"></i> Print
+                                </button>
+                                <button class="btn btn-outline-primary btn-action" onclick="testPetLandingPage(<?php echo $pet['pet_id']; ?>)">
+                                    <i class="fas fa-external-link"></i> Test
                                 </button>
                             </div>
                             
@@ -909,7 +950,10 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             <div class="modal-body text-center py-4">
                 <div id="modalQrContainer" class="mb-4"></div>
                 <div id="modalQrData" class="qr-data-preview mb-3" style="display: none; background: var(--pink-light); border-radius: var(--radius); padding: 1rem; border: 1px solid var(--pink);"></div>
-                <p class="text-muted mb-0">Scan this QR code to view medical records</p>
+                <p class="text-muted mb-0">Scan this QR code to view our professional medical landing page</p>
+                <div class="mt-3">
+                    <small class="text-muted" id="modalQrUrl"></small>
+                </div>
             </div>
             <div class="modal-footer" style="border-top: 1px solid var(--gray-light);">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -917,7 +961,10 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     <i class="fas fa-download me-1"></i> Download
                 </button>
                 <button type="button" class="btn btn-info" onclick="toggleQrData()">
-                    <i class="fas fa-eye me-1"></i> View Data
+                    <i class="fas fa-eye me-1"></i> View URL
+                </button>
+                <button type="button" class="btn btn-success" id="testModalQr">
+                    <i class="fas fa-external-link me-1"></i> Test
                 </button>
             </div>
         </div>
@@ -930,17 +977,17 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <div class="modal-content" style="border-radius: var(--radius-lg); border: none;">
             <div class="modal-header" style="background: var(--pink-gradient); color: white; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
                 <h5 class="modal-title fw-bold">
-                    <i class="fas fa-database me-2"></i>All QR Code Data
+                    <i class="fas fa-database me-2"></i>All QR Code URLs
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0">
-                <div id="allQrDataContent" class="qr-data-preview" style="max-height: 60vh; overflow-y: auto; margin: 0; border-radius: 0; background: var(--pink-light);"></div>
+                <div id="allQrDataContent" class="qr-data-preview" style="max-height: 60vh; overflow-y: auto; margin: 0; border-radius: 0; background: var(--pink-light); padding: 1rem;"></div>
             </div>
             <div class="modal-footer" style="border-top: 1px solid var(--gray-light);">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary" onclick="downloadAllQRData()">
-                    <i class="fas fa-download me-1"></i> Download Data
+                    <i class="fas fa-download me-1"></i> Download URLs
                 </button>
             </div>
         </div>
@@ -994,35 +1041,16 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US');
     }
 
-    // Function to generate QR code
+    // Function to generate QR code with landing page URL
     function generateQRCode(containerId, petData) {
         const container = document.getElementById(containerId);
         if (!container) return;
         
-        // Format data for QR code
-        let qrData = `PET MEDICAL RECORD\n`;
-        qrData += `==================\n\n`;
-        qrData += `BASIC INFORMATION:\n`;
-        qrData += `------------------\n`;
-        qrData += `Name: ${petData.petName}\n`;
-        qrData += `Species: ${petData.species}\n`;
-        qrData += `Breed: ${petData.breed || 'Unknown'}\n`;
-        qrData += `Age: ${petData.age} years\n`;
-        qrData += `Color: ${petData.color || 'Not specified'}\n`;
-        qrData += `Weight: ${petData.weight ? petData.weight + ' kg' : 'Not specified'}\n`;
-        qrData += `Birth Date: ${petData.birthDate ? new Date(petData.birthDate).toLocaleDateString() : 'Unknown'}\n`;
-        qrData += `Gender: ${petData.gender || 'Not specified'}\n`;
-        qrData += `Registered: ${new Date(petData.registered).toLocaleDateString()}\n\n`;
+        // ✅ Create landing page URL instead of raw text
+        const landingPageUrl = `<?php echo $base_url; ?>/pet-medical-access.php?pet_id=${petData.petId}&pet_name=${encodeURIComponent(petData.petName)}`;
         
-        qrData += `MEDICAL INFORMATION:\n`;
-        qrData += `--------------------\n`;
-        qrData += `Medical Notes: ${petData.medicalNotes || 'None'}\n`;
-        qrData += `Veterinarian: ${petData.vetContact || 'Not specified'}\n\n`;
-        
-        qrData += `EMERGENCY CONTACT:\n`;
-        qrData += `If found, please contact owner immediately.\n`;
-        qrData += `\nGenerated on: ${new Date().toLocaleDateString()}`;
-        qrData += `\nPet ID: ${petData.petId}`;
+        // Use the URL as QR code content
+        const qrData = landingPageUrl;
         
         // Generate QR code
         const qr = qrcode(0, 'M');
@@ -1036,10 +1064,12 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             background: '#fff'
         });
         
-        // Store the data for later use
+        // Store both URL and original data
         container.setAttribute('data-qr-content', qrData);
         container.setAttribute('data-pet-name', petData.petName);
         container.setAttribute('data-pet-id', petData.petId);
+        container.setAttribute('data-landing-url', landingPageUrl);
+        container.setAttribute('data-pet-full-data', JSON.stringify(petData));
         
         // Style the SVG
         const svg = container.querySelector('svg');
@@ -1059,10 +1089,13 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         const modalTitle = document.getElementById('qrModalTitle');
         const modalContainer = document.getElementById('modalQrContainer');
         const modalDataContainer = document.getElementById('modalQrData');
+        const modalQrUrl = document.getElementById('modalQrUrl');
         const petName = container.getAttribute('data-pet-name');
+        const landingUrl = container.getAttribute('data-landing-url');
         
         modalTitle.textContent = `${petName} - Medical QR Code`;
         modalDataContainer.style.display = 'none';
+        modalQrUrl.textContent = landingUrl;
         
         // Create larger QR code for modal
         const qrData = container.getAttribute('data-qr-content');
@@ -1090,6 +1123,11 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         // Set download functionality
         document.getElementById('downloadModalQr').onclick = function() {
             downloadQRCode(petId);
+        };
+        
+        // Set test functionality
+        document.getElementById('testModalQr').onclick = function() {
+            testPetLandingPage(petId);
         };
         
         // Show the modal
@@ -1148,6 +1186,8 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         if (!container) return;
         
         const petName = container.getAttribute('data-pet-name');
+        const landingUrl = container.getAttribute('data-landing-url');
+        
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
@@ -1157,13 +1197,15 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
                         .qr-container { margin: 20px auto; }
                         .pet-info { margin: 20px 0; }
+                        .url-info { background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0; font-family: monospace; font-size: 12px; }
                     </style>
                 </head>
                 <body>
                     <h2>${petName} - Medical QR Code</h2>
                     <div class="qr-container">${container.innerHTML}</div>
                     <div class="pet-info">
-                        <p><strong>Scan this QR code to access medical records</strong></p>
+                        <p><strong>Scan this QR code to access our medical records landing page</strong></p>
+                        <div class="url-info">URL: ${landingUrl}</div>
                         <p>Generated on: ${new Date().toLocaleDateString()}</p>
                     </div>
                 </body>
@@ -1178,6 +1220,20 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         window.print();
     }
     
+    // Function to test landing page for specific pet
+    function testPetLandingPage(petId) {
+        const container = document.getElementById(`qrcode-${petId}`);
+        if (!container) return;
+        
+        const landingUrl = container.getAttribute('data-landing-url');
+        window.open(landingUrl, '_blank');
+    }
+    
+    // Function to test main landing page
+    function testLandingPage() {
+        window.open('<?php echo $base_url; ?>/pet-medical-access.php', '_blank');
+    }
+    
     // Function to download all QR codes as ZIP (placeholder)
     function downloadAllQRCodes() {
         alert('Bulk QR code download feature will be implemented soon! This would typically generate a ZIP file containing all QR codes.');
@@ -1189,8 +1245,9 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <?php foreach ($pets as $pet): ?>
             const container<?php echo $pet['pet_id']; ?> = document.getElementById('qrcode-<?php echo $pet['pet_id']; ?>');
             if (container<?php echo $pet['pet_id']; ?>) {
-                const qrData = container<?php echo $pet['pet_id']; ?>.getAttribute('data-qr-content');
-                allData.push(`=== <?php echo addslashes($pet['pet_name']); ?> ===\n${qrData}\n\n`);
+                const landingUrl = container<?php echo $pet['pet_id']; ?>.getAttribute('data-landing-url');
+                const petName = container<?php echo $pet['pet_id']; ?>.getAttribute('data-pet-name');
+                allData.push(`Pet: ${petName}\nURL: ${landingUrl}\n\n`);
             }
         <?php endforeach; ?>
         
@@ -1205,7 +1262,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.download = 'all_pet_qr_data.txt';
+        a.download = 'all_pet_qr_urls.txt';
         a.href = url;
         document.body.appendChild(a);
         a.click();
