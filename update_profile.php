@@ -13,7 +13,7 @@ $success = '';
 $error = '';
 
 // Fetch current user data
-$stmt = $conn->prepare("SELECT name, email, phone, address FROM users WHERE user_id = ?");
+$stmt = $conn->prepare("SELECT name, email, phone_number, address FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
@@ -21,7 +21,7 @@ $user = $stmt->get_result()->fetch_assoc();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name']);
     $email = trim($_POST['email']);
-    $phone = trim($_POST['phone']);
+    $phone_number = trim($_POST['phone']);
     $address = trim($_POST['address']);
     
     // Basic validation
@@ -39,15 +39,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "This email is already registered by another user.";
         } else {
             // Update user profile
-            $update_stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, address = ? WHERE user_id = ?");
-            $update_stmt->bind_param("ssssi", $name, $email, $phone, $address, $user_id);
+            $update_stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone_number = ?, address = ? WHERE user_id = ?");
+            $update_stmt->bind_param("ssssi", $name, $email, $phone_number, $address, $user_id);
             
             if ($update_stmt->execute()) {
                 $success = "Profile updated successfully!";
                 // Update session name if changed
                 $_SESSION['user_name'] = $name;
                 // Refresh user data
-                $user = ['name' => $name, 'email' => $email, 'phone' => $phone, 'address' => $address];
+                $user = ['name' => $name, 'email' => $email, 'phone_number' => $phone_number, 'address' => $address];
             } else {
                 $error = "Error updating profile: " . $conn->error;
             }
@@ -131,9 +131,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 
                 <div class="mb-3">
-                    <label for="phone" class="form-label">Phone Number</label>
-                    <input type="tel" class="form-control" id="phone" name="phone" 
-                           value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>">
+                    <label for="phone_number" class="form-label">Phone Number</label>
+                    <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                           value="<?php echo htmlspecialchars($user['phone_number'] ?? ''); ?>">
                 </div>
                 
                 <div class="mb-3">
