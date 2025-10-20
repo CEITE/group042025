@@ -68,7 +68,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pet Medical Records - PetMedQR</title>
+    <title>Pet Medical Records - VetCareQR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -275,7 +275,7 @@ try {
             <div class="pet-avatar floating">
                 <i class="fas fa-paw"></i>
             </div>
-            <h1 class="display-5 fw-bold mb-2">Welcome to PetMedQR</h1>
+            <h1 class="display-5 fw-bold mb-2">Welcome to VetCareQR</h1>
             <p class="lead mb-0 opacity-90">Professional Pet Healthcare Management System</p>
             <div class="mt-3">
                 <span class="stats-badge">
@@ -522,9 +522,9 @@ try {
         <footer class="text-center text-muted mt-5 pt-4 border-top">
             <div class="mb-2">
                 <i class="fas fa-paw text-pink-dark me-2"></i>
-                <strong class="text-pink-darker">PetMedQR</strong>
+                <strong class="text-pink-darker">VetCareQR</strong>
             </div>
-            <p class="mb-1 small">&copy; <?php echo date('Y'); ?> PetMedQR. All rights reserved.</p>
+            <p class="mb-1 small">&copy; <?php echo date('Y'); ?> VetCareQR. All rights reserved.</p>
             <p class="small text-muted">Secure pet medical records management system | Professional Veterinary Care</p>
         </footer>
     </div>
@@ -532,3 +532,4 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
