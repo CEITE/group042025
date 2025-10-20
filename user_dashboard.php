@@ -10,11 +10,14 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// ✅ 2. Fetch logged-in user info
-$stmt = $conn->prepare("SELECT name, role, email FROM users WHERE user_id = ?");
+// ✅ 2. Fetch logged-in user info with profile picture
+$stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
+
+// Set default profile picture if none exists
+$profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($user['name']);
 
 // ✅ 3. Fetch user's pets & medical records
 $query = "
@@ -220,6 +223,11 @@ foreach ($pets as $pet) {
             margin-bottom: .5rem;
             border: 3px solid rgba(0,0,0,0.1);
             object-fit: cover;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar .profile img:hover {
+            transform: scale(1.05);
         }
         
         .sidebar a {
@@ -449,6 +457,36 @@ foreach ($pets as $pet) {
             border: none;
         }
         
+        .profile-picture-container {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .profile-picture-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+            cursor: pointer;
+        }
+        
+        .profile-picture-container:hover .profile-picture-overlay {
+            opacity: 1;
+        }
+        
+        .profile-picture-overlay i {
+            color: white;
+            font-size: 1.5rem;
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -480,16 +518,24 @@ foreach ($pets as $pet) {
     <div class="sidebar">
         <div class="brand"><i class="fa-solid fa-paw"></i> PetMedQR</div>
         <div class="profile">
-            <img src="https://i.pravatar.cc/100?u=<?php echo urlencode($user['name']); ?>" alt="User">
+            <div class="profile-picture-container">
+                <img src="<?php echo htmlspecialchars($profile_picture); ?>" 
+                     alt="User" 
+                     id="sidebarProfilePicture"
+                     onerror="this.src='https://i.pravatar.cc/100?u=<?php echo urlencode($user['name']); ?>'">
+                <div class="profile-picture-overlay" onclick="location.href='user_settings.php'">
+                    <i class="fas fa-camera"></i>
+                </div>
+            </div>
             <h6 id="ownerNameSidebar"><?php echo htmlspecialchars($user['name']); ?></h6>
             <small class="text-muted"><?php echo htmlspecialchars($user['role']); ?></small>
         </div>
         <a href="user_dashboard.php" class="active">
             <div class="icon"><i class="fa-solid fa-gauge"></i></div> Dashboard
         </a>
-            <a href="user_pet_profile.php">
-             <div class="icon"><i class="fa-solid fa-dog"></i></div> My Pets
-            </a>
+        <a href="user_pet_profile.php">
+            <div class="icon"><i class="fa-solid fa-dog"></i></div> My Pets
+        </a>
         <a href="qr_code.php">
             <div class="icon"><i class="fa-solid fa-qrcode"></i></div> QR Codes
         </a>
@@ -497,7 +543,7 @@ foreach ($pets as $pet) {
             <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> Register Pet
         </a>
         <a href="user_settings.php">
-    <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
+            <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
         </a>
         <a href="logout.php" class="logout">
             <div class="icon"><i class="fa-solid fa-right-from-bracket"></i></div> Logout
@@ -893,7 +939,7 @@ foreach ($pets as $pet) {
         container.setAttribute('data-pet-name', petData.petName);
         container.setAttribute('data-pet-id', petData.petId);
         
-               // Also update the QR data preview
+        // Also update the QR data preview
         const qrDataPreview = document.getElementById(`qr-data-${petData.petId}`);
         if (qrDataPreview) {
             qrDataPreview.textContent = qrData;
@@ -1081,5 +1127,3 @@ foreach ($pets as $pet) {
 </script>
 </body>
 </html>
-
-
