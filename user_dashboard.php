@@ -477,13 +477,21 @@ foreach ($pets as $pet) {
 <body>
 <div class="wrapper">
     <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="brand"><i class="fa-solid fa-paw"></i> PetMedQR</div>
-        <div class="profile">
-            <img src="https://i.pravatar.cc/100?u=<?php echo urlencode($user['name']); ?>" alt="User">
-            <h6 id="ownerNameSidebar"><?php echo htmlspecialchars($user['name']); ?></h6>
-            <small class="text-muted"><?php echo htmlspecialchars($user['role']); ?></small>
-        </div>
+    <div class="sidebar .profile">
+    <?php
+    // Fetch user profile picture
+    $profile_pic_stmt = $conn->prepare("SELECT profile_picture FROM users WHERE user_id = ?");
+    $profile_pic_stmt->bind_param("i", $user_id);
+    $profile_pic_stmt->execute();
+    $profile_pic_result = $profile_pic_stmt->get_result()->fetch_assoc();
+    $profile_picture = $profile_pic_result['profile_picture'] ?? "https://i.pravatar.cc/100?u=" . urlencode($user['name']);
+    ?>
+    
+    <img src="<?php echo htmlspecialchars($profile_picture); ?>" alt="User" 
+         onerror="this.src='https://i.pravatar.cc/100?u=<?php echo urlencode($user['name']); ?>'">
+    <h6 id="ownerNameSidebar"><?php echo htmlspecialchars($user['name']); ?></h6>
+    <small class="text-muted"><?php echo htmlspecialchars($user['role']); ?></small>
+</div>
         <a href="user_dashboard.php" class="active">
             <div class="icon"><i class="fa-solid fa-gauge"></i></div> Dashboard
         </a>
@@ -1081,4 +1089,5 @@ foreach ($pets as $pet) {
 </script>
 </body>
 </html>
+
 
