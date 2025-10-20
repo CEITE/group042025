@@ -49,7 +49,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 // ✅ Get your domain for QR code URLs
 $domain = $_SERVER['HTTP_HOST'];
 $is_https = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
-$base_url = ($is_https ? 'https://group042025.ceitesystems.com/' : 'http://group042025.ceitesystems.com/') . $domain;
+$base_url = ($is_https ? 'https://group042025.ceitesystems.com/') . $domain;
 ?>
 
 <!DOCTYPE html>
@@ -1272,5 +1272,6 @@ $base_url = ($is_https ? 'https://group042025.ceitesystems.com/' : 'http://group
 </script>
 </body>
 </html>
+
 
 
