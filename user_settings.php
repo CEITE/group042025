@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 
 // Fetch user data
-$stmt = $conn->prepare("SELECT name, email, phone, address, role FROM users WHERE user_id = ?");
+$stmt = $conn->prepare("SELECT name, email, phone_number, address, role FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
@@ -98,7 +98,7 @@ $user = $stmt->get_result()->fetch_assoc();
                 
                 <div class="info-item">
                     <span class="info-label">Phone:</span>
-                    <span class="info-value"><?php echo htmlspecialchars($user['phone'] ?? 'Not set'); ?></span>
+                    <span class="info-value"><?php echo htmlspecialchars($user['phone_number'] ?? 'Not set'); ?></span>
                 </div>
                 
                 <div class="info-item">
