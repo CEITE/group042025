@@ -516,7 +516,7 @@ foreach ($pets as $pet) {
 <div class="wrapper">
     <!-- Sidebar -->
     <div class="sidebar">
-        <div class="brand"><i class="fa-solid fa-paw"></i> PetMedQR</div>
+        <div class="brand"><i class="fa-solid fa-paw"></i> VetCareQR</div>
         <div class="profile">
             <div class="profile-picture-container">
                 <img src="<?php echo htmlspecialchars($profile_picture); ?>" 
@@ -1127,4 +1127,5 @@ foreach ($pets as $pet) {
 </script>
 </body>
 </html>
+
 
