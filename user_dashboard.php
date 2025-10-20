@@ -496,8 +496,8 @@ foreach ($pets as $pet) {
         <a href="register_pet.php">
             <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> Register Pet
         </a>
-        <a href="#">
-            <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
+        <a href="user_settings.php">
+    <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
         </a>
         <a href="logout.php" class="logout">
             <div class="icon"><i class="fa-solid fa-right-from-bracket"></i></div> Logout
@@ -1081,3 +1081,4 @@ foreach ($pets as $pet) {
 </script>
 </body>
 </html>
+
