@@ -1,262 +1,378 @@
 <?php
-// medical-records.php
+session_start();
+include("conn.php");
 
-// Set headers first
-header("Content-Type: application/json");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
+// Get pet ID from URL
+$pet_id = isset($_GET['pet_id']) ? intval($_GET['pet_id']) : 0;
+$pet_name = isset($_GET['pet_name']) ? urldecode($_GET['pet_name']) : 'Unknown Pet';
 
-// Handle preflight requests
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit();
+// Fetch pet data from database
+$pet_data = null;
+if ($pet_id > 0) {
+    $stmt = $conn->prepare("
+        SELECT p.*, u.name as owner_name, u.email as owner_email, u.phone as owner_phone
+        FROM pets p 
+        LEFT JOIN users u ON p.user_id = u.user_id 
+        WHERE p.pet_id = ?
+    ");
+    $stmt->bind_param("i", $pet_id);
+    $stmt->execute();
+    $pet_data = $stmt->get_result()->fetch_assoc();
 }
 
-// Include database configuration
-require_once 'conn.php';
-
-// Check if database connection is established
-if (!$pdo) {
-    http_response_code(500);
-    echo json_encode(["success" => false, "error" => "Database connection failed"]);
-    exit();
+// Get recent medical records
+$recent_records = [];
+if ($pet_id > 0) {
+    $stmt = $conn->prepare("
+        SELECT record_type, record_date, description 
+        FROM pet_medical_records 
+        WHERE pet_id = ? 
+        ORDER BY record_date DESC 
+        LIMIT 5
+    ");
+    $stmt->bind_param("i", $pet_id);
+    $stmt->execute();
+    $recent_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
-$method = $_SERVER['REQUEST_METHOD'];
-
-try {
-    switch($method) {
-        case 'GET':
-            handleGet();
-            break;
-            
-        case 'POST':
-            $input = json_decode(file_get_contents("php://input"), true);
-            handlePost($input);
-            break;
-            
-        case 'PUT':
-            if (isset($_GET['id'])) {
-                $input = json_decode(file_get_contents("php://input"), true);
-                handlePut($_GET['id'], $input);
-            } else {
-                http_response_code(400);
-                echo json_encode(["success" => false, "error" => "Record ID required"]);
-            }
-            break;
-            
-        case 'DELETE':
-            if (isset($_GET['id'])) {
-                handleDelete($_GET['id']);
-            } else {
-                http_response_code(400);
-                echo json_encode(["success" => false, "error" => "Record ID required"]);
-            }
-            break;
-            
-        default:
-            http_response_code(405);
-            echo json_encode(["success" => false, "error" => "Method not allowed"]);
-    }
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(["success" => false, "error" => "Server error: " . $e->getMessage()]);
-}
-
-function handleGet() {
-    global $pdo;
-    
-    try {
-        if (isset($_GET['id'])) {
-            // Get single record
-            $id = filter_var($_GET['id'], FILTER_VALIDATE_INT);
-            if (!$id) {
-                http_response_code(400);
-                echo json_encode(["success" => false, "error" => "Invalid ID"]);
-                return;
-            }
-            
-            $stmt = $pdo->prepare("SELECT * FROM pet_medical_records WHERE record_id = ?");
-            $stmt->execute([$id]);
-            $record = $stmt->fetch();
-            
-            if ($record) {
-                echo json_encode(["success" => true, "data" => $record]);
-            } else {
-                http_response_code(404);
-                echo json_encode(["success" => false, "error" => "Record not found"]);
-            }
-        } else {
-            // Get all records
-            $search = isset($_GET['search']) ? $_GET['search'] : '';
-            
-            if ($search) {
-                $stmt = $pdo->prepare("
-                    SELECT * FROM pet_medical_records 
-                    WHERE pet_name LIKE ? OR owner_name LIKE ? OR species LIKE ?
-                    ORDER BY record_id DESC
-                ");
-                $searchTerm = "%$search%";
-                $stmt->execute([$searchTerm, $searchTerm, $searchTerm]);
-            } else {
-                $stmt = $pdo->prepare("SELECT * FROM pet_medical_records ORDER BY record_id DESC");
-                $stmt->execute();
-            }
-            
-            $records = $stmt->fetchAll();
-            echo json_encode(["success" => true, "data" => $records]);
-        }
-        
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(["success" => false, "error" => "Database error: " . $e->getMessage()]);
-    }
-}
-
-function handlePost($data) {
-    global $pdo;
-    
-    if (!$data) {
-        http_response_code(400);
-        echo json_encode(["success" => false, "error" => "No data provided"]);
-        return;
-    }
-    
-    try {
-        $sql = "INSERT INTO pet_medical_records (
-            owner_id, owner_name, pet_id, pet_name, species, breed, color, sex, 
-            dob, age, weight, status, tag, microchip, weight_date, reminder_description,
-            reminder_due_date, service_date, service_time, service_type, service_description,
-            veterinarian, notes, generated_date, clinic_name, clinic_address, clinic_contact
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            $data['owner_id'] ?? null,
-            $data['owner_name'] ?? null,
-            $data['pet_id'] ?? null,
-            $data['pet_name'] ?? null,
-            $data['species'] ?? null,
-            $data['breed'] ?? null,
-            $data['color'] ?? null,
-            $data['sex'] ?? null,
-            $data['dob'] ?? null,
-            $data['age'] ?? null,
-            $data['weight'] ?? null,
-            $data['status'] ?? 'Active',
-            $data['tag'] ?? null,
-            $data['microchip'] ?? null,
-            $data['weight_date'] ?? null,
-            $data['reminder_description'] ?? null,
-            $data['reminder_due_date'] ?? null,
-            $data['service_date'] ?? date('Y-m-d'),
-            $data['service_time'] ?? null,
-            $data['service_type'] ?? 'Checkup',
-            $data['service_description'] ?? null,
-            $data['veterinarian'] ?? null,
-            $data['notes'] ?? null,
-            $data['generated_date'] ?? date('Y-m-d'),
-            $data['clinic_name'] ?? null,
-            $data['clinic_address'] ?? null,
-            $data['clinic_contact'] ?? null
-        ]);
-        
-        echo json_encode([
-            "success" => true,
-            "id" => $pdo->lastInsertId(),
-            "message" => "Record created successfully"
-        ]);
-        
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(["success" => false, "error" => "Database error: " . $e->getMessage()]);
-    }
-}
-
-function handlePut($id, $data) {
-    global $pdo;
-    
-    if (!$data) {
-        http_response_code(400);
-        echo json_encode(["success" => false, "error" => "No data provided"]);
-        return;
-    }
-    
-    try {
-        // Check if record exists
-        $checkStmt = $pdo->prepare("SELECT record_id FROM pet_medical_records WHERE record_id = ?");
-        $checkStmt->execute([$id]);
-        if (!$checkStmt->fetch()) {
-            http_response_code(404);
-            echo json_encode(["success" => false, "error" => "Record not found"]);
-            return;
-        }
-        
-        $sql = "UPDATE pet_medical_records SET 
-            owner_id = ?, owner_name = ?, pet_id = ?, pet_name = ?, species = ?, breed = ?, 
-            color = ?, sex = ?, dob = ?, age = ?, weight = ?, status = ?, tag = ?, microchip = ?, 
-            weight_date = ?, reminder_description = ?, reminder_due_date = ?, service_date = ?, 
-            service_time = ?, service_type = ?, service_description = ?, veterinarian = ?, 
-            notes = ?, clinic_name = ?, clinic_address = ?, clinic_contact = ? 
-            WHERE record_id = ?";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            $data['owner_id'] ?? null,
-            $data['owner_name'] ?? null,
-            $data['pet_id'] ?? null,
-            $data['pet_name'] ?? null,
-            $data['species'] ?? null,
-            $data['breed'] ?? null,
-            $data['color'] ?? null,
-            $data['sex'] ?? null,
-            $data['dob'] ?? null,
-            $data['age'] ?? null,
-            $data['weight'] ?? null,
-            $data['status'] ?? 'Active',
-            $data['tag'] ?? null,
-            $data['microchip'] ?? null,
-            $data['weight_date'] ?? null,
-            $data['reminder_description'] ?? null,
-            $data['reminder_due_date'] ?? null,
-            $data['service_date'] ?? null,
-            $data['service_time'] ?? null,
-            $data['service_type'] ?? null,
-            $data['service_description'] ?? null,
-            $data['veterinarian'] ?? null,
-            $data['notes'] ?? null,
-            $data['clinic_name'] ?? null,
-            $data['clinic_address'] ?? null,
-            $data['clinic_contact'] ?? null,
-            $id
-        ]);
-        
-        echo json_encode(["success" => true, "message" => "Record updated successfully"]);
-        
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(["success" => false, "error" => "Database error: " . $e->getMessage()]);
-    }
-}
-
-function handleDelete($id) {
-    global $pdo;
-    
-    try {
-        $stmt = $pdo->prepare("DELETE FROM pet_medical_records WHERE record_id = ?");
-        $stmt->execute([$id]);
-        
-        if ($stmt->rowCount() > 0) {
-            echo json_encode(["success" => true, "message" => "Record deleted successfully"]);
-        } else {
-            http_response_code(404);
-            echo json_encode(["success" => false, "error" => "Record not found"]);
-        }
-        
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(["success" => false, "error" => "Database error: " . $e->getMessage()]);
-    }
-}
+// Get base URL for links
+$domain = $_SERVER['HTTP_HOST'];
+$is_https = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+$base_url = ($is_https ? 'https://' : 'http://') . $domain;
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Medical Records Access - PetMedQR</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --pink: #ffd6e7;
+            --pink-dark: #ec4899;
+            --pink-darker: #db2777;
+            --pink-gradient: linear-gradient(135deg, #f9a8d4 0%, #ec4899 100%);
+            --pink-light: #fdf2f8;
+        }
+        body {
+            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+        }
+        .medical-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin: 2rem auto;
+            max-width: 1200px;
+            border: 1px solid rgba(255,255,255,0.8);
+        }
+        .medical-header {
+            background: var(--pink-gradient);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .medical-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.15);
+            transform: rotate(45deg);
+        }
+        .medical-body {
+            padding: 3rem;
+        }
+        .system-preview {
+            background: var(--pink-light);
+            border-radius: 15px;
+            padding: 2.5rem;
+            margin: 2.5rem 0;
+            border: 2px dashed var(--pink-dark);
+            position: relative;
+        }
+        .login-btn {
+            background: var(--pink-gradient);
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+            color: white;
+            box-shadow: 0 10px 25px rgba(236, 72, 153, 0.4);
+        }
+        .pet-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            margin: 0 auto 1.5rem;
+            border: 4px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(10px);
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+        }
+        .feature-list li:before {
+            content: "✓";
+            color: var(--pink-darker);
+            font-weight: bold;
+            margin-right: 12px;
+            font-size: 1.2rem;
+        }
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--pink-dark);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .record-item {
+            background: var(--pink-light);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-left: 3px solid var(--pink-dark);
+        }
+        .security-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="medical-card">
+        <div class="medical-header">
+            <div class="pet-avatar">
+                <i class="fas fa-paw"></i>
+            </div>
+            <h1 class="display-5 fw-bold">Welcome to PetMedQR</h1>
+            <p class="lead mb-0 opacity-90">Professional Pet Healthcare Management System</p>
+        </div>
+        
+        <div class="medical-body">
+            <!-- Pet Information Section -->
+            <?php if ($pet_data): ?>
+            <div class="row mb-5">
+                <div class="col-md-6">
+                    <div class="info-card">
+                        <h4><i class="fas fa-paw me-2 text-primary"></i>Pet Information</h4>
+                        <div class="row mt-3">
+                            <div class="col-5"><strong>Name:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['name']); ?></div>
+                            
+                            <div class="col-5"><strong>Species:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['species']); ?></div>
+                            
+                            <div class="col-5"><strong>Breed:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['breed'] ?: 'Mixed'); ?></div>
+                            
+                            <div class="col-5"><strong>Age:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['age']); ?> years</div>
+                            
+                            <div class="col-5"><strong>Gender:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['gender'] ?: 'Unknown'); ?></div>
+                            
+                            <div class="col-5"><strong>Color:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['color'] ?: 'Not specified'); ?></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="info-card">
+                        <h4><i class="fas fa-user me-2 text-primary"></i>Owner Information</h4>
+                        <div class="row mt-3">
+                            <div class="col-5"><strong>Owner:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['owner_name']); ?></div>
+                            
+                            <?php if ($pet_data['owner_email']): ?>
+                            <div class="col-5"><strong>Email:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['owner_email']); ?></div>
+                            <?php endif; ?>
+                            
+                            <?php if ($pet_data['owner_phone']): ?>
+                            <div class="col-5"><strong>Phone:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['owner_phone']); ?></div>
+                            <?php endif; ?>
+                            
+                            <div class="col-5"><strong>Veterinarian:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['vet_contact'] ?: 'Not specified'); ?></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Medical Records -->
+            <?php if (!empty($recent_records)): ?>
+            <div class="info-card">
+                <h4><i class="fas fa-history me-2 text-primary"></i>Recent Medical History</h4>
+                <div class="mt-3">
+                    <?php foreach ($recent_records as $record): ?>
+                    <div class="record-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong><?php echo htmlspecialchars($record['record_type']); ?></strong>
+                                <div class="text-muted small"><?php echo htmlspecialchars($record['description']); ?></div>
+                            </div>
+                            <small class="text-muted"><?php echo date('M j, Y', strtotime($record['record_date'])); ?></small>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php else: ?>
+            <div class="alert alert-warning text-center">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Pet information not found or access denied.
+            </div>
+            <?php endif; ?>
+
+            <!-- System Design Preview -->
+            <div class="system-preview text-center">
+                <span class="security-badge">
+                    <i class="fas fa-shield-alt"></i> Secure Access
+                </span>
+                <h3 class="mt-3"><i class="fas fa-star me-2 text-warning"></i>Our Medical Record System</h3>
+                <p class="lead">Professional interface for efficient pet healthcare management</p>
+                
+                <!-- System Preview Image/Description -->
+                <div style="background: white; padding: 2rem; border-radius: 12px; border: 2px solid var(--pink); margin: 2rem 0;">
+                    <div class="row text-start">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard Overview</h5>
+                            <p class="text-muted">Quick access to vital pet information and medical history</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-file-medical me-2 text-success"></i>Medical Records</h5>
+                            <p class="text-muted">Comprehensive health tracking and treatment plans</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <i class="fas fa-laptop-medical fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">[Professional Medical Record System Interface]</p>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3">
+                            <i class="fas fa-heartbeat fa-2x text-danger mb-2"></i>
+                            <h6>Health Tracking</h6>
+                            <p class="small text-muted">Comprehensive medical history</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3">
+                            <i class="fas fa-prescription-bottle-alt fa-2x text-primary mb-2"></i>
+                            <h6>Medications</h6>
+                            <p class="small text-muted">Prescription management</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3">
+                            <i class="fas fa-syringe fa-2x text-success mb-2"></i>
+                            <h6>Vaccinations</h6>
+                            <p class="small text-muted">Vaccine schedule tracking</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3">
+                            <i class="fas fa-notes-medical fa-2x text-warning mb-2"></i>
+                            <h6>Lab Results</h6>
+                            <p class="small text-muted">Test results and analysis</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call to Action -->
+            <div class="text-center mt-5">
+                <h4>Ready to Access the Full System?</h4>
+                <p class="text-muted mb-4">Click below to log in to our complete medical records system for full access to all features</p>
+                <a href="<?php echo $base_url; ?>/login.php" class="login-btn me-3">
+                    <i class="fas fa-sign-in-alt me-2"></i>Access System Login
+                </a>
+                <a href="<?php echo $base_url; ?>/register.php" class="btn btn-outline-primary">
+                    <i class="fas fa-user-plus me-2"></i>Request Access
+                </a>
+                <p class="text-muted mt-3 small">
+                    For emergency access or technical support, contact system administrator
+                </p>
+            </div>
+
+            <!-- Features List -->
+            <div class="row mt-5">
+                <div class="col-md-6">
+                    <div class="info-card">
+                        <h5><i class="fas fa-list-check me-2 text-primary"></i>System Features</h5>
+                        <ul class="feature-list mt-3">
+                            <li>Complete medical history tracking</li>
+                            <li>Vaccination and medication records</li>
+                            <li>Lab results and diagnostic imaging</li>
+                            <li>Appointment scheduling</li>
+                            <li>Multi-veterinarian access</li>
+                            <li>Emergency contact information</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="info-card">
+                        <h5><i class="fas fa-benefits me-2 text-success"></i>Benefits</h5>
+                        <ul class="feature-list mt-3">
+                            <li>24/7 secure access to records</li>
+                            <li>Seamless clinic-to-clinic transfers</li>
+                            <li>Emergency situation readiness</li>
+                            <li>Mobile-friendly interface</li>
+                            <li>Automated reminder system</li>
+                            <li>HIPAA compliant data protection</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center text-muted mt-4 pb-4">
+        <p>&copy; <?php echo date('Y'); ?> PetMedQR. All rights reserved.</p>
+        <p class="small">Secure pet medical records management system | Professional Veterinary Care</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
