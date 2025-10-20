@@ -35,6 +35,8 @@ if ($pet_id > 0) {
     $recent_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
+// ✅ FIXED: Use your actual domain directly
+$base_url = 'https://group042025.ceitesystems.com';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -168,6 +170,19 @@ if ($pet_id > 0) {
             align-items: center;
             gap: 0.5rem;
         }
+        .medical-alert {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .contact-info {
+            background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
     </style>
 </head>
 <body>
@@ -181,6 +196,17 @@ if ($pet_id > 0) {
         </div>
         
         <div class="medical-body">
+            <!-- Emergency Alert -->
+            <div class="medical-alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle text-warning fa-2x me-3"></i>
+                    <div>
+                        <h5 class="mb-1">Emergency Medical Access</h5>
+                        <p class="mb-0">This QR code provides access to vital pet medical information for veterinary professionals.</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Pet Information Section -->
             <?php if ($pet_data): ?>
             <div class="row mb-5">
@@ -205,6 +231,9 @@ if ($pet_id > 0) {
                             
                             <div class="col-5"><strong>Color:</strong></div>
                             <div class="col-7"><?php echo htmlspecialchars($pet_data['color'] ?: 'Not specified'); ?></div>
+                            
+                            <div class="col-5"><strong>Weight:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['weight'] ? $pet_data['weight'] . ' kg' : 'Not specified'); ?></div>
                         </div>
                     </div>
                 </div>
@@ -217,18 +246,34 @@ if ($pet_id > 0) {
                             
                             <?php if ($pet_data['owner_email']): ?>
                             <div class="col-5"><strong>Email:</strong></div>
-                            <div class="col-7"><?php echo htmlspecialchars($pet_data['owner_email']); ?></div>
+                            <div class="col-7">
+                                <a href="mailto:<?php echo htmlspecialchars($pet_data['owner_email']); ?>">
+                                    <?php echo htmlspecialchars($pet_data['owner_email']); ?>
+                                </a>
+                            </div>
                             <?php endif; ?>
                             
                             <?php if ($pet_data['owner_phone']): ?>
                             <div class="col-5"><strong>Phone:</strong></div>
-                            <div class="col-7"><?php echo htmlspecialchars($pet_data['owner_phone']); ?></div>
+                            <div class="col-7">
+                                <a href="tel:<?php echo htmlspecialchars($pet_data['owner_phone']); ?>">
+                                    <?php echo htmlspecialchars($pet_data['owner_phone']); ?>
+                                </a>
+                            </div>
                             <?php endif; ?>
                             
                             <div class="col-5"><strong>Veterinarian:</strong></div>
                             <div class="col-7"><?php echo htmlspecialchars($pet_data['vet_contact'] ?: 'Not specified'); ?></div>
                         </div>
                     </div>
+
+                    <!-- Medical Notes -->
+                    <?php if ($pet_data['medical_notes']): ?>
+                    <div class="info-card mt-3">
+                        <h4><i class="fas fa-file-medical me-2 text-primary"></i>Medical Notes</h4>
+                        <p class="mt-2"><?php echo htmlspecialchars($pet_data['medical_notes']); ?></p>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -241,8 +286,8 @@ if ($pet_id > 0) {
                     <div class="record-item">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <strong><?php echo htmlspecialchars($record['record_type']); ?></strong>
-                                <div class="text-muted small"><?php echo htmlspecialchars($record['description']); ?></div>
+                                <strong class="text-primary"><?php echo htmlspecialchars($record['record_type']); ?></strong>
+                                <div class="text-muted small mt-1"><?php echo htmlspecialchars($record['description']); ?></div>
                             </div>
                             <small class="text-muted"><?php echo date('M j, Y', strtotime($record['record_date'])); ?></small>
                         </div>
@@ -256,8 +301,16 @@ if ($pet_id > 0) {
             <div class="alert alert-warning text-center">
                 <i class="fas fa-exclamation-triangle me-2"></i>
                 Pet information not found or access denied.
+                <br><small>Please check the pet ID or contact system administrator.</small>
             </div>
             <?php endif; ?>
+
+            <!-- Contact Information for Emergencies -->
+            <div class="contact-info">
+                <h4><i class="fas fa-phone-alt me-2 text-primary"></i>Emergency Contact</h4>
+                <p class="mb-2">If this is a medical emergency, please contact the pet owner immediately using the information above.</p>
+                <p class="mb-0"><strong>For urgent veterinary assistance, contact the pet's veterinarian directly.</strong></p>
+            </div>
 
             <!-- System Design Preview -->
             <div class="system-preview text-center">
@@ -267,7 +320,7 @@ if ($pet_id > 0) {
                 <h3 class="mt-3"><i class="fas fa-star me-2 text-warning"></i>Our Medical Record System</h3>
                 <p class="lead">Professional interface for efficient pet healthcare management</p>
                 
-                <!-- System Preview Image/Description -->
+                <!-- System Preview -->
                 <div style="background: white; padding: 2rem; border-radius: 12px; border: 2px solid var(--pink); margin: 2rem 0;">
                     <div class="row text-start">
                         <div class="col-md-6">
@@ -281,7 +334,13 @@ if ($pet_id > 0) {
                     </div>
                     <div class="mt-3 p-3 bg-light rounded">
                         <i class="fas fa-laptop-medical fa-3x text-muted mb-3"></i>
-                        <p class="text-muted mb-0">[Professional Medical Record System Interface]</p>
+                        <p class="text-muted mb-0">Professional Medical Record System Interface</p>
+                        <div class="mt-3">
+                            <span class="badge bg-primary me-2">Patient Profiles</span>
+                            <span class="badge bg-success me-2">Treatment History</span>
+                            <span class="badge bg-info me-2">Lab Results</span>
+                            <span class="badge bg-warning me-2">Prescriptions</span>
+                        </div>
                     </div>
                 </div>
 
@@ -344,6 +403,8 @@ if ($pet_id > 0) {
                             <li>Appointment scheduling</li>
                             <li>Multi-veterinarian access</li>
                             <li>Emergency contact information</li>
+                            <li>Prescription management</li>
+                            <li>Treatment plan tracking</li>
                         </ul>
                     </div>
                 </div>
@@ -357,6 +418,8 @@ if ($pet_id > 0) {
                             <li>Mobile-friendly interface</li>
                             <li>Automated reminder system</li>
                             <li>HIPAA compliant data protection</li>
+                            <li>Real-time updates</li>
+                            <li>Comprehensive audit trails</li>
                         </ul>
                     </div>
                 </div>
@@ -367,6 +430,7 @@ if ($pet_id > 0) {
     <footer class="text-center text-muted mt-4 pb-4">
         <p>&copy; <?php echo date('Y'); ?> PetMedQR. All rights reserved.</p>
         <p class="small">Secure pet medical records management system | Professional Veterinary Care</p>
+        <p class="small">System: <?php echo $base_url; ?></p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
