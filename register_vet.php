@@ -6,6 +6,11 @@ include("conn.php");
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Check database connection
+if (!$conn) {
+    die("Database connection failed: " . htmlspecialchars($conn->connect_error));
+}
+
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
     header("Location: vet_dashboard.php");
@@ -52,36 +57,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $check_email->close();
     } else {
-        $errors[] = "Database error: " . $conn->error;
+        $errors[] = "System error: Unable to verify email availability";
+        error_log("Database preparation error in register_vet.php: " . $conn->error);
     }
     
     if (empty($errors)) {
         // Hash password
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
-        // Check what columns exist in your users table
-        // Assuming your users table has: user_id, name, email, phone_number, password, role, profile_picture
+        // Insert user with vet role
         $insert_query = "
-        INSERT INTO users (name, email, phone_number, password, role) 
-        VALUES (?, ?, ?, ?, 'vet')
+        INSERT INTO users (name, email, phone_number, password, role, license_number, specialization) 
+        VALUES (?, ?, ?, ?, 'vet', ?, ?)
         ";
         
         $stmt = $conn->prepare($insert_query);
         if ($stmt) {
-            $stmt->bind_param("ssss", $name, $email, $phone_number, $hashed_password);
+            $stmt->bind_param("ssssss", $name, $email, $phone_number, $hashed_password, $license_number, $specialization);
             
             if ($stmt->execute()) {
                 $_SESSION['success'] = "Registration successful! Please login to your veterinary account.";
                 header("Location: login_vet.php");
                 exit();
             } else {
-                $errors[] = "Registration failed: " . $conn->error;
-                error_log("Registration error: " . $conn->error);
+                $errors[] = "Registration failed. Please try again.";
+                error_log("Registration execution error: " . $stmt->error);
             }
             $stmt->close();
         } else {
-            $errors[] = "Database preparation error: " . $conn->error;
-            error_log("Prepare error: " . $conn->error);
+            $errors[] = "System error: Unable to create account";
+            error_log("Database preparation error: " . $conn->error);
         }
     }
 }
@@ -402,7 +407,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                             </div>
                             
-                            <!-- Optional: Veterinary Information (can be added later to user profile) -->
+                            <!-- Veterinary Information -->
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label for="license_number" class="form-label">Veterinary License Number</label>
