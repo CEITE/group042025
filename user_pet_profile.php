@@ -416,7 +416,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             <?php endif; ?>
                             
                             <div class="action-buttons">
-                                <a href="pet_medical_records.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-primary">
+                                <a href="medical-records.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-primary">
                                     <i class="fa-solid fa-file-medical me-1"></i> View Medical Records
                                 </a>
                                 <a href="edit_pet.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-secondary">
@@ -515,4 +515,5 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
 </script>
 </body>
+
 </html>
