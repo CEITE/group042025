@@ -8,7 +8,7 @@ ini_set('display_errors', 1);
 
 // ✅ 1. Check if vet is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vet') {
-    header("Location: vet_login.php");
+    header("Location: login_vet.php");
     exit();
 }
 
@@ -920,3 +920,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
+
