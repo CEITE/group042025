@@ -4,7 +4,7 @@ include("conn.php");
 
 // ✅ 1. Check if vet is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vet') {
-    header("Location: login_vet.php"); // Changed to login_vet.php
+    header("Location: login_vet.php");
     exit();
 }
 
@@ -19,13 +19,13 @@ $vet = $stmt->get_result()->fetch_assoc();
 // Set default profile picture if none exists
 $profile_picture = !empty($vet['profile_picture']) ? $vet['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($vet['name']);
 
-// ✅ 3. Fetch all pets with their medical records for vet to update - FIXED COLUMN NAMES
+// ✅ 3. Fetch all pets with their medical records for vet to update
 $query = "
 SELECT 
     u.user_id,
     u.name AS owner_name,
     u.email AS owner_email,
-    u.phone_number AS owner_phone,  -- CHANGED: phone to phone_number
+    u.phone_number AS owner_phone,
     p.pet_id,
     p.name AS pet_name,
     p.species,
@@ -48,7 +48,6 @@ SELECT
     m.service_description,
     m.veterinarian,
     m.notes
-    -- REMOVED: m.created_at (column doesn't exist)
 FROM pets p
 JOIN users u ON p.user_id = u.user_id
 LEFT JOIN pet_medical_records m ON p.pet_id = m.pet_id
@@ -113,7 +112,6 @@ while ($row = $result->fetch_assoc()) {
                 'service_description' => $row['service_description'] ?? null,
                 'veterinarian' => $row['veterinarian'] ?? null,
                 'notes' => $row['notes'] ?? null
-                // REMOVED: 'created_at' => $row['created_at'] ?? null
             ];
         }
     }
@@ -179,7 +177,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         
         if ($stmt->execute()) {
             $_SESSION['success'] = "Medical record added successfully!";
-            // Refresh page to show updated records
             header("Location: vet_dashboard.php");
             exit();
         } else {
@@ -256,24 +253,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #3498db;
-            --primary-light: #5dade2;
-            --primary-dark: #2980b9;
-            --secondary: #2c3e50;
-            --accent: #e74c3c;
-            --success: #27ae60;
-            --warning: #f39c12;
-            --light: #ecf0f1;
-            --dark: #2c3e50;
-            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --hover-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+            --primary: #ec4899;
+            --primary-dark: #db2777;
+            --primary-light: #fbcfe8;
+            --secondary: #8b5cf6;
+            --accent: #f97316;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --light: #fdf2f8;
+            --dark: #1f2937;
+            --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            --hover-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            --sidebar-width: 280px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f5f7fb;
-            margin: 0;
-            color: #333;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #fdf2f8 0%, #f3e8ff 100%);
+            color: #374151;
+            line-height: 1.6;
         }
         
         .wrapper {
@@ -281,116 +286,294 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             min-height: 100vh;
         }
         
+        /* Sidebar Styles */
         .sidebar {
-            width: 260px;
-            background: white;
-            padding: 2rem 1rem;
-            box-shadow: var(--card-shadow);
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 2rem 1.5rem;
             display: flex;
             flex-direction: column;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
         }
         
-        .sidebar .brand {
+        .brand {
             font-weight: 800;
-            font-size: 1.2rem;
-            text-align: center;
-            margin-bottom: 2rem;
-            color: var(--primary);
-        }
-        
-        .sidebar .profile {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        
-        .sidebar .profile img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin-bottom: .5rem;
-            border: 3px solid var(--primary);
-            object-fit: cover;
-        }
-        
-        .sidebar a {
+            font-size: 1.5rem;
+            margin-bottom: 3rem;
             display: flex;
             align-items: center;
-            padding: 12px 14px;
-            border-radius: 12px;
-            margin: .3rem 0;
-            text-decoration: none;
-            color: #333;
-            font-weight: 600;
-            transition: .2s;
-        }
-        
-        .sidebar a .icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 12px;
-            display: grid;
-            place-items: center;
-            background: var(--light);
-            margin-right: 10px;
-            color: var(--primary);
-        }
-        
-        .sidebar a.active, .sidebar a:hover {
-            background: var(--primary-light);
+            gap: 12px;
             color: white;
         }
         
-        .sidebar a.active .icon, .sidebar a:hover .icon {
-            background: rgba(255,255,255,0.2);
+        .brand i {
+            font-size: 1.8rem;
         }
         
+        .profile {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 1.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .profile img {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            margin-bottom: 1rem;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            object-fit: cover;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .profile h6 {
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            color: white;
+        }
+        
+        .profile small {
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+        }
+        
+        .nav-links {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            border-radius: 16px;
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            transform: translateX(5px);
+        }
+        
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .nav-link i {
+            width: 24px;
+            margin-right: 12px;
+            font-size: 1.2rem;
+        }
+        
+        .logout-btn {
+            margin-top: auto;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 1);
+            transform: translateX(5px);
+        }
+        
+        /* Main Content Styles */
         .main-content {
             flex: 1;
-            padding: 1.5rem 2rem;
-            overflow-y: auto;
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            min-height: 100vh;
         }
         
         .topbar {
             background: white;
-            padding: 1rem 1.5rem;
-            border-radius: 16px;
+            padding: 1.5rem 2rem;
+            border-radius: 20px;
             box-shadow: var(--card-shadow);
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.8);
         }
         
-        .card-custom {
+        .welcome-section h4 {
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .welcome-section p {
+            color: #6b7280;
+            margin-bottom: 0;
+        }
+        
+        .search-box {
+            position: relative;
+            width: 350px;
+        }
+        
+        .search-box input {
+            padding: 0.75rem 1rem 0.75rem 3rem;
+            border-radius: 50px;
+            border: 2px solid #f3f4f6;
+            background: #fdf2f8;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
             background: white;
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: var(--card-shadow);
-            margin-bottom: 1.5rem;
-            border: none;
         }
         
-        .stats-card {
-            text-align: center;
-            padding: 1.5rem 1rem;
-            border-radius: 16px;
-            height: 100%;
-            background: var(--light);
-        }
-        
-        .stats-card i {
-            font-size: 2rem;
-            margin-bottom: 1rem;
+        .search-box i {
+            position: absolute;
+            left: 1.25rem;
+            top: 50%;
+            transform: translateY(-50%);
             color: var(--primary);
         }
         
-        .pet-card {
-            border-radius: 16px;
-            overflow: hidden;
-            transition: transform 0.3s;
-            height: 100%;
-            border: none;
+        .datetime-display {
+            text-align: right;
+        }
+        
+        .datetime-display strong {
+            color: var(--primary);
+            font-weight: 700;
+        }
+        
+        .datetime-display small {
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        /* Stats Cards */
+        .stats-row {
+            margin-bottom: 2rem;
+        }
+        
+        .stats-card {
+            background: white;
+            padding: 2rem 1.5rem;
+            border-radius: 20px;
+            text-align: center;
             box-shadow: var(--card-shadow);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--hover-shadow);
+        }
+        
+        .stats-card i {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stats-card h6 {
+            color: #6b7280;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stats-card h4 {
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 0;
+        }
+        
+        /* Custom Cards */
+        .card-custom {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+        
+        .card-custom h4 {
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .card-custom h4 i {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Quick Actions */
+        .quick-actions .btn {
+            padding: 1rem 1.5rem;
+            border-radius: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(236, 72, 153, 0.3);
+        }
+        
+        .btn-outline-primary {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: transparent;
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        /* Pet Cards */
+        .pet-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            margin-bottom: 1.5rem;
         }
         
         .pet-card:hover {
@@ -399,109 +582,221 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
         
         .pet-card-header {
-            padding: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: var(--primary-light);
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            padding: 1.5rem;
             color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .pet-card-header h5 {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pet-card-header small {
+            opacity: 0.9;
+            font-weight: 500;
         }
         
         .pet-card-body {
-            padding: 1rem;
+            padding: 1.5rem;
         }
         
-        .btn-vet {
-            background: var(--primary);
-            color: white;
-            border: none;
+        .pet-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
         }
         
-        .btn-vet:hover {
-            background: var(--primary-dark);
-            color: white;
+        .pet-info-item {
+            display: flex;
+            flex-direction: column;
         }
         
+        .pet-info-label {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .pet-info-value {
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        /* Medical Records Table */
         .medical-table {
             font-size: 0.9rem;
+            border-radius: 12px;
+            overflow: hidden;
         }
         
         .medical-table th {
-            background-color: #f8f9fa;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            color: white;
+            font-weight: 600;
+            padding: 1rem;
+            border: none;
+        }
+        
+        .medical-table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-color: #f3f4f6;
         }
         
         .badge-service {
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.8rem;
         }
         
         .badge-vaccine {
-            background: var(--success);
+            background: linear-gradient(135deg, var(--success), #059669);
             color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.8rem;
         }
         
         .badge-checkup {
-            background: var(--warning);
+            background: linear-gradient(135deg, var(--warning), #d97706);
             color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.8rem;
         }
         
         .badge-emergency {
-            background: var(--accent);
+            background: linear-gradient(135deg, var(--danger), #dc2626);
             color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.8rem;
         }
         
         .action-buttons {
             display: flex;
-            gap: 5px;
+            gap: 0.5rem;
         }
         
         .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.8rem;
+            padding: 0.5rem;
+            border-radius: 12px;
+            border: none;
+            transition: all 0.3s ease;
         }
         
+        .btn-sm:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 3rem 2rem;
-            color: #6c757d;
+            padding: 4rem 2rem;
+            color: #6b7280;
         }
         
         .empty-state i {
             font-size: 4rem;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             opacity: 0.5;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         
-        .search-box {
-            position: relative;
+        .empty-state h5 {
+            color: var(--primary);
+            font-weight: 700;
+            margin-bottom: 1rem;
         }
         
-        .search-box input {
-            padding-left: 40px;
+        /* Alerts */
+        .alert {
+            border-radius: 16px;
+            border: none;
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--card-shadow);
         }
         
-        .search-box i {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6c757d;
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border-left: 4px solid var(--success);
         }
         
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border-left: 4px solid var(--danger);
+        }
+        
+        .alert-info {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        /* Modal Styles */
+        .modal-content {
+            border-radius: 20px;
+            border: none;
+            box-shadow: var(--hover-shadow);
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            color: white;
+            border-radius: 20px 20px 0 0;
+            border: none;
+            padding: 1.5rem 2rem;
+        }
+        
+        .modal-title {
+            font-weight: 700;
+        }
+        
+        .btn-close {
+            filter: invert(1);
+        }
+        
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .wrapper {
-                flex-direction: column;
-            }
-            
             .sidebar {
                 width: 100%;
-                padding: 1rem;
+                position: relative;
+                height: auto;
+            }
+            
+            .main-content {
+                margin-left: 0;
             }
             
             .topbar {
                 flex-direction: column;
                 gap: 1rem;
                 text-align: center;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            .pet-card-header {
+                flex-direction: column;
+                gap: 1rem;
             }
             
             .action-buttons {
@@ -512,49 +807,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 </head>
 <body>
 <div class="wrapper">
-    <!-- Sidebar -->
+    <!-- Enhanced Sidebar -->
     <div class="sidebar">
-        <div class="brand"><i class="fa-solid fa-stethoscope"></i> VetCareQR</div>
+        <div class="brand">
+            <i class="fa-solid fa-stethoscope"></i> VetCareQR
+        </div>
+        
         <div class="profile">
             <img src="<?php echo htmlspecialchars($profile_picture); ?>" 
                  alt="Veterinarian"
                  onerror="this.src='https://i.pravatar.cc/100?u=<?php echo urlencode($vet['name']); ?>'">
-            <h6><?php echo htmlspecialchars($vet['name']); ?></h6>
-            <small class="text-muted">Veterinarian</small>
+            <h6>Dr. <?php echo htmlspecialchars($vet['name']); ?></h6>
+            <small>Veterinarian</small>
         </div>
-        <a href="vet_dashboard.php" class="active">
-            <div class="icon"><i class="fa-solid fa-gauge"></i></div> Dashboard
-        </a>
-        <a href="vet_patients.php">
-            <div class="icon"><i class="fa-solid fa-paw"></i></div> All Patients
-        </a>
-        <a href="vet_appointments.php">
-            <div class="icon"><i class="fa-solid fa-calendar-check"></i></div> Appointments
-        </a>
-        <a href="vet_records.php">
-            <div class="icon"><i class="fa-solid fa-file-medical"></i></div> Medical Records
-        </a>
-        <a href="vet_settings.php">
-            <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
-        </a>
-        <a href="logout.php" class="logout" style="background: var(--accent); color: white; margin-top: auto;">
-            <div class="icon"><i class="fa-solid fa-right-from-bracket"></i></div> Logout
-        </a>
+        
+        <div class="nav-links">
+            <a href="vet_dashboard.php" class="nav-link active">
+                <i class="fa-solid fa-gauge-high"></i> Dashboard
+            </a>
+            <a href="vet_patients.php" class="nav-link">
+                <i class="fa-solid fa-paw"></i> All Patients
+            </a>
+            <a href="vet_appointments.php" class="nav-link">
+                <i class="fa-solid fa-calendar-check"></i> Appointments
+            </a>
+            <a href="vet_records.php" class="nav-link">
+                <i class="fa-solid fa-file-medical"></i> Medical Records
+            </a>
+            <a href="vet_settings.php" class="nav-link">
+                <i class="fa-solid fa-gear"></i> Settings
+            </a>
+            <a href="logout.php" class="nav-link logout-btn">
+                <i class="fa-solid fa-right-from-bracket"></i> Logout
+            </a>
+        </div>
     </div>
 
+    <!-- Main Content -->
     <div class="main-content">
-        <!-- Topbar -->
+        <!-- Enhanced Topbar -->
         <div class="topbar">
-            <div>
-                <h5 class="mb-0">Welcome, Dr. <?php echo htmlspecialchars($vet['name']); ?> 👨‍⚕️</h5>
-                <small class="text-muted">Veterinary Dashboard - Manage Patient Records</small>
+            <div class="welcome-section">
+                <h4>Welcome, Dr. <?php echo htmlspecialchars($vet['name']); ?> 👨‍⚕️</h4>
+                <p>Veterinary Dashboard - Manage Patient Records & Medical History</p>
             </div>
-            <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-4">
                 <div class="search-box">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="searchInput" placeholder="Search pets, owners..." class="form-control" style="width: 300px;">
+                    <input type="text" id="searchInput" placeholder="Search pets, owners, records..." class="form-control">
                 </div>
-                <div class="text-end">
+                <div class="datetime-display">
                     <strong id="currentDate"></strong><br>
                     <small id="currentTime"></small>
                 </div>
@@ -578,30 +880,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
-        <!-- Stats Cards -->
-        <div class="row stats-row mb-4">
-            <div class="col-xl-3 col-md-6 mb-3">
+        <!-- Enhanced Stats Cards -->
+        <div class="row stats-row">
+            <div class="col-xl-3 col-md-6 mb-4">
                 <div class="stats-card">
                     <i class="fa-solid fa-paw"></i>
                     <h6>Total Patients</h6>
                     <h4><?php echo $totalPets; ?></h4>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6 mb-3">
+            <div class="col-xl-3 col-md-6 mb-4">
                 <div class="stats-card">
                     <i class="fa-solid fa-users"></i>
                     <h6>Pet Owners</h6>
                     <h4><?php echo $totalOwners; ?></h4>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6 mb-3">
+            <div class="col-xl-3 col-md-6 mb-4">
                 <div class="stats-card">
-                    <i class="fa-solid fa-calendar-check"></i> <!-- FIXED: Added 'fa' prefix -->
+                    <i class="fa-solid fa-calendar-check"></i>
                     <h6>Recent Visits (30d)</h6>
                     <h4><?php echo $recentVisits; ?></h4>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6 mb-3">
+            <div class="col-xl-3 col-md-6 mb-4">
                 <div class="stats-card">
                     <i class="fa-solid fa-bell"></i>
                     <h6>Pending Follow-ups</h6>
@@ -612,28 +914,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         <!-- Quick Actions -->
         <div class="card-custom">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0"><i class="fa-solid fa-bolt me-2"></i>Quick Actions</h4>
-            </div>
+            <h4><i class="fa-solid fa-bolt"></i>Quick Actions</h4>
             <div class="row">
-                <div class="col-md-3 mb-2">
-                    <button class="btn btn-vet w-100" data-bs-toggle="modal" data-bs-target="#addRecordModal">
-                        <i class="fa-solid fa-plus me-1"></i> Add Medical Record
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#addRecordModal">
+                        <i class="fa-solid fa-plus me-2"></i> Add Medical Record
                     </button>
                 </div>
-                <div class="col-md-3 mb-2">
+                <div class="col-xl-3 col-md-6 mb-3">
                     <a href="vet_patients.php" class="btn btn-outline-primary w-100">
-                        <i class="fa-solid fa-search me-1"></i> View All Patients
+                        <i class="fa-solid fa-search me-2"></i> View All Patients
                     </a>
                 </div>
-                <div class="col-md-3 mb-2">
+                <div class="col-xl-3 col-md-6 mb-3">
                     <a href="vet_appointments.php" class="btn btn-outline-primary w-100">
-                        <i class="fa-solid fa-calendar me-1"></i> Schedule Appointment
+                        <i class="fa-solid fa-calendar me-2"></i> Schedule Appointment
                     </a>
                 </div>
-                <div class="col-md-3 mb-2">
+                <div class="col-xl-3 col-md-6 mb-3">
                     <a href="vet_records.php" class="btn btn-outline-primary w-100">
-                        <i class="fa-solid fa-file-medical me-1"></i> Medical History
+                        <i class="fa-solid fa-file-medical me-2"></i> Medical History
                     </a>
                 </div>
             </div>
@@ -641,9 +941,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         <!-- Patients & Medical Records Section -->
         <div class="card-custom">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0"><i class="fa-solid fa-paw me-2"></i>All Patients & Medical Records</h4>
-                <span class="badge bg-primary"><?php echo $totalPets; ?> Pets</span>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4><i class="fa-solid fa-paw"></i>All Patients & Medical Records</h4>
+                <span class="badge-service"><?php echo $totalPets; ?> Pets</span>
             </div>
             
             <?php if (empty($pets)): ?>
@@ -651,6 +951,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <i class="fa-solid fa-paw"></i>
                     <h5>No Patients Found</h5>
                     <p class="text-muted">No pets have been registered in the system yet.</p>
+                    <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addRecordModal">
+                        <i class="fa-solid fa-plus me-2"></i> Add Your First Patient
+                    </button>
                 </div>
             <?php else: ?>
                 <div class="row">
@@ -659,7 +962,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             <div class="pet-card">
                                 <div class="pet-card-header">
                                     <div>
-                                        <h5 class="mb-0"><?php echo htmlspecialchars($pet['pet_name']); ?></h5>
+                                        <h5><?php echo htmlspecialchars($pet['pet_name']); ?></h5>
                                         <small>
                                             <?php echo htmlspecialchars($pet['species']) . " • " . htmlspecialchars($pet['breed']); ?> 
                                             • Owner: <?php echo htmlspecialchars($pet['owner_name']); ?>
@@ -673,25 +976,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                     </div>
                                 </div>
                                 <div class="pet-card-body">
-                                    <div class="row mb-3">
-                                        <div class="col-md-3">
-                                            <strong>Age:</strong> <?php echo htmlspecialchars($pet['age']); ?> years
+                                    <div class="pet-info-grid">
+                                        <div class="pet-info-item">
+                                            <span class="pet-info-label">Age</span>
+                                            <span class="pet-info-value"><?php echo htmlspecialchars($pet['age']); ?> years</span>
                                         </div>
-                                        <div class="col-md-3">
-                                            <strong>Gender:</strong> <?php echo htmlspecialchars($pet['gender']) ?: 'Not specified'; ?>
+                                        <div class="pet-info-item">
+                                            <span class="pet-info-label">Gender</span>
+                                            <span class="pet-info-value"><?php echo htmlspecialchars($pet['gender']) ?: 'Not specified'; ?></span>
                                         </div>
-                                        <div class="col-md-3">
-                                            <strong>Color:</strong> <?php echo htmlspecialchars($pet['color']) ?: 'Not specified'; ?>
+                                        <div class="pet-info-item">
+                                            <span class="pet-info-label">Color</span>
+                                            <span class="pet-info-value"><?php echo htmlspecialchars($pet['color']) ?: 'Not specified'; ?></span>
                                         </div>
-                                        <div class="col-md-3">
-                                            <strong>Weight:</strong> <?php echo $pet['weight'] ? $pet['weight'] . ' kg' : 'Not recorded'; ?>
+                                        <div class="pet-info-item">
+                                            <span class="pet-info-label">Weight</span>
+                                            <span class="pet-info-value"><?php echo $pet['weight'] ? $pet['weight'] . ' kg' : 'Not recorded'; ?></span>
                                         </div>
                                     </div>
                                     
                                     <?php if (!empty($pet['records'])): ?>
                                         <div class="table-responsive">
-                                            <table class="table table-sm medical-table">
-                                                <thead class="table-light">
+                                            <table class="table medical-table">
+                                                <thead>
                                                     <tr>
                                                         <th>Date</th>
                                                         <th>Service Type</th>
@@ -760,8 +1067,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                             </table>
                                         </div>
                                     <?php else: ?>
-                                        <div class="alert alert-info mb-0">
-                                            <i class="fas fa-info-circle me-1"></i> No medical records found for <?php echo htmlspecialchars($pet['pet_name']); ?>.
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i> No medical records found for <?php echo htmlspecialchars($pet['pet_name']); ?>.
                                         </div>
                                     <?php endif; ?>
                                 </div>
@@ -847,7 +1154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-vet">Save Medical Record</button>
+                    <button type="submit" class="btn btn-primary">Save Medical Record</button>
                 </div>
             </form>
         </div>
@@ -871,7 +1178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-vet">Update Medical Record</button>
+                    <button type="submit" class="btn btn-primary">Update Medical Record</button>
                 </div>
             </form>
         </div>
@@ -889,16 +1196,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             <form method="POST" action="vet_dashboard.php" id="deleteRecordForm">
                 <input type="hidden" name="action" value="delete_medical_record">
                 <input type="hidden" name="record_id" id="deleteRecordId">
-                            <div class="modal-body">
-                <p>Are you sure you want to delete this medical record? This action cannot be undone.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-danger">Delete Record</button>
-            </div>
-        </form>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this medical record? This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete Record</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -928,7 +1235,7 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
     petCards.forEach(card => {
         const petName = card.querySelector('.pet-card-header h5').textContent.toLowerCase();
         const ownerName = card.querySelector('.pet-card-header small').textContent.toLowerCase();
-        const species = card.querySelector('.pet-card-body .row .col-md-3:first-child').textContent.toLowerCase();
+        const species = card.querySelector('.pet-info-grid .pet-info-item:first-child .pet-info-value').textContent.toLowerCase();
         
         if (petName.includes(searchTerm) || ownerName.includes(searchTerm) || species.includes(searchTerm)) {
             card.closest('.col-12').style.display = 'block';
@@ -1084,7 +1391,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (!valid) {
                 e.preventDefault();
-                // Scroll to first invalid field
                 const firstInvalid = form.querySelector('.is-invalid');
                 if (firstInvalid) {
                     firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
