@@ -204,6 +204,9 @@ $medical_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             border-left: 4px solid var(--blue);
             margin-bottom: 1.5rem;
             transition: transform 0.2s;
+            background: white;
+            border-radius: 0 8px 8px 0;
+            box-shadow: var(--shadow);
         }
         
         .record-card:hover {
@@ -213,16 +216,14 @@ $medical_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         .record-header {
             background: var(--pink-light);
             padding: 1rem 1.5rem;
-            border-radius: 8px 8px 0 0;
+            border-radius: 0 8px 0 0;
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: center;
         }
         
         .record-body {
             padding: 1.5rem;
-            background: white;
-            border-radius: 0 0 8px 8px;
         }
         
         .detail-grid {
@@ -250,6 +251,19 @@ $medical_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             opacity: 0.5;
         }
         
+        .pet-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            background: white;
+            border: 4px solid white;
+            box-shadow: var(--shadow);
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -268,6 +282,12 @@ $medical_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             
             .detail-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .record-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
             }
         }
     </style>
@@ -439,4 +459,20 @@ $medical_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             </div>
                             
                             <?php if (!empty($record['notes'])): ?>
-                                <div class="mt-3 p-3 bg
+                                <div class="mt-3 p-3 bg-light rounded">
+                                    <strong><i class="fa-solid fa-note-sticky me-2"></i>Additional Notes:</strong>
+                                    <p class="mb-0 mt-1"><?php echo htmlspecialchars($record['notes']); ?></p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
