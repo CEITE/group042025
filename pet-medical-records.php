@@ -2,6 +2,10 @@
 session_start();
 include("conn.php");
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // ✅ Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -18,7 +22,7 @@ if (!isset($_GET['pet_id'])) {
 
 $pet_id = $_GET['pet_id'];
 
-// ✅ Verify pet belongs to user
+// ✅ Verify pet belongs to user and get pet info
 $stmt = $conn->prepare("SELECT p.*, u.name as owner_name FROM pets p 
                        JOIN users u ON p.user_id = u.user_id 
                        WHERE p.pet_id = ? AND p.user_id = ?");
@@ -37,24 +41,40 @@ $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 
-// ✅ Fetch medical records for this pet
+// ✅ Fetch medical records for this pet using YOUR actual column names
 $query = "
 SELECT 
     record_id,
-    visit_date,
-    vet_name,
-    clinic_name,
-    diagnosis,
-    treatment,
-    medications,
-    notes,
+    owner_id,
+    owner_name,
+    pet_id,
+    pet_name,
+    species,
+    breed,
+    color,
+    sex,
+    dob,
+    age,
     weight,
-    temperature,
-    next_visit_date,
-    cost
+    status,
+    tag,
+    microchip,
+    weight_date,
+    reminder_description,
+    reminder_due_date,
+    service_date,
+    service_time,
+    service_type,
+    service_description,
+    veterinarian,
+    notes,
+    generated_date,
+    clinic_name,
+    clinic_address,
+    clinic_contact
 FROM pet_medical_records 
 WHERE pet_id = ? 
-ORDER BY visit_date DESC
+ORDER BY service_date DESC, generated_date DESC
 ";
 
 $stmt = $conn->prepare($query);
@@ -365,6 +385,7 @@ $medical_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 </div>
                 <div class="col-md-4 text-end">
                     <span class="badge bg-primary fs-6">Pet ID: <?php echo htmlspecialchars($pet['pet_id']); ?></span>
+                    <span class="badge bg-success fs-6"><?php echo count($medical_records); ?> Records</span>
                 </div>
             </div>
         </div>
@@ -390,11 +411,15 @@ $medical_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             <div>
                                 <h6 class="mb-1">
                                     <i class="fa-solid fa-calendar-check me-2"></i>
-                                    Visit Date: <?php echo date('F j, Y', strtotime($record['visit_date'])); ?>
+                                    <?php if (!empty($record['service_date'])): ?>
+                                        Service Date: <?php echo date('F j, Y', strtotime($record['service_date'])); ?>
+                                    <?php else: ?>
+                                        Record Date: <?php echo date('F j, Y', strtotime($record['generated_date'])); ?>
+                                    <?php endif; ?>
                                 </h6>
                                 <small class="text-muted">
                                     <i class="fa-solid fa-user-doctor me-1"></i>
-                                    <?php echo htmlspecialchars($record['vet_name']); ?>
+                                    <?php echo !empty($record['veterinarian']) ? htmlspecialchars($record['veterinarian']) : 'Veterinarian not specified'; ?>
                                     <?php if (!empty($record['clinic_name'])): ?>
                                         at <?php echo htmlspecialchars($record['clinic_name']); ?>
                                     <?php endif; ?>
@@ -402,65 +427,83 @@ $medical_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             </div>
                             <div class="text-end">
                                 <span class="badge bg-info">Record #<?php echo $record['record_id']; ?></span>
+                                <?php if (!empty($record['service_type'])): ?>
+                                    <span class="badge bg-warning"><?php echo htmlspecialchars($record['service_type']); ?></span>
+                                <?php endif; ?>
                             </div>
                         </div>
                         
                         <div class="record-body">
-                            <?php if (!empty($record['diagnosis'])): ?>
+                            <?php if (!empty($record['service_description'])): ?>
                                 <div class="mb-3">
-                                    <strong><i class="fa-solid fa-stethoscope me-2"></i>Diagnosis:</strong>
-                                    <p class="mb-0"><?php echo htmlspecialchars($record['diagnosis']); ?></p>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <?php if (!empty($record['treatment'])): ?>
-                                <div class="mb-3">
-                                    <strong><i class="fa-solid fa-hand-holding-medical me-2"></i>Treatment:</strong>
-                                    <p class="mb-0"><?php echo htmlspecialchars($record['treatment']); ?></p>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <?php if (!empty($record['medications'])): ?>
-                                <div class="mb-3">
-                                    <strong><i class="fa-solid fa-pills me-2"></i>Medications:</strong>
-                                    <p class="mb-0"><?php echo htmlspecialchars($record['medications']); ?></p>
+                                    <strong><i class="fa-solid fa-stethoscope me-2"></i>Service Description:</strong>
+                                    <p class="mb-0"><?php echo htmlspecialchars($record['service_description']); ?></p>
                                 </div>
                             <?php endif; ?>
                             
                             <div class="detail-grid">
+                                <?php if (!empty($record['service_type'])): ?>
+                                    <div class="detail-item">
+                                        <strong><i class="fa-solid fa-hand-holding-medical me-2"></i>Service Type:</strong>
+                                        <?php echo htmlspecialchars($record['service_type']); ?>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <?php if (!empty($record['service_time'])): ?>
+                                    <div class="detail-item">
+                                        <strong><i class="fa-solid fa-clock me-2"></i>Service Time:</strong>
+                                        <?php echo htmlspecialchars($record['service_time']); ?>
+                                    </div>
+                                <?php endif; ?>
+                                
                                 <?php if (!empty($record['weight'])): ?>
                                     <div class="detail-item">
                                         <strong><i class="fa-solid fa-weight-scale me-2"></i>Weight:</strong>
-                                        <?php echo htmlspecialchars($record['weight']); ?> kg
+                                        <?php echo htmlspecialchars($record['weight']); ?>
                                     </div>
                                 <?php endif; ?>
                                 
-                                <?php if (!empty($record['temperature'])): ?>
+                                <?php if (!empty($record['weight_date'])): ?>
                                     <div class="detail-item">
-                                        <strong><i class="fa-solid fa-temperature-three-quarters me-2"></i>Temperature:</strong>
-                                        <?php echo htmlspecialchars($record['temperature']); ?> °C
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($record['cost'])): ?>
-                                    <div class="detail-item">
-                                        <strong><i class="fa-solid fa-money-bill-wave me-2"></i>Cost:</strong>
-                                        $<?php echo number_format($record['cost'], 2); ?>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($record['next_visit_date'])): ?>
-                                    <div class="detail-item">
-                                        <strong><i class="fa-solid fa-calendar-day me-2"></i>Next Visit:</strong>
-                                        <?php echo date('M j, Y', strtotime($record['next_visit_date'])); ?>
+                                        <strong><i class="fa-solid fa-calendar-day me-2"></i>Weight Date:</strong>
+                                        <?php echo date('M j, Y', strtotime($record['weight_date'])); ?>
                                     </div>
                                 <?php endif; ?>
                             </div>
+                            
+                            <?php if (!empty($record['reminder_description'])): ?>
+                                <div class="mt-3 p-3 bg-warning bg-opacity-10 rounded">
+                                    <strong><i class="fa-solid fa-bell me-2"></i>Reminder:</strong>
+                                    <p class="mb-1"><?php echo htmlspecialchars($record['reminder_description']); ?></p>
+                                    <?php if (!empty($record['reminder_due_date'])): ?>
+                                        <small class="text-muted">
+                                            Due: <?php echo date('M j, Y', strtotime($record['reminder_due_date'])); ?>
+                                        </small>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
                             
                             <?php if (!empty($record['notes'])): ?>
                                 <div class="mt-3 p-3 bg-light rounded">
                                     <strong><i class="fa-solid fa-note-sticky me-2"></i>Additional Notes:</strong>
                                     <p class="mb-0 mt-1"><?php echo htmlspecialchars($record['notes']); ?></p>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <?php if (!empty($record['clinic_name']) || !empty($record['clinic_address']) || !empty($record['clinic_contact'])): ?>
+                                <div class="mt-3 p-3 bg-info bg-opacity-10 rounded">
+                                    <strong><i class="fa-solid fa-hospital me-2"></i>Clinic Information:</strong>
+                                    <div class="mt-1">
+                                        <?php if (!empty($record['clinic_name'])): ?>
+                                            <div><strong>Name:</strong> <?php echo htmlspecialchars($record['clinic_name']); ?></div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($record['clinic_address'])): ?>
+                                            <div><strong>Address:</strong> <?php echo htmlspecialchars($record['clinic_address']); ?></div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($record['clinic_contact'])): ?>
+                                            <div><strong>Contact:</strong> <?php echo htmlspecialchars($record['clinic_contact']); ?></div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             <?php endif; ?>
                         </div>
