@@ -11,20 +11,6 @@ if (!$conn) {
     die("Database connection failed: " . htmlspecialchars($conn->connect_error));
 }
 
-// Debug: Check if register_vet.php exists
-$register_file = 'register_vet.php';
-if (file_exists($register_file)) {
-    error_log("✓ register_vet.php exists in current directory");
-} else {
-    error_log("✗ register_vet.php NOT FOUND in: " . __DIR__);
-    // List files for debugging
-    $files = scandir(__DIR__);
-    $php_files = array_filter($files, function($file) {
-        return pathinfo($file, PATHINFO_EXTENSION) === 'php';
-    });
-    error_log("PHP files in directory: " . implode(', ', $php_files));
-}
-
 // Redirect if already logged in as vet
 if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'vet') {
     header("Location: vet_dashboard.php");
@@ -59,9 +45,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($result->num_rows === 1) {
                 $user = $result->fetch_assoc();
                 
-                // Debug: Check what we're getting from database
-                error_log("Vet login attempt: " . $email . ", Role: " . $user['role']);
-                
                 // Verify password
                 if (password_verify($password, $user['password'])) {
                     // Set session variables
@@ -74,29 +57,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['success'] = "Welcome back, Dr. " . $user['name'] . "!";
                     
                     // Update last login if the column exists
-                    $update_query = "UPDATE users SET last_login = NOW() WHERE user_id = ?";
-                    $update_stmt = $conn->prepare($update_query);
-                    if ($update_stmt) {
-                        $update_stmt->bind_param("i", $user['user_id']);
-                        $update_stmt->execute();
-                        $update_stmt->close();
+                    try {
+                        $check_column = $conn->query("SHOW COLUMNS FROM users LIKE 'last_login'");
+                        if ($check_column && $check_column->num_rows > 0) {
+                            $update_query = "UPDATE users SET last_login = NOW() WHERE user_id = ?";
+                            $update_stmt = $conn->prepare($update_query);
+                            if ($update_stmt) {
+                                $update_stmt->bind_param("i", $user['user_id']);
+                                $update_stmt->execute();
+                                $update_stmt->close();
+                            }
+                        }
+                    } catch (Exception $e) {
+                        // Silently continue if column doesn't exist
                     }
                     
                     header("Location: vet_dashboard.php");
                     exit();
                 } else {
-                    error_log("Password verification failed for vet: " . $email);
                     $errors[] = "Invalid email or password";
                 }
             } else {
-                error_log("No vet user found with email: " . $email);
                 $errors[] = "Invalid email or password, or account is not a veterinarian account";
             }
             
             $stmt->close();
         } else {
             $errors[] = "System error: Unable to process login";
-            error_log("Database preparation error in login_vet.php: " . $conn->error);
         }
     }
 }
@@ -112,17 +99,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #3498db;
-            --primary-dark: #2980b9;
-            --light: #ecf0f1;
-            --success: #27ae60;
-            --warning: #f39c12;
-            --danger: #e74c3c;
+            --primary: #ec4899;
+            --primary-dark: #db2777;
+            --primary-light: #fbcfe8;
+            --secondary: #8b5cf6;
+            --light: #fdf2f8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
         }
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -131,18 +120,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         .login-container {
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
             overflow: hidden;
-            max-width: 1000px;
+            max-width: 1100px;
             width: 100%;
             margin: 0 auto;
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .login-left {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
-            padding: 3rem;
+            padding: 4rem 3rem;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -162,90 +152,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .login-right {
-            padding: 3rem;
+            padding: 4rem 3rem;
             background: white;
+            position: relative;
         }
         
         .logo {
-            font-size: 2.2rem;
+            font-size: 2.5rem;
             font-weight: 800;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         
         .feature-list {
             list-style: none;
             padding: 0;
-            margin: 2.5rem 0;
+            margin: 3rem 0;
         }
         
         .feature-list li {
-            margin-bottom: 1.2rem;
+            margin-bottom: 1.5rem;
             display: flex;
             align-items: center;
             font-size: 1.1rem;
+            font-weight: 500;
         }
         
         .feature-list i {
             background: rgba(255,255,255,0.2);
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 1rem;
-            font-size: 1.2rem;
+            margin-right: 1.2rem;
+            font-size: 1.3rem;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-list li:hover i {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
         }
         
         .form-control {
-            border-radius: 12px;
-            padding: 15px 20px;
-            border: 2px solid #e8f0fe;
+            border-radius: 16px;
+            padding: 16px 20px;
+            border: 2px solid #f3f4f6;
             font-size: 1rem;
             transition: all 0.3s ease;
+            background: #fdf2f8;
         }
         
         .form-control:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
             transform: translateY(-2px);
+            background: white;
         }
         
         .input-group-text {
-            background: white;
-            border: 2px solid #e8f0fe;
+            background: #fdf2f8;
+            border: 2px solid #f3f4f6;
             border-right: none;
-            border-radius: 12px 0 0 12px;
+            border-radius: 16px 0 0 16px;
+            color: var(--primary);
         }
         
         .form-control:not(:first-child) {
             border-left: none;
-            border-radius: 0 12px 12px 0;
+            border-radius: 0 16px 16px 0;
         }
         
         .btn-primary {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             border: none;
-            padding: 15px 30px;
-            border-radius: 12px;
+            padding: 16px 32px;
+            border-radius: 16px;
             font-weight: 600;
             font-size: 1.1rem;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
         }
         
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
         }
         
         .btn-outline-light {
             border: 2px solid white;
-            border-radius: 10px;
-            padding: 8px 20px;
+            border-radius: 12px;
+            padding: 10px 24px;
             font-weight: 600;
             transition: all 0.3s ease;
         }
@@ -253,13 +254,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn-outline-light:hover {
             background: white;
             color: var(--primary);
+            transform: translateY(-2px);
         }
         
         .btn-outline-primary {
             border: 2px solid var(--primary);
             color: var(--primary);
-            border-radius: 10px;
-            padding: 10px 25px;
+            border-radius: 12px;
+            padding: 12px 28px;
             font-weight: 600;
             transition: all 0.3s ease;
         }
@@ -283,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .forgot-password {
-            color: #6c757d;
+            color: #6b7280;
             text-decoration: none;
             font-size: 0.9rem;
             transition: color 0.3s ease;
@@ -294,19 +296,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .alert {
-            border-radius: 12px;
+            border-radius: 16px;
             border: none;
-            padding: 1rem 1.5rem;
+            padding: 1.2rem 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         
         .alert-success {
-            background: rgba(39, 174, 96, 0.1);
+            background: rgba(16, 185, 129, 0.1);
             color: var(--success);
             border-left: 4px solid var(--success);
         }
         
         .alert-danger {
-            background: rgba(231, 76, 60, 0.1);
+            background: rgba(239, 68, 68, 0.1);
             color: var(--danger);
             border-left: 4px solid var(--danger);
         }
@@ -314,65 +317,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .password-toggle {
             cursor: pointer;
             transition: color 0.3s ease;
+            color: #6b7280;
         }
         
         .password-toggle:hover {
             color: var(--primary);
         }
         
-        .debug-test {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 9999;
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 2rem 0;
+        }
+        
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e5e7eb;
+        }
+        
+        .divider-text {
+            padding: 0 1rem;
+            color: #6b7280;
+            font-size: 0.9rem;
+            font-weight: 500;
         }
         
         @media (max-width: 768px) {
             .login-left {
-                padding: 2rem;
+                padding: 3rem 2rem;
             }
             
             .login-right {
-                padding: 2rem;
+                padding: 3rem 2rem;
             }
             
             .logo {
-                font-size: 1.8rem;
+                font-size: 2rem;
             }
             
             .feature-list li {
                 font-size: 1rem;
             }
-            
-            .debug-test {
-                position: relative;
-                top: auto;
-                right: auto;
-                text-align: center;
-                margin-bottom: 1rem;
-            }
         }
         
         @media (max-width: 576px) {
             body {
-                padding: 10px;
+                padding: 15px;
             }
             
             .login-left,
             .login-right {
-                padding: 1.5rem;
+                padding: 2rem 1.5rem;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Debug Test Link -->
-    <div class="debug-test">
-        <a href="register_vet.php" class="btn btn-warning btn-sm" id="debugRegisterLink">
-            <i class="fas fa-bug me-1"></i> TEST REGISTER LINK
-        </a>
-    </div>
-
     <div class="container-fluid">
         <div class="login-container">
             <div class="row g-0">
@@ -383,8 +386,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <i class="fas fa-stethoscope"></i>
                             VetCareQR
                         </div>
-                        <h2 class="mb-3">Welcome Back, Doctor</h2>
-                        <p class="mb-4" style="font-size: 1.1rem; opacity: 0.9;">
+                        <h2 class="mb-3 fw-bold">Welcome Back, Doctor</h2>
+                        <p class="mb-4" style="font-size: 1.1rem; opacity: 0.95;">
                             Access your veterinary dashboard to manage pet medical records and provide quality care.
                         </p>
                         
@@ -412,8 +415,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </ul>
                         
                         <div class="mt-4">
-                            <small style="opacity: 0.8;">New veterinary professional? </small>
-                            <a href="register_vet.php" class="btn btn-outline-light btn-sm mt-2" id="sidebarRegisterLink">
+                            <small style="opacity: 0.9;">New veterinary professional? </small>
+                            <a href="register_vet.php" class="btn btn-outline-light btn-sm mt-2">
                                 <i class="fas fa-user-plus me-1"></i> Register Veterinary Account
                             </a>
                         </div>
@@ -423,8 +426,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Right Side - Login Form -->
                 <div class="col-lg-6">
                     <div class="login-right">
-                        <div class="text-center mb-4">
-                            <h3 class="mb-2">Veterinarian Login</h3>
+                        <div class="text-center mb-5">
+                            <h3 class="mb-2 fw-bold" style="color: var(--primary);">Veterinarian Login</h3>
                             <p class="text-muted">Sign in to your professional veterinary account</p>
                         </div>
                         
@@ -457,7 +460,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <label for="email" class="form-label fw-semibold">Email Address *</label>
                                 <div class="input-group">
                                     <span class="input-group-text">
-                                        <i class="fas fa-envelope text-muted"></i>
+                                        <i class="fas fa-envelope"></i>
                                     </span>
                                     <input type="email" class="form-control" id="email" name="email" 
                                            value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>" 
@@ -471,7 +474,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <label for="password" class="form-label fw-semibold">Password *</label>
                                 <div class="input-group">
                                     <span class="input-group-text">
-                                        <i class="fas fa-lock text-muted"></i>
+                                        <i class="fas fa-lock"></i>
                                     </span>
                                     <input type="password" class="form-control" id="password" name="password" 
                                            placeholder="Enter your password" required
@@ -493,16 +496,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </a>
                             </div>
                             
-                            <button type="submit" class="btn btn-primary w-100 py-3 mb-4">
+                            <button type="submit" class="btn btn-primary w-100 py-3 mb-4 fw-bold">
                                 <i class="fas fa-sign-in-alt me-2"></i> Login to Veterinary Dashboard
                             </button>
                             
-                            <div class="text-center mb-4">
-                                <div class="d-flex align-items-center justify-content-center">
-                                    <div style="flex: 1; height: 1px; background: #e9ecef;"></div>
-                                    <span class="px-3 text-muted small">Secure Login</span>
-                                    <div style="flex: 1; height: 1px; background: #e9ecef;"></div>
-                                </div>
+                            <div class="divider">
+                                <span class="divider-text">Secure Login</span>
                             </div>
                             
                             <div class="text-center">
@@ -514,22 +513,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <div class="text-center mt-5 pt-4 border-top">
                             <p class="mb-3">Don't have a veterinary account?</p>
-                            <a href="register_vet.php" class="btn btn-outline-primary" id="bottomRegisterLink">
+                            <a href="register_vet.php" class="btn btn-outline-primary">
                                 <i class="fas fa-user-plus me-1"></i> Register as Veterinarian
                             </a>
-                            
-                            <!-- Alternative registration links for testing -->
-                            <div class="mt-3">
-                                <small class="text-muted">Trouble with registration? Try:</small>
-                                <div class="mt-2">
-                                    <a href="./register_vet.php" class="btn btn-outline-secondary btn-sm me-2">
-                                        ./register_vet.php
-                                    </a>
-                                    <a href="/register_vet.php" class="btn btn-outline-secondary btn-sm">
-                                        /register_vet.php
-                                    </a>
-                                </div>
-                            </div>
                         </div>
                         
                         <div class="text-center mt-4">
@@ -546,33 +532,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Debug function to check register link
-        function checkRegisterLink(linkName) {
-            console.log('Register link clicked:', linkName);
-            console.log('Current URL:', window.location.href);
-            
-            // Test if the register_vet.php file exists
-            fetch('register_vet.php')
-                .then(response => {
-                    console.log('Fetch response status:', response.status);
-                    if (response.ok) {
-                        console.log('✓ register_vet.php exists and is accessible');
-                        return true; // Allow navigation
-                    } else {
-                        console.error('✗ register_vet.php not accessible. Status:', response.status);
-                        alert('Registration page not found (Error ' + response.status + '). Please contact administrator.');
-                        return false; // Prevent navigation
-                    }
-                })
-                .catch(error => {
-                    console.error('✗ Error accessing register_vet.php:', error);
-                    alert('Cannot access registration page. Please check if the file exists in the same directory.');
-                    return false; // Prevent navigation
-                });
-            
-            return true; // Allow navigation by default
-        }
-
         // Toggle password visibility
         document.getElementById('togglePassword').addEventListener('click', function() {
             const passwordInput = document.getElementById('password');
@@ -591,44 +550,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
 
-        // Add click listeners to all register links
+        // Auto-focus on email field
         document.addEventListener('DOMContentLoaded', function() {
-            const registerLinks = [
-                { id: 'sidebarRegisterLink', name: 'Sidebar' },
-                { id: 'bottomRegisterLink', name: 'Bottom' },
-                { id: 'debugRegisterLink', name: 'Debug' }
-            ];
-            
-            registerLinks.forEach(linkInfo => {
-                const link = document.getElementById(linkInfo.id);
-                if (link) {
-                    link.addEventListener('click', function(e) {
-                        console.log('Register link clicked via event listener:', linkInfo.name);
-                        const result = checkRegisterLink(linkInfo.name);
-                        if (!result) {
-                            e.preventDefault(); // Prevent navigation if there's an error
-                        }
-                    });
-                }
-            });
-
-            // Log current directory info
-            console.log('Current page URL:', window.location.href);
-            console.log('Current directory:', window.location.pathname.split('/').slice(0, -1).join('/'));
-            
-            // Auto-focus on email field
             const emailField = document.getElementById('email');
             if (emailField && !emailField.value) {
                 emailField.focus();
-            }
-        });
-
-        // Enter key to submit form
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
-                const form = document.querySelector('form');
-                const submitButton = form.querySelector('button[type="submit"]');
-                submitButton.click();
             }
         });
 
@@ -652,54 +578,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }, 8000);
             });
         });
-
-        // Form validation
-        document.querySelector('form').addEventListener('submit', function(e) {
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value.trim();
-            let isValid = true;
-
-            // Reset previous error states
-            document.querySelectorAll('.is-invalid').forEach(el => {
-                el.classList.remove('is-invalid');
-            });
-
-            // Validate email
-            if (!email || !isValidEmail(email)) {
-                document.getElementById('email').classList.add('is-invalid');
-                isValid = false;
-            }
-
-            // Validate password
-            if (!password) {
-                document.getElementById('password').classList.add('is-invalid');
-                isValid = false;
-            }
-
-            if (!isValid) {
-                e.preventDefault();
-                // Show error message
-                if (!document.querySelector('.alert-danger')) {
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'alert alert-danger';
-                    errorDiv.innerHTML = `
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Please fill in all required fields correctly.
-                    `;
-                    document.querySelector('.login-right').insertBefore(errorDiv, document.querySelector('form'));
-                    
-                    // Auto-remove after 5 seconds
-                    setTimeout(() => {
-                        errorDiv.remove();
-                    }, 5000);
-                }
-            }
-        });
-
-        function isValidEmail(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
-        }
     </script>
 </body>
 </html>
