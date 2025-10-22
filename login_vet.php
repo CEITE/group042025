@@ -44,11 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['profile_picture'] = $user['profile_picture'];
                 
-                // Update last login
-                $update_query = "UPDATE users SET last_login = NOW() WHERE user_id = ?";
-                $update_stmt = $conn->prepare($update_query);
-                $update_stmt->bind_param("i", $user['user_id']);
-                $update_stmt->execute();
+                // FIXED: Removed last_login update since column doesn't exist
+                // You can add this column later if needed with:
+                // ALTER TABLE users ADD COLUMN last_login DATETIME;
                 
                 $_SESSION['success'] = "Welcome back, Dr. " . $user['name'] . "!";
                 header("Location: vet_dashboard.php");
