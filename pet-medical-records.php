@@ -51,8 +51,7 @@ SELECT
     weight,
     temperature,
     next_visit_date,
-    cost,
-    created_at
+    cost
 FROM pet_medical_records 
 WHERE pet_id = ? 
 ORDER BY visit_date DESC
