@@ -12,7 +12,7 @@ if (isset($_SESSION['user_id'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name']);
     $email = trim($_POST['email']);
-    $phone_number = trim($_POST['phone_number'] ?? ''); // Changed to phone_number
+    $phone_number = trim($_POST['phone_number'] ?? '');
     $license_number = trim($_POST['license_number']);
     $specialization = trim($_POST['specialization']);
     $password = $_POST['password'];
@@ -55,10 +55,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Hash password
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
-        // Insert into database - Updated to match your exact column names
+        // FIXED: Remove created_at from the query since it doesn't exist in your table
         $insert_query = "
-        INSERT INTO users (name, email, phone_number, license_number, specialization, password, role, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, 'vet', NOW())
+        INSERT INTO users (name, email, phone_number, license_number, specialization, password, role) 
+        VALUES (?, ?, ?, ?, ?, ?, 'vet')
         ";
         
         $stmt = $conn->prepare($insert_query);
