@@ -2,477 +2,437 @@
 session_start();
 include("conn.php");
 
-// ✅ Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit();
+// Get pet ID from URL
+$pet_id = isset($_GET['pet_id']) ? intval($_GET['pet_id']) : 0;
+$pet_name = isset($_GET['pet_name']) ? urldecode($_GET['pet_name']) : 'Unknown Pet';
+
+// Fetch pet data from database
+$pet_data = null;
+if ($pet_id > 0) {
+    $stmt = $conn->prepare("
+        SELECT p.*, u.name as owner_name, u.email as owner_email, u.phone as owner_phone
+        FROM pets p 
+        LEFT JOIN users u ON p.user_id = u.user_id 
+        WHERE p.pet_id = ?
+    ");
+    $stmt->bind_param("i", $pet_id);
+    $stmt->execute();
+    $pet_data = $stmt->get_result()->fetch_assoc();
 }
 
-$user_id = $_SESSION['user_id'];
-
-// ✅ Check if pet_id is provided
-if (!isset($_GET['pet_id'])) {
-    header("Location: user_pet_profile.php");
-    exit();
+// Get recent medical records
+$recent_records = [];
+if ($pet_id > 0) {
+    $stmt = $conn->prepare("
+        SELECT record_type, record_date, description 
+        FROM pet_medical_records 
+        WHERE pet_id = ? 
+        ORDER BY record_date DESC 
+        LIMIT 5
+    ");
+    $stmt->bind_param("i", $pet_id);
+    $stmt->execute();
+    $recent_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
-$pet_id = $_GET['pet_id'];
-
-// ✅ Verify pet belongs to user
-$stmt = $conn->prepare("SELECT p.*, u.name as owner_name FROM pets p 
-                       JOIN users u ON p.user_id = u.user_id 
-                       WHERE p.pet_id = ? AND p.user_id = ?");
-$stmt->bind_param("ii", $pet_id, $user_id);
-$stmt->execute();
-$pet = $stmt->get_result()->fetch_assoc();
-
-if (!$pet) {
-    header("Location: user_pet_profile.php");
-    exit();
-}
-
-// ✅ Fetch user info
-$stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
-
-// ✅ Fetch medical records for this pet
-$query = "
-SELECT 
-    record_id,
-    visit_date,
-    vet_name,
-    clinic_name,
-    diagnosis,
-    treatment,
-    medications,
-    notes,
-    weight,
-    temperature,
-    next_visit_date,
-    cost,
-    created_at
-FROM pet_medical_records 
-WHERE pet_id = ? 
-ORDER BY visit_date DESC
-";
-
-$stmt = $conn->prepare($query);
-$stmt->bind_param("i", $pet_id);
-$stmt->execute();
-$medical_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+// ✅ FIXED: Use your actual domain directly
+$base_url = 'https://group042025.ceitesystems.com';
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medical Records - <?php echo htmlspecialchars($pet['name']); ?> - PetMedQR</title>
+    <title>Pet Medical Records Access - PetMedQR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --pink: #ffd6e7;
-            --pink-2: #f7c5e0;
-            --pink-light: #fff4f8;
-            --blue: #4a6cf7;
-            --blue-light: #e8f0fe;
-            --green: #2ecc71;
-            --green-light: #eafaf1;
-            --orange: #f39c12;
-            --orange-light: #fef5e7;
-            --radius: 16px;
-            --shadow: 0 3px 10px rgba(0,0,0,0.1);
+            --pink-dark: #ec4899;
+            --pink-darker: #db2777;
+            --pink-gradient: linear-gradient(135deg, #f9a8d4 0%, #ec4899 100%);
+            --pink-light: #fdf2f8;
         }
-        
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f5f7fb;
-            margin: 0;
-            color: #333;
-        }
-        
-        .wrapper {
-            display: flex;
+            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
             min-height: 100vh;
+            font-family: 'Inter', sans-serif;
         }
-        
-        .sidebar {
-            width: 260px;
-            background: var(--pink-2);
-            padding: 2rem 1rem;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .sidebar .brand {
-            font-weight: 800;
-            font-size: 1.2rem;
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        
-        .sidebar .profile {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        
-        .sidebar .profile img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin-bottom: .5rem;
-            border: 3px solid rgba(0,0,0,0.1);
-            object-fit: cover;
-        }
-        
-        .sidebar a {
-            display: flex;
-            align-items: center;
-            padding: 12px 14px;
-            border-radius: 12px;
-            margin: .3rem 0;
-            text-decoration: none;
-            color: #333;
-            font-weight: 600;
-            transition: .2s;
-        }
-        
-        .sidebar a .icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 12px;
-            display: grid;
-            place-items: center;
-            background: rgba(255,255,255,.6);
-            margin-right: 10px;
-        }
-        
-        .sidebar a.active, .sidebar a:hover {
-            background: var(--pink);
-            color: #000;
-        }
-        
-        .sidebar .logout {
-            margin-top: auto;
-            font-weight: 600;
-            color: #fff;
-            background: #dc3545;
-            text-align: center;
-            padding: 10px;
-            border-radius: 10px;
-        }
-        
-        .main-content {
-            flex: 1;
-            padding: 1.5rem 2rem;
-            overflow-y: auto;
-        }
-        
-        .topbar {
+        .medical-card {
             background: white;
-            padding: 1rem 1.5rem;
-            border-radius: 16px;
-            box-shadow: var(--shadow);
-            margin-bottom: 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin: 2rem auto;
+            max-width: 1200px;
+            border: 1px solid rgba(255,255,255,0.8);
         }
-        
-        .card-custom {
-            background: white;
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: var(--shadow);
-            margin-bottom: 1.5rem;
-            border: none;
-        }
-        
-        .pet-header {
-            background: linear-gradient(135deg, var(--pink-light), var(--blue-light));
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-        
-        .record-card {
-            border-left: 4px solid var(--blue);
-            margin-bottom: 1.5rem;
-            transition: transform 0.2s;
-            background: white;
-            border-radius: 0 8px 8px 0;
-            box-shadow: var(--shadow);
-        }
-        
-        .record-card:hover {
-            transform: translateX(5px);
-        }
-        
-        .record-header {
-            background: var(--pink-light);
-            padding: 1rem 1.5rem;
-            border-radius: 0 8px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .record-body {
-            padding: 1.5rem;
-        }
-        
-        .detail-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin: 1rem 0;
-        }
-        
-        .detail-item {
-            background: var(--pink-light);
-            padding: 1rem;
-            border-radius: 8px;
-        }
-        
-        .empty-state {
-            text-align: center;
+        .medical-header {
+            background: var(--pink-gradient);
+            color: white;
             padding: 3rem 2rem;
-            color: #6c757d;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
         }
-        
-        .empty-state i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
+        .medical-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.15);
+            transform: rotate(45deg);
         }
-        
+        .medical-body {
+            padding: 3rem;
+        }
+        .system-preview {
+            background: var(--pink-light);
+            border-radius: 15px;
+            padding: 2.5rem;
+            margin: 2.5rem 0;
+            border: 2px dashed var(--pink-dark);
+            position: relative;
+        }
+        .login-btn {
+            background: var(--pink-gradient);
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+            color: white;
+            box-shadow: 0 10px 25px rgba(236, 72, 153, 0.4);
+        }
         .pet-avatar {
-            width: 80px;
-            height: 80px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
+            background: rgba(255,255,255,0.2);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
-            background: white;
-            border: 4px solid white;
-            box-shadow: var(--shadow);
+            font-size: 3rem;
+            margin: 0 auto 1.5rem;
+            border: 4px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(10px);
         }
-        
-        @media (max-width: 768px) {
-            .wrapper {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                padding: 1rem;
-            }
-            
-            .topbar {
-                flex-direction: column;
-                gap: 1rem;
-                text-align: center;
-            }
-            
-            .detail-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .record-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
-            }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+        }
+        .feature-list li:before {
+            content: "✓";
+            color: var(--pink-darker);
+            font-weight: bold;
+            margin-right: 12px;
+            font-size: 1.2rem;
+        }
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--pink-dark);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .record-item {
+            background: var(--pink-light);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-left: 3px solid var(--pink-dark);
+        }
+        .security-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .medical-alert {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .contact-info {
+            background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
         }
     </style>
 </head>
 <body>
-<div class="wrapper">
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="brand"><i class="fa-solid fa-paw"></i> PetMedQR</div>
-        <div class="profile">
-            <?php if (!empty($user['profile_picture'])): ?>
-                <img src="uploads/profiles/<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="User">
-            <?php else: ?>
-                <img src="https://i.pravatar.cc/100?u=<?php echo urlencode($user['email']); ?>" alt="User">
-            <?php endif; ?>
-            <h6><?php echo htmlspecialchars($user['name']); ?></h6>
-            <small class="text-muted"><?php echo htmlspecialchars($user['role']); ?></small>
-        </div>
-        <a href="user_dashboard.php">
-            <div class="icon"><i class="fa-solid fa-gauge"></i></div> Dashboard
-        </a>
-        <a href="user_pet_profile.php">
-            <div class="icon"><i class="fa-solid fa-dog"></i></div> My Pets
-        </a>
-        <a href="qr_code.php">
-            <div class="icon"><i class="fa-solid fa-qrcode"></i></div> QR Codes
-        </a>
-        <a href="register_pet.php">
-            <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> Register Pet
-        </a>
-        <a href="user_settings.php">
-            <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
-        </a>
-        <a href="logout.php" class="logout">
-            <div class="icon"><i class="fa-solid fa-right-from-bracket"></i></div> Logout
-        </a>
-    </div>
-
-    <div class="main-content">
-        <!-- Topbar -->
-        <div class="topbar">
-            <div>
-                <h5 class="mb-0">Medical Records</h5>
-                <small class="text-muted">Viewing medical history for <?php echo htmlspecialchars($pet['name']); ?></small>
+    <div class="medical-card">
+        <div class="medical-header">
+            <div class="pet-avatar">
+                <i class="fas fa-paw"></i>
             </div>
-            <div class="d-flex align-items-center gap-3">
-                <a href="user_pet_profile.php" class="btn btn-outline-secondary">
-                    <i class="fa-solid fa-arrow-left me-1"></i> Back to Pets
-                </a>
-                <a href="add_medical_record.php?pet_id=<?php echo $pet_id; ?>" class="btn btn-primary">
-                    <i class="fa-solid fa-plus-circle me-1"></i> Add Record
-                </a>
-            </div>
+            <h1 class="display-5 fw-bold">Welcome to PetMedQR</h1>
+            <p class="lead mb-0 opacity-90">Professional Pet Healthcare Management System</p>
         </div>
+        
+        <div class="medical-body">
+            <!-- Emergency Alert -->
+            <div class="medical-alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle text-warning fa-2x me-3"></i>
+                    <div>
+                        <h5 class="mb-1">Emergency Medical Access</h5>
+                        <p class="mb-0">This QR code provides access to vital pet medical information for veterinary professionals.</p>
+                    </div>
+                </div>
+            </div>
 
-        <!-- Pet Header -->
-        <div class="pet-header">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center">
-                        <div class="pet-avatar me-3" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bbdefb' : '#f8bbd0'; ?>">
-                            <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
-                        </div>
-                        <div>
-                            <h2 class="mb-1"><?php echo htmlspecialchars($pet['name']); ?></h2>
-                            <p class="mb-1">
-                                <strong>Species:</strong> <?php echo htmlspecialchars($pet['species']); ?> • 
-                                <strong>Breed:</strong> <?php echo htmlspecialchars($pet['breed']); ?> • 
-                                <strong>Age:</strong> <?php echo htmlspecialchars($pet['age']); ?> years
-                            </p>
-                            <p class="mb-0">
-                                <strong>Owner:</strong> <?php echo htmlspecialchars($pet['owner_name']); ?>
-                            </p>
+            <!-- Pet Information Section -->
+            <?php if ($pet_data): ?>
+            <div class="row mb-5">
+                <div class="col-md-6">
+                    <div class="info-card">
+                        <h4><i class="fas fa-paw me-2 text-primary"></i>Pet Information</h4>
+                        <div class="row mt-3">
+                            <div class="col-5"><strong>Name:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['name']); ?></div>
+                            
+                            <div class="col-5"><strong>Species:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['species']); ?></div>
+                            
+                            <div class="col-5"><strong>Breed:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['breed'] ?: 'Mixed'); ?></div>
+                            
+                            <div class="col-5"><strong>Age:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['age']); ?> years</div>
+                            
+                            <div class="col-5"><strong>Gender:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['gender'] ?: 'Unknown'); ?></div>
+                            
+                            <div class="col-5"><strong>Color:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['color'] ?: 'Not specified'); ?></div>
+                            
+                            <div class="col-5"><strong>Weight:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['weight'] ? $pet_data['weight'] . ' kg' : 'Not specified'); ?></div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 text-end">
-                    <span class="badge bg-primary fs-6">Pet ID: <?php echo htmlspecialchars($pet['pet_id']); ?></span>
-                </div>
-            </div>
-        </div>
+                <div class="col-md-6">
+                    <div class="info-card">
+                        <h4><i class="fas fa-user me-2 text-primary"></i>Owner Information</h4>
+                        <div class="row mt-3">
+                            <div class="col-5"><strong>Owner:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['owner_name']); ?></div>
+                            
+                            <?php if ($pet_data['owner_email']): ?>
+                            <div class="col-5"><strong>Email:</strong></div>
+                            <div class="col-7">
+                                <a href="mailto:<?php echo htmlspecialchars($pet_data['owner_email']); ?>">
+                                    <?php echo htmlspecialchars($pet_data['owner_email']); ?>
+                                </a>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <?php if ($pet_data['owner_phone']): ?>
+                            <div class="col-5"><strong>Phone:</strong></div>
+                            <div class="col-7">
+                                <a href="tel:<?php echo htmlspecialchars($pet_data['owner_phone']); ?>">
+                                    <?php echo htmlspecialchars($pet_data['owner_phone']); ?>
+                                </a>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <div class="col-5"><strong>Veterinarian:</strong></div>
+                            <div class="col-7"><?php echo htmlspecialchars($pet_data['vet_contact'] ?: 'Not specified'); ?></div>
+                        </div>
+                    </div>
 
-        <?php if (empty($medical_records)): ?>
-            <div class="card-custom text-center">
-                <div class="empty-state">
-                    <i class="fa-solid fa-file-medical"></i>
-                    <h5>No Medical Records Found</h5>
-                    <p class="text-muted">No medical records have been added for <?php echo htmlspecialchars($pet['name']); ?> yet.</p>
-                    <a href="add_medical_record.php?pet_id=<?php echo $pet_id; ?>" class="btn btn-primary">
-                        <i class="fa-solid fa-plus me-1"></i> Add First Record
-                    </a>
+                    <!-- Medical Notes -->
+                    <?php if ($pet_data['medical_notes']): ?>
+                    <div class="info-card mt-3">
+                        <h4><i class="fas fa-file-medical me-2 text-primary"></i>Medical Notes</h4>
+                        <p class="mt-2"><?php echo htmlspecialchars($pet_data['medical_notes']); ?></p>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
-        <?php else: ?>
-            <div class="card-custom">
-                <h5 class="mb-3"><i class="fa-solid fa-file-waveform me-2"></i>Medical History (<?php echo count($medical_records); ?> records)</h5>
-                
-                <?php foreach ($medical_records as $record): ?>
-                    <div class="record-card">
-                        <div class="record-header">
+
+            <!-- Recent Medical Records -->
+            <?php if (!empty($recent_records)): ?>
+            <div class="info-card">
+                <h4><i class="fas fa-history me-2 text-primary"></i>Recent Medical History</h4>
+                <div class="mt-3">
+                    <?php foreach ($recent_records as $record): ?>
+                    <div class="record-item">
+                        <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="mb-1">
-                                    <i class="fa-solid fa-calendar-check me-2"></i>
-                                    Visit Date: <?php echo date('F j, Y', strtotime($record['visit_date'])); ?>
-                                </h6>
-                                <small class="text-muted">
-                                    <i class="fa-solid fa-user-doctor me-1"></i>
-                                    <?php echo htmlspecialchars($record['vet_name']); ?>
-                                    <?php if (!empty($record['clinic_name'])): ?>
-                                        at <?php echo htmlspecialchars($record['clinic_name']); ?>
-                                    <?php endif; ?>
-                                </small>
+                                <strong class="text-primary"><?php echo htmlspecialchars($record['record_type']); ?></strong>
+                                <div class="text-muted small mt-1"><?php echo htmlspecialchars($record['description']); ?></div>
                             </div>
-                            <div class="text-end">
-                                <span class="badge bg-info">Record #<?php echo $record['record_id']; ?></span>
-                            </div>
-                        </div>
-                        
-                        <div class="record-body">
-                            <?php if (!empty($record['diagnosis'])): ?>
-                                <div class="mb-3">
-                                    <strong><i class="fa-solid fa-stethoscope me-2"></i>Diagnosis:</strong>
-                                    <p class="mb-0"><?php echo htmlspecialchars($record['diagnosis']); ?></p>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <?php if (!empty($record['treatment'])): ?>
-                                <div class="mb-3">
-                                    <strong><i class="fa-solid fa-hand-holding-medical me-2"></i>Treatment:</strong>
-                                    <p class="mb-0"><?php echo htmlspecialchars($record['treatment']); ?></p>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <?php if (!empty($record['medications'])): ?>
-                                <div class="mb-3">
-                                    <strong><i class="fa-solid fa-pills me-2"></i>Medications:</strong>
-                                    <p class="mb-0"><?php echo htmlspecialchars($record['medications']); ?></p>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="detail-grid">
-                                <?php if (!empty($record['weight'])): ?>
-                                    <div class="detail-item">
-                                        <strong><i class="fa-solid fa-weight-scale me-2"></i>Weight:</strong>
-                                        <?php echo htmlspecialchars($record['weight']); ?> kg
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($record['temperature'])): ?>
-                                    <div class="detail-item">
-                                        <strong><i class="fa-solid fa-temperature-three-quarters me-2"></i>Temperature:</strong>
-                                        <?php echo htmlspecialchars($record['temperature']); ?> °C
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($record['cost'])): ?>
-                                    <div class="detail-item">
-                                        <strong><i class="fa-solid fa-money-bill-wave me-2"></i>Cost:</strong>
-                                        $<?php echo number_format($record['cost'], 2); ?>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($record['next_visit_date'])): ?>
-                                    <div class="detail-item">
-                                        <strong><i class="fa-solid fa-calendar-day me-2"></i>Next Visit:</strong>
-                                        <?php echo date('M j, Y', strtotime($record['next_visit_date'])); ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <?php if (!empty($record['notes'])): ?>
-                                <div class="mt-3 p-3 bg-light rounded">
-                                    <strong><i class="fa-solid fa-note-sticky me-2"></i>Additional Notes:</strong>
-                                    <p class="mb-0 mt-1"><?php echo htmlspecialchars($record['notes']); ?></p>
-                                </div>
-                            <?php endif; ?>
+                            <small class="text-muted"><?php echo date('M j, Y', strtotime($record['record_date'])); ?></small>
                         </div>
                     </div>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
+                </div>
             </div>
-        <?php endif; ?>
-    </div>
-</div>
+            <?php endif; ?>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+            <?php else: ?>
+            <div class="alert alert-warning text-center">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Pet information not found or access denied.
+                <br><small>Please check the pet ID or contact system administrator.</small>
+            </div>
+            <?php endif; ?>
+
+            <!-- Contact Information for Emergencies -->
+            <div class="contact-info">
+                <h4><i class="fas fa-phone-alt me-2 text-primary"></i>Emergency Contact</h4>
+                <p class="mb-2">If this is a medical emergency, please contact the pet owner immediately using the information above.</p>
+                <p class="mb-0"><strong>For urgent veterinary assistance, contact the pet's veterinarian directly.</strong></p>
+            </div>
+
+            <!-- System Design Preview -->
+            <div class="system-preview text-center">
+                <span class="security-badge">
+                    <i class="fas fa-shield-alt"></i> Secure Access
+                </span>
+                <h3 class="mt-3"><i class="fas fa-star me-2 text-warning"></i>Our Medical Record System</h3>
+                <p class="lead">Professional interface for efficient pet healthcare management</p>
+                
+                <!-- System Preview -->
+                <div style="background: white; padding: 2rem; border-radius: 12px; border: 2px solid var(--pink); margin: 2rem 0;">
+                    <div class="row text-start">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard Overview</h5>
+                            <p class="text-muted">Quick access to vital pet information and medical history</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-file-medical me-2 text-success"></i>Medical Records</h5>
+                            <p class="text-muted">Comprehensive health tracking and treatment plans</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <i class="fas fa-laptop-medical fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">Professional Medical Record System Interface</p>
+                        <div class="mt-3">
+                            <span class="badge bg-primary me-2">Patient Profiles</span>
+                            <span class="badge bg-success me-2">Treatment History</span>
+                            <span class="badge bg-info me-2">Lab Results</span>
+                            <span class="badge bg-warning me-2">Prescriptions</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3">
+                            <i class="fas fa-heartbeat fa-2x text-danger mb-2"></i>
+                            <h6>Health Tracking</h6>
+                            <p class="small text-muted">Comprehensive medical history</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3">
+                            <i class="fas fa-prescription-bottle-alt fa-2x text-primary mb-2"></i>
+                            <h6>Medications</h6>
+                            <p class="small text-muted">Prescription management</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3">
+                            <i class="fas fa-syringe fa-2x text-success mb-2"></i>
+                            <h6>Vaccinations</h6>
+                            <p class="small text-muted">Vaccine schedule tracking</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3">
+                            <i class="fas fa-notes-medical fa-2x text-warning mb-2"></i>
+                            <h6>Lab Results</h6>
+                            <p class="small text-muted">Test results and analysis</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call to Action -->
+            <div class="text-center mt-5">
+                <h4>Ready to Access the Full System?</h4>
+                <p class="text-muted mb-4">Click below to log in to our complete medical records system for full access to all features</p>
+                <a href="<?php echo $base_url; ?>/login.php" class="login-btn me-3">
+                    <i class="fas fa-sign-in-alt me-2"></i>Access System Login
+                </a>
+                <a href="<?php echo $base_url; ?>/register.php" class="btn btn-outline-primary">
+                    <i class="fas fa-user-plus me-2"></i>Request Access
+                </a>
+                <p class="text-muted mt-3 small">
+                    For emergency access or technical support, contact system administrator
+                </p>
+            </div>
+
+            <!-- Features List -->
+            <div class="row mt-5">
+                <div class="col-md-6">
+                    <div class="info-card">
+                        <h5><i class="fas fa-list-check me-2 text-primary"></i>System Features</h5>
+                        <ul class="feature-list mt-3">
+                            <li>Complete medical history tracking</li>
+                            <li>Vaccination and medication records</li>
+                            <li>Lab results and diagnostic imaging</li>
+                            <li>Appointment scheduling</li>
+                            <li>Multi-veterinarian access</li>
+                            <li>Emergency contact information</li>
+                            <li>Prescription management</li>
+                            <li>Treatment plan tracking</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="info-card">
+                        <h5><i class="fas fa-benefits me-2 text-success"></i>Benefits</h5>
+                        <ul class="feature-list mt-3">
+                            <li>24/7 secure access to records</li>
+                            <li>Seamless clinic-to-clinic transfers</li>
+                            <li>Emergency situation readiness</li>
+                            <li>Mobile-friendly interface</li>
+                            <li>Automated reminder system</li>
+                            <li>HIPAA compliant data protection</li>
+                            <li>Real-time updates</li>
+                            <li>Comprehensive audit trails</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center text-muted mt-4 pb-4">
+        <p>&copy; <?php echo date('Y'); ?> PetMedQR. All rights reserved.</p>
+        <p class="small">Secure pet medical records management system | Professional Veterinary Care</p>
+        <p class="small">System: <?php echo $base_url; ?></p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
