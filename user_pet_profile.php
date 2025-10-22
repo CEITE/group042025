@@ -10,8 +10,8 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// ✅ Fetch logged-in user info with profile picture
-$stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
+// ✅ Fetch logged-in user info
+$stmt = $conn->prepare("SELECT name, role, email FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
@@ -294,11 +294,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     <div class="sidebar">
         <div class="brand"><i class="fa-solid fa-paw"></i> PetMedQR</div>
         <div class="profile">
-            <?php if (!empty($user['profile_picture'])): ?>
-                <img src="uploads/profiles/<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="User">
-            <?php else: ?>
-                <img src="https://i.pravatar.cc/100?u=<?php echo urlencode($user['email']); ?>" alt="User">
-            <?php endif; ?>
+            <img src="https://i.pravatar.cc/100?u=<?php echo urlencode($user['name']); ?>" alt="User">
             <h6><?php echo htmlspecialchars($user['name']); ?></h6>
             <small class="text-muted"><?php echo htmlspecialchars($user['role']); ?></small>
         </div>
@@ -314,7 +310,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <a href="register_pet.php">
             <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> Register Pet
         </a>
-        <a href="user_settings.php">
+        <a href="#">
             <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
         </a>
         <a href="logout.php" class="logout">
@@ -420,7 +416,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             <?php endif; ?>
                             
                             <div class="action-buttons">
-                                <a href="pet_medical_records.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-primary">
+                                <a href="pet-medical-records.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-primary">
                                     <i class="fa-solid fa-file-medical me-1"></i> View Medical Records
                                 </a>
                                 <a href="edit_pet.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-secondary">
@@ -519,4 +515,8 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
 </script>
 </body>
+
 </html>
+
+
+
