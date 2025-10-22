@@ -6,6 +6,11 @@ include("conn.php");
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Check database connection
+if (!$conn) {
+    die("Database connection failed: " . htmlspecialchars($conn->connect_error));
+}
+
 // Debug: Check if register_vet.php exists
 $register_file = 'register_vet.php';
 if (file_exists($register_file)) {
@@ -90,7 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $stmt->close();
         } else {
-            $errors[] = "Database error: " . $conn->error;
+            $errors[] = "System error: Unable to process login";
+            error_log("Database preparation error in login_vet.php: " . $conn->error);
         }
     }
 }
