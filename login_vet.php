@@ -6,6 +6,20 @@ include("conn.php");
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Debug: Check if register_vet.php exists
+$register_file = 'register_vet.php';
+if (file_exists($register_file)) {
+    error_log("✓ register_vet.php exists in current directory");
+} else {
+    error_log("✗ register_vet.php NOT FOUND in: " . __DIR__);
+    // List files for debugging
+    $files = scandir(__DIR__);
+    $php_files = array_filter($files, function($file) {
+        return pathinfo($file, PATHINFO_EXTENSION) === 'php';
+    });
+    error_log("PHP files in directory: " . implode(', ', $php_files));
+}
+
 // Redirect if already logged in as vet
 if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'vet') {
     header("Location: vet_dashboard.php");
@@ -235,6 +249,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: var(--primary);
         }
         
+        .btn-outline-primary {
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            border-radius: 10px;
+            padding: 10px 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
         .register-link {
             color: var(--primary);
             text-decoration: none;
@@ -285,6 +314,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: var(--primary);
         }
         
+        .debug-test {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 9999;
+        }
+        
         @media (max-width: 768px) {
             .login-left {
                 padding: 2rem;
@@ -301,6 +337,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .feature-list li {
                 font-size: 1rem;
             }
+            
+            .debug-test {
+                position: relative;
+                top: auto;
+                right: auto;
+                text-align: center;
+                margin-bottom: 1rem;
+            }
         }
         
         @media (max-width: 576px) {
@@ -316,6 +360,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
+    <!-- Debug Test Link -->
+    <div class="debug-test">
+        <a href="register_vet.php" class="btn btn-warning btn-sm" id="debugRegisterLink">
+            <i class="fas fa-bug me-1"></i> TEST REGISTER LINK
+        </a>
+    </div>
+
     <div class="container-fluid">
         <div class="login-container">
             <div class="row g-0">
@@ -356,7 +407,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <div class="mt-4">
                             <small style="opacity: 0.8;">New veterinary professional? </small>
-                            <a href="register_vet.php" class="btn btn-outline-light btn-sm mt-2">
+                            <a href="register_vet.php" class="btn btn-outline-light btn-sm mt-2" id="sidebarRegisterLink">
                                 <i class="fas fa-user-plus me-1"></i> Register Veterinary Account
                             </a>
                         </div>
@@ -457,9 +508,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <div class="text-center mt-5 pt-4 border-top">
                             <p class="mb-3">Don't have a veterinary account?</p>
-                            <a href="register_vet.php" class="btn btn-outline-primary">
+                            <a href="register_vet.php" class="btn btn-outline-primary" id="bottomRegisterLink">
                                 <i class="fas fa-user-plus me-1"></i> Register as Veterinarian
                             </a>
+                            
+                            <!-- Alternative registration links for testing -->
+                            <div class="mt-3">
+                                <small class="text-muted">Trouble with registration? Try:</small>
+                                <div class="mt-2">
+                                    <a href="./register_vet.php" class="btn btn-outline-secondary btn-sm me-2">
+                                        ./register_vet.php
+                                    </a>
+                                    <a href="/register_vet.php" class="btn btn-outline-secondary btn-sm">
+                                        /register_vet.php
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="text-center mt-4">
@@ -476,6 +540,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Debug function to check register link
+        function checkRegisterLink(linkName) {
+            console.log('Register link clicked:', linkName);
+            console.log('Current URL:', window.location.href);
+            
+            // Test if the register_vet.php file exists
+            fetch('register_vet.php')
+                .then(response => {
+                    console.log('Fetch response status:', response.status);
+                    if (response.ok) {
+                        console.log('✓ register_vet.php exists and is accessible');
+                        return true; // Allow navigation
+                    } else {
+                        console.error('✗ register_vet.php not accessible. Status:', response.status);
+                        alert('Registration page not found (Error ' + response.status + '). Please contact administrator.');
+                        return false; // Prevent navigation
+                    }
+                })
+                .catch(error => {
+                    console.error('✗ Error accessing register_vet.php:', error);
+                    alert('Cannot access registration page. Please check if the file exists in the same directory.');
+                    return false; // Prevent navigation
+                });
+            
+            return true; // Allow navigation by default
+        }
+
         // Toggle password visibility
         document.getElementById('togglePassword').addEventListener('click', function() {
             const passwordInput = document.getElementById('password');
@@ -494,6 +585,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
 
+        // Add click listeners to all register links
+        document.addEventListener('DOMContentLoaded', function() {
+            const registerLinks = [
+                { id: 'sidebarRegisterLink', name: 'Sidebar' },
+                { id: 'bottomRegisterLink', name: 'Bottom' },
+                { id: 'debugRegisterLink', name: 'Debug' }
+            ];
+            
+            registerLinks.forEach(linkInfo => {
+                const link = document.getElementById(linkInfo.id);
+                if (link) {
+                    link.addEventListener('click', function(e) {
+                        console.log('Register link clicked via event listener:', linkInfo.name);
+                        const result = checkRegisterLink(linkInfo.name);
+                        if (!result) {
+                            e.preventDefault(); // Prevent navigation if there's an error
+                        }
+                    });
+                }
+            });
+
+            // Log current directory info
+            console.log('Current page URL:', window.location.href);
+            console.log('Current directory:', window.location.pathname.split('/').slice(0, -1).join('/'));
+            
+            // Auto-focus on email field
+            const emailField = document.getElementById('email');
+            if (emailField && !emailField.value) {
+                emailField.focus();
+            }
+        });
+
         // Enter key to submit form
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
@@ -503,22 +626,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
 
-        // Auto-focus on email field
+        // Add loading state to form submission
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function() {
+            const submitButton = this.querySelector('button[type="submit"]');
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Logging in...';
+            submitButton.disabled = true;
+        });
+
+        // Auto-dismiss alerts after 8 seconds
         document.addEventListener('DOMContentLoaded', function() {
-            const emailField = document.getElementById('email');
-            if (emailField && !emailField.value) {
-                emailField.focus();
-            }
-            
-            // Add loading state to form submission
-            const form = document.querySelector('form');
-            form.addEventListener('submit', function() {
-                const submitButton = this.querySelector('button[type="submit"]');
-                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Logging in...';
-                submitButton.disabled = true;
-            });
-            
-            // Auto-dismiss alerts after 8 seconds
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(alert => {
                 setTimeout(() => {
