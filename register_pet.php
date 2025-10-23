@@ -59,50 +59,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             $species_lower = strtolower($species);
             
             // ✅ FIXED: INSERT statement - REMOVED date_registered since it has default value
-            $stmt = $conn->prepare("
-                INSERT INTO pets (
-                    user_id, name, species, breed, age, color, weight, 
-                    birth_date, gender, medical_notes, vet_contact, 
-                    previous_conditions, vaccination_history, surgical_history, 
-                    medication_history, has_existing_records, records_location,
-                    last_vet_visit, next_vet_visit, rabies_vaccine_date,
-                    dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
-                    qr_code
-                ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
-            ");
+            // ✅ FIXED: INSERT statement - EXACT column count match
+$stmt = $conn->prepare("
+    INSERT INTO pets (
+        user_id, name, species, breed, age, color, weight, 
+        birth_date, gender, medical_notes, vet_contact, 
+        previous_conditions, vaccination_history, surgical_history, 
+        medication_history, has_existing_records, records_location,
+        last_vet_visit, next_vet_visit, rabies_vaccine_date,
+        dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
+        qr_code
+    ) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+");
             
             if (!$stmt) {
                 throw new Exception("Prepare failed: " . $conn->error);
             }
             
-            // ✅ FIXED: Correct parameter types and order - 23 parameters total
-            $bind_result = $stmt->bind_param("isssisdssssssssisssssis", 
-                $user_id, 
-                $petName, 
-                $species_lower,  // Use lowercase species
-                $breed, 
-                $age, 
-                $color, 
-                $weight, 
-                $birthDate, 
-                $gender, 
-                $medicalNotes, 
-                $vetContact,
-                $previousConditions,
-                $vaccinationHistory,
-                $surgicalHistory,
-                $medicationHistory,
-                $hasExistingRecords,
-                $recordsLocation,
-                $last_vet_visit,
-                $next_vet_visit,
-                $rabies_vaccine_date,
-                $dhpp_vaccine_date,
-                $is_spayed_neutered,
-                $spay_neuter_date,
-                $qrCodeFilename
-            );
+            // ✅ FIXED: Exactly 23 parameters
+$bind_result = $stmt->bind_param("isssisdssssssssisssssis", 
+    $user_id, 
+    $petName, 
+    $species_lower,
+    $breed, 
+    $age, 
+    $color, 
+    $weight, 
+    $birthDate, 
+    $gender, 
+    $medicalNotes, 
+    $vetContact,
+    $previousConditions,
+    $vaccinationHistory,
+    $surgicalHistory,
+    $medicationHistory,
+    $hasExistingRecords,
+    $recordsLocation,
+    $last_vet_visit,
+    $next_vet_visit,
+    $rabies_vaccine_date,
+    $dhpp_vaccine_date,
+    $is_spayed_neutered,
+    $spay_neuter_date,
+    $qrCodeFilename
+);
             
             if (!$bind_result) {
                 throw new Exception("Bind failed: " . $stmt->error);
@@ -1387,5 +1388,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
 
 
