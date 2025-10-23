@@ -1,5 +1,5 @@
 <?php
-// pet-medical-access.php - DISPLAYS ALL MEDICAL RECORDS SEPARATELY
+// pet-medical-access.php - DISPLAYS ALL MEDICAL RECORDS WITH DEBUG
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -12,14 +12,18 @@ $pet_name = isset($_GET['pet_name']) ? htmlspecialchars($_GET['pet_name']) : 'Un
 // Initialize variables
 $pet_data = null;
 $medical_records = [];
+$debug_info = '';
 
 // Try to connect to database safely
 try {
     if (file_exists("conn.php")) {
         include("conn.php");
+        $debug_info .= "conn.php included successfully<br>";
         
         // Fetch pet data if connection successful
         if ($pet_id > 0 && isset($conn)) {
+            $debug_info .= "Pet ID: $pet_id, Connection established<br>";
+            
             // Get ALL pet data including medical fields
             $stmt = $conn->prepare("
                 SELECT p.*, u.name as owner_name, u.email as owner_email, u.phone as owner_phone
@@ -33,8 +37,17 @@ try {
                 $result = $stmt->get_result();
                 if ($result) {
                     $pet_data = $result->fetch_assoc();
+                    $debug_info .= "Pet data fetched: " . ($pet_data ? "YES" : "NO") . "<br>";
+                    if ($pet_data) {
+                        $debug_info .= "Pet name: " . $pet_data['name'] . "<br>";
+                        $debug_info .= "Has existing records: " . $pet_data['has_existing_records'] . "<br>";
+                        $debug_info .= "Previous conditions: " . (empty($pet_data['previous_conditions']) ? "EMPTY" : "HAS DATA") . "<br>";
+                        $debug_info .= "Vaccination history: " . (empty($pet_data['vaccination_history']) ? "EMPTY" : "HAS DATA") . "<br>";
+                    }
                 }
                 $stmt->close();
+            } else {
+                $debug_info .= "Failed to prepare pet data statement<br>";
             }
             
             // Fetch ALL medical records from pet_medical_records table
@@ -49,19 +62,29 @@ try {
                 $result = $stmt->get_result();
                 if ($result) {
                     $medical_records = $result->fetch_all(MYSQLI_ASSOC);
+                    $debug_info .= "Medical records found: " . count($medical_records) . "<br>";
+                    if (!empty($medical_records)) {
+                        foreach ($medical_records as $record) {
+                            $debug_info .= "Record: " . $record['record_type'] . " on " . $record['record_date'] . "<br>";
+                        }
+                    }
                 }
                 $stmt->close();
+            } else {
+                $debug_info .= "Failed to prepare medical records statement<br>";
             }
+        } else {
+            $debug_info .= "No connection or invalid pet ID<br>";
         }
+    } else {
+        $debug_info .= "conn.php file not found<br>";
     }
 } catch (Exception $e) {
-    // Silent fail - we'll use the basic data
-    error_log("Database error: " . $e->getMessage());
+    $debug_info .= "Database error: " . $e->getMessage() . "<br>";
 }
 
-// Debug: Check what data we have
-error_log("Pet Data for ID $pet_id: " . print_r($pet_data, true));
-error_log("Medical Records count: " . count($medical_records));
+// Debug output
+error_log("Debug Info: " . $debug_info);
 ?>
 
 <!DOCTYPE html>
@@ -139,24 +162,6 @@ error_log("Medical Records count: " . count($medical_records));
             border-left: 4px solid #6c757d;
         }
         
-        .medical-badge {
-            background: var(--pink-darker);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .records-badge {
-            background: var(--blue);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
         .medical-content {
             background: white;
             padding: 1rem;
@@ -172,15 +177,38 @@ error_log("Medical Records count: " . count($medical_records));
             color: #6c757d;
         }
         
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: #dee2e6;
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #6c757d;
         }
     </style>
 </head>
 <body>
     <div class="container py-4">
+        <!-- Debug Information (remove this in production) -->
+        <div class="debug-info">
+            <strong>Debug Information:</strong><br>
+            <?php echo $debug_info; ?>
+            <strong>Pet Data Array:</strong><br>
+            <?php 
+            if ($pet_data) {
+                foreach ($pet_data as $key => $value) {
+                    if (in_array($key, ['previous_conditions', 'vaccination_history', 'surgical_history', 'medication_history', 'medical_notes'])) {
+                        echo "$key: " . (empty($value) ? "EMPTY" : "HAS DATA (" . strlen($value) . " chars)") . "<br>";
+                    }
+                }
+            } else {
+                echo "No pet data found<br>";
+            }
+            ?>
+        </div>
+
         <!-- Header -->
         <div class="medical-header">
             <h1 class="display-6 fw-bold mb-2">
@@ -188,18 +216,6 @@ error_log("Medical Records count: " . count($medical_records));
                 <?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?>'s Medical Records
             </h1>
             <p class="lead mb-0">Complete Medical History & Records</p>
-            <div class="mt-2">
-                <?php if ($pet_data && $pet_data['has_existing_records']): ?>
-                    <span class="medical-badge">
-                        <i class="fas fa-history me-1"></i>Has Medical History
-                    </span>
-                <?php endif; ?>
-                <?php if (!empty($medical_records)): ?>
-                    <span class="records-badge">
-                        <i class="fas fa-file-medical me-1"></i><?php echo count($medical_records); ?> Medical Visits
-                    </span>
-                <?php endif; ?>
-            </div>
         </div>
 
         <div class="row">
@@ -219,6 +235,7 @@ error_log("Medical Records count: " . count($medical_records));
                                     <p><strong>Species:</strong> <?php echo htmlspecialchars($pet_data['species']); ?></p>
                                     <p><strong>Breed:</strong> <?php echo htmlspecialchars($pet_data['breed'] ?: 'Mixed'); ?></p>
                                     <p><strong>Age:</strong> <?php echo htmlspecialchars($pet_data['age']); ?> years</p>
+                                    <p><strong>Pet ID:</strong> <?php echo htmlspecialchars($pet_data['pet_id']); ?></p>
                                 </div>
                                 <div class="col-md-6">
                                     <p><strong>Gender:</strong> <?php echo htmlspecialchars($pet_data['gender'] ?: 'Unknown'); ?></p>
@@ -239,6 +256,7 @@ error_log("Medical Records count: " . count($medical_records));
                             <div class="text-center py-4">
                                 <h5><?php echo $pet_name; ?></h5>
                                 <p class="text-muted">Pet ID: <?php echo $pet_id; ?></p>
+                                <p class="text-danger">No pet data found in database</p>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -279,7 +297,7 @@ error_log("Medical Records count: " . count($medical_records));
                             <div class="empty-state">
                                 <i class="fas fa-file-medical"></i>
                                 <h5 class="text-muted">No Medical Visit Records</h5>
-                                <p class="text-muted">No medical visit records found in the system.</p>
+                                <p class="text-muted">No medical visit records found in pet_medical_records table.</p>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -290,9 +308,6 @@ error_log("Medical Records count: " . count($medical_records));
                     <div class="card-header-custom">
                         <h4 class="mb-0">
                             <i class="fas fa-history me-2"></i>Medical History Summary
-                            <?php if ($pet_data && $pet_data['has_existing_records']): ?>
-                                <span class="badge bg-white text-pink-darker ms-2">Has History</span>
-                            <?php endif; ?>
                         </h4>
                     </div>
                     <div class="card-body p-4">
@@ -371,13 +386,14 @@ error_log("Medical Records count: " . count($medical_records));
                             <div class="empty-state">
                                 <i class="fas fa-history"></i>
                                 <h5 class="text-muted">No Medical History Data</h5>
-                                <p class="text-muted">No medical history data available for this pet.</p>
+                                <p class="text-muted">No pet data found in database.</p>
                             </div>
                         <?php endif; ?>
                     </div>
                 </div>
 
                 <!-- Contact Information -->
+                <?php if ($pet_data && ($pet_data['owner_name'] || $pet_data['vet_contact'])): ?>
                 <div class="medical-card">
                     <div class="card-header-custom">
                         <h4 class="mb-0">
@@ -386,40 +402,31 @@ error_log("Medical Records count: " . count($medical_records));
                     </div>
                     <div class="card-body p-4">
                         <div class="row">
+                            <?php if ($pet_data['owner_name']): ?>
                             <div class="col-md-6">
                                 <h6>Owner Contact</h6>
-                                <?php if ($pet_data && $pet_data['owner_name']): ?>
-                                    <p class="mb-1"><strong>Name:</strong> <?php echo htmlspecialchars($pet_data['owner_name']); ?></p>
-                                    <?php if ($pet_data['owner_phone']): ?>
-                                        <p class="mb-1"><strong>Phone:</strong> <?php echo htmlspecialchars($pet_data['owner_phone']); ?></p>
-                                    <?php endif; ?>
-                                    <?php if ($pet_data['owner_email']): ?>
-                                        <p class="mb-0"><strong>Email:</strong> <?php echo htmlspecialchars($pet_data['owner_email']); ?></p>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <p class="text-muted">Owner information not available</p>
+                                <p class="mb-1"><strong>Name:</strong> <?php echo htmlspecialchars($pet_data['owner_name']); ?></p>
+                                <?php if ($pet_data['owner_phone']): ?>
+                                    <p class="mb-1"><strong>Phone:</strong> <?php echo htmlspecialchars($pet_data['owner_phone']); ?></p>
+                                <?php endif; ?>
+                                <?php if ($pet_data['owner_email']): ?>
+                                    <p class="mb-0"><strong>Email:</strong> <?php echo htmlspecialchars($pet_data['owner_email']); ?></p>
                                 <?php endif; ?>
                             </div>
+                            <?php endif; ?>
                             
+                            <?php if ($pet_data['vet_contact']): ?>
                             <div class="col-md-6">
                                 <h6>Veterinarian Contact</h6>
-                                <?php if ($pet_data && $pet_data['vet_contact']): ?>
-                                    <p class="mb-0"><strong>Contact:</strong> <?php echo htmlspecialchars($pet_data['vet_contact']); ?></p>
-                                <?php else: ?>
-                                    <p class="text-muted">Veterinarian contact not specified</p>
-                                <?php endif; ?>
+                                <p class="mb-0"><strong>Contact:</strong> <?php echo htmlspecialchars($pet_data['vet_contact']); ?></p>
                             </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
-
-        <!-- Footer -->
-        <footer class="text-center text-muted mt-5 pt-4 border-top">
-            <p class="mb-1 small">&copy; <?php echo date('Y'); ?> PetMedQR Medical Records</p>
-            <p class="small text-muted">Last updated: <?php echo $pet_data && $pet_data['medical_history_updated_at'] ? date('M j, Y g:i A', strtotime($pet_data['medical_history_updated_at'])) : 'Unknown'; ?></p>
-        </footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
