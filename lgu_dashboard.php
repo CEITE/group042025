@@ -234,7 +234,7 @@ if ($check_pets->num_rows > 0) {
                 pmr.clinic_name,
                 pmr.clinic_address
               FROM pets p
-              LEFT JOIN users u ON p.owner_id = u.user_id
+              LEFT JOIN users u ON p.user_id = u.user_id
               LEFT JOIN pet_medical_records pmr ON p.pet_id = pmr.pet_id
               ORDER BY p.name, pmr.generated_date DESC";
     
@@ -1164,3 +1164,4 @@ if ($check_announcements->num_rows > 0) {
     </script>
 </body>
 </html>
+
