@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     $petName = trim($_POST['petName'] ?? '');
     $species = trim($_POST['species'] ?? '');
     $breed = trim($_POST['breed'] ?? '');
-    $age = !empty($_POST['age']) ? floatval($_POST['age']) : 0;
+    $age = !empty($_POST['age']) ? intval($_POST['age']) : 0; // Changed to intval to match your int(11) column
     $color = trim($_POST['color'] ?? '');
     $weight = !empty($_POST['weight']) ? floatval($_POST['weight']) : null;
     $birthDate = !empty($_POST['birthDate']) ? $_POST['birthDate'] : null;
@@ -57,6 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             // Generate unique QR code filename
             $qrCodeFilename = 'qr_' . uniqid() . '_' . time() . '.svg';
             
+            // Convert species to lowercase to match ENUM('dog', 'cat')
+            $species_lower = strtolower($species);
+            
             // ✅ FIXED: INSERT statement that matches your table structure
             $stmt = $conn->prepare("
                 INSERT INTO pets (
@@ -75,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             $stmt->bind_param("isssisdssssssssisssssis", 
                 $user_id, 
                 $petName, 
-                $species, 
+                $species_lower,  // Use lowercase species
                 $breed, 
                 $age, 
                 $color, 
@@ -1343,6 +1346,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
 
 
 
