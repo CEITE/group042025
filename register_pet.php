@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                     dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
                     qr_code
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
             ");
             
             if (!$stmt) {
@@ -1387,4 +1387,5 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
 
