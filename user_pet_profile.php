@@ -61,7 +61,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Pets - PetMedQR</title>
+    <title>My Pets - VetCareQR</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -342,7 +342,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 <div class="wrapper">
     <!-- Sidebar -->
     <div class="sidebar">
-        <div class="brand"><i class="fa-solid fa-paw"></i> PetMedQR</div>
+        <div class="brand"><i class="fa-solid fa-paw"></i> VetCareQR</div>
         <div class="profile">
             <img src="https://i.pravatar.cc/100?u=<?php echo urlencode($user['name']); ?>" alt="User">
             <h6><?php echo htmlspecialchars($user['name']); ?></h6>
@@ -674,4 +674,5 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 </script>
 </body>
 </html>
+
 
