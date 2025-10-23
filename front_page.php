@@ -10,37 +10,33 @@
 <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
 <style>
   :root{
-    --primary:#2c5aa0;
-    --primary-dark:#1e3d72;
-    --secondary:#6c757d;
-    --success:#28a745;
-    --info:#17a2b8;
-    --warning:#ffc107;
-    --danger:#dc3545;
-    --light:#f8f9fa;
-    --dark:#343a40;
+    --pink:#ffd6e7;
+    --pink-2:#f7c5e0;
+    --pink-dark:#bf3b78;
+    --pink-darker:#8c2859;
+    --ink:#2a2e34;
     --hi:#ff6b6b;     /* high risk */
     --med:#ffa94d;    /* medium risk */
     --low:#74c69d;    /* low risk */
     --muted:#e9ecef;  /* no data */
   }
-  body{font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif; color:var(--dark); background:#fff;}
+  body{font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif; color:var(--ink); background:#fff;}
   
   /* Improved Navigation */
   .navbar{
-    background: rgba(255, 255, 255, 0.95);
-    border-bottom: 1px solid #e9ecef; 
+    background: rgba(255, 248, 252, 0.95);
+    border-bottom: 1px solid #f1e6f0; 
     padding: 0.8rem 0;
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
   }
   .navbar-brand {
     font-weight: 800;
-    color: var(--primary);
+    color: var(--pink-dark);
     font-size: 1.5rem;
   }
   .navbar .nav-link{
-    color: var(--dark);
+    color: var(--ink);
     font-weight: 500; 
     transition: all 0.3s ease;
     position: relative;
@@ -48,7 +44,7 @@
   }
   .navbar .nav-link:hover,
   .navbar .nav-link.active {
-    color: var(--primary);
+    color: var(--pink-dark);
   }
   .navbar .nav-link::after {
     content: '';
@@ -57,7 +53,7 @@
     left: 50%;
     width: 0;
     height: 2px;
-    background: var(--primary);
+    background: var(--pink-dark);
     transition: all 0.3s ease;
     transform: translateX(-50%);
   }
@@ -69,7 +65,7 @@
   /* Enhanced HERO with More Visible Background Image */
   .hero{
     background: 
-      linear-gradient(rgba(255, 255, 255, 0.7), rgba(240, 245, 255, 0.7)),
+      linear-gradient(rgba(255, 214, 231, 0.6), rgba(255, 216, 236, 0.6)),
       url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2043&q=80') center/cover no-repeat;
     padding: 80px 0 100px;
     position: relative;
@@ -95,23 +91,25 @@
     letter-spacing: -0.025em;
     line-height: 1.2;
     margin-bottom: 1.5rem;
-    color: var(--dark);
+    color: var(--ink);
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.8);
   }
   .hero-subtitle {
     font-size: 1.25rem;
     color: #5d6370;
     margin-bottom: 2rem;
     line-height: 1.6;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
   }
   .hero-badge {
     background: rgba(255, 255, 255, 0.9);
-    color: var(--primary);
+    color: var(--pink-dark);
     font-weight: 600;
     padding: 0.5rem 1rem;
     border-radius: 50px;
     display: inline-block;
     margin-bottom: 1.5rem;
-    border: 1px solid rgba(44, 90, 160, 0.2);
+    border: 1px solid rgba(191, 59, 120, 0.2);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
   .cta-group {
@@ -126,25 +124,25 @@
     font-weight: 600;
     transition: all 0.3s ease;
   }
-  .btn-primary{
-    background: var(--primary);
+  .btn-pink{
+    background: var(--pink-dark);
     color: #fff;
     border: none;
-    box-shadow: 0 4px 14px rgba(44, 90, 160, 0.4);
+    box-shadow: 0 4px 14px rgba(191, 59, 120, 0.4);
   }
-  .btn-primary:hover{
-    background: var(--primary-dark);
+  .btn-pink:hover{
+    background: var(--pink-darker);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(44, 90, 160, 0.5);
+    box-shadow: 0 6px 20px rgba(191, 59, 120, 0.5);
   }
-  .btn-outline-primary{
-    color: var(--primary);
-    border: 2px solid var(--primary);
+  .btn-outline-pink{
+    color: var(--pink-dark);
+    border: 2px solid var(--pink-dark);
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(5px);
   }
-  .btn-outline-primary:hover{
-    background: var(--primary);
+  .btn-outline-pink:hover{
+    background: var(--pink-dark);
     color: #fff;
     transform: translateY(-2px);
   }
@@ -168,12 +166,12 @@
   .feature-icon {
     width: 40px;
     height: 40px;
-    background: rgba(44, 90, 160, 0.1);
+    background: rgba(191, 59, 120, 0.1);
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--primary);
+    color: var(--pink-dark);
     font-size: 1.25rem;
   }
 
@@ -182,10 +180,10 @@
     position: relative;
   }
   .map-wrap{
-    background: #f8f9fa; 
-    border: 1px solid #e9ecef; 
+    background: #ffeaf3; 
+    border: 1px solid #f3d5e7; 
     border-radius: 24px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 20px 40px rgba(184, 71, 129, 0.15);
     padding: 24px; 
     aspect-ratio: 4/5;
     transition: transform 0.3s ease;
@@ -194,7 +192,7 @@
   }
   .map-wrap:hover {
     transform: translateY(-5px);
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 25px 50px rgba(184, 71, 129, 0.2);
   }
   .map-wrap svg {
     width: 100%; 
@@ -238,7 +236,7 @@
   .section-title {
     font-weight: 800;
     margin-bottom: 1rem;
-    color: var(--dark);
+    color: var(--ink);
   }
   .section-subtitle {
     color: #5d6370;
@@ -313,26 +311,26 @@
   .feature-icon-wrapper {
     width: 70px;
     height: 70px;
-    background: rgba(44, 90, 160, 0.1);
+    background: rgba(191, 59, 120, 0.1);
     border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 1.5rem;
-    color: var(--primary);
+    color: var(--pink-dark);
     font-size: 2rem;
   }
 
   /* Research section */
   .research-section {
-    background: linear-gradient(to bottom, #f8f9fa, #fff);
+    background: linear-gradient(to bottom, #faf5f8, #fff);
   }
   .research-card {
     background: #fff;
     border-radius: 16px;
     padding: 2rem;
     margin-bottom: 1.5rem;
-    border-left: 4px solid var(--primary);
+    border-left: 4px solid var(--pink-dark);
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
   }
@@ -341,7 +339,7 @@
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   }
   .research-card h5 {
-    color: var(--primary);
+    color: var(--pink-dark);
     margin-bottom: 1rem;
   }
 
@@ -374,13 +372,13 @@
 
   /* Contact section */
   .contact-section {
-    background: linear-gradient(to right, #f8f9fa, #e9ecef);
+    background: linear-gradient(to right, #fff8fc, #ffeaf3);
   }
 
   /* Footer */
   footer {
-    background: #f8f9fa;
-    border-top: 1px solid #e9ecef;
+    background: #fff8fc;
+    border-top: 1px solid #f1e6f0;
     padding: 3rem 0 2rem;
   }
 
@@ -434,7 +432,7 @@
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: var(--primary);
+    background: var(--pink-dark);
     color: white;
     display: flex;
     align-items: center;
@@ -444,14 +442,14 @@
     visibility: hidden;
     transition: all 0.3s ease;
     z-index: 1000;
-    box-shadow: 0 4px 12px rgba(44, 90, 160, 0.3);
+    box-shadow: 0 4px 12px rgba(191, 59, 120, 0.3);
   }
   .scroll-top.active {
     opacity: 1;
     visibility: visible;
   }
   .scroll-top:hover {
-    background: var(--primary-dark);
+    background: var(--pink-darker);
     transform: translateY(-3px);
   }
 </style>
@@ -475,8 +473,8 @@
         <li class="nav-item"><a class="nav-link" href="#map">Risk Map</a></li>
         <li class="nav-item"><a class="nav-link" href="#team">Team</a></li>
         <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
-        <li class="nav-item ms-2"><a class="btn btn-outline-primary mt-1 mt-lg-0" href="login.php">Login</a></li>
-        <li class="nav-item ms-2"><a class="btn btn-primary mt-1 mt-lg-0" href="register.php">Register</a></li>
+        <li class="nav-item ms-2"><a class="btn btn-outline-pink mt-1 mt-lg-0" href="login.php">Login</a></li>
+        <li class="nav-item ms-2"><a class="btn btn-pink mt-1 mt-lg-0" href="register.php">Register</a></li>
       </ul>
     </div>
   </div>
@@ -489,11 +487,11 @@
       <!-- LEFT: copy & CTA -->
       <div class="col-lg-6 hero-content" data-aos="fade-right">
         <span class="hero-badge">Santa Rosa · Laguna</span>
-        <h1>Smart Pet Healthcare Management with <span style="color:#2c5aa0">QR Technology</span></h1>
+        <h1>Smart Pet Healthcare Management with <span style="color:#bf3b78">QR Technology</span></h1>
         <p class="hero-subtitle">VetCareQR revolutionizes municipal pet healthcare with QR-based medical records, predictive analytics, and real-time risk monitoring for a healthier pet community.</p>
 
         <div class="cta-group">
-          <a class="btn btn-outline-primary" href="#map">View Risk Map</a>
+          <a class="btn btn-outline-pink" href="#map">View Risk Map</a>
         </div>
 
         <div class="feature-highlights">
@@ -524,13 +522,13 @@
           <svg viewBox="0 0 320 420" xmlns="http://www.w3.org/2000/svg" aria-label="Sta. Rosa, Laguna barangay risk map">
             <defs>
               <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#a0aec0" flood-opacity=".35"/>
+                <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#caa0b7" flood-opacity=".35"/>
               </filter>
             </defs>
 
             <!-- Base silhouette -->
             <path d="M120,20  210,40 260,95 300,180 280,240 250,300 210,360 150,395 100,380 60,330 40,260 55,180 80,120 Z"
-              fill="#e9ecef" filter="url(#softShadow)"/>
+              fill="#f1d9e7" filter="url(#softShadow)"/>
 
             <!-- Regions (placeholder shapes) -->
             <path id="b1"  d="M128,52 188,64 220,96 180,116 120,104 Z" fill="var(--low)" data-bs-toggle="tooltip" title="Aplaya — Low Risk"/>
@@ -668,7 +666,7 @@
       <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="100">
         <div class="team-card">
           <div class="team-content">
-            <img src="https://placehold.co/120x120/e9ecef/2c5aa0?text=A" alt="Aira L. Alimorom" class="team-img mb-3">
+            <img src="https://placehold.co/120x120/ffd6e7/bf3b78?text=A" alt="Aira L. Alimorom" class="team-img mb-3">
             <h5 class="card-title">Aira L. Alimorom</h5>
             <p class="card-text">Developer & Researcher</p>
             <div class="mt-3">
@@ -681,7 +679,7 @@
       <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="200">
         <div class="team-card">
           <div class="team-content">
-            <img src="https://placehold.co/120x120/e9ecef/2c5aa0?text=R" alt="Regina R. Narbarte" class="team-img mb-3">
+            <img src="https://placehold.co/120x120/ffd6e7/bf3b78?text=R" alt="Regina R. Narbarte" class="team-img mb-3">
             <h5 class="card-title">Regina R. Narbarte</h5>
             <p class="card-text">Developer & Researcher</p>
             <div class="mt-3">
@@ -694,7 +692,7 @@
       <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="300">
         <div class="team-card">
           <div class="team-content">
-            <img src="https://placehold.co/120x120/e9ecef/2c5aa0?text=P" alt="Prof. Alexander G. Avendaño" class="team-img mb-3">
+            <img src="https://placehold.co/120x120/ffd6e7/bf3b78?text=P" alt="Prof. Alexander G. Avendaño" class="team-img mb-3">
             <h5 class="card-title">Prof. Alexander G. Avendaño</h5>
             <p class="card-text">Project Adviser</p>
             <div class="mt-3">
@@ -717,10 +715,10 @@
 <section id="contact" class="section contact-section">
   <div class="container text-center" data-aos="fade-up">
     <p class="mb-4 lead">Contact our municipal veterinary office for assistance or to schedule a demonstration.</p>
-    <a class="btn btn-primary btn-lg me-3" href="mailto:lgu-vet@example.com">
+    <a class="btn btn-pink btn-lg me-3" href="mailto:lgu-vet@example.com">
       <i class="bi bi-envelope me-2"></i>Contact Municipal Vet Office
     </a>
-    <a class="btn btn-outline-primary btn-lg" href="tel:+631234567890">
+    <a class="btn btn-outline-pink btn-lg" href="tel:+631234567890">
       <i class="bi bi-telephone me-2"></i>Call Now
     </a>
   </div>
@@ -820,10 +818,10 @@
     // Navbar background on scroll
     window.addEventListener('scroll', function() {
       if (window.scrollY > 50) {
-        document.querySelector('.navbar').style.background = 'rgba(255, 255, 255, 0.98)';
+        document.querySelector('.navbar').style.background = 'rgba(255, 248, 252, 0.98)';
         document.querySelector('.navbar').style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
       } else {
-        document.querySelector('.navbar').style.background = 'rgba(255, 255, 255, 0.95)';
+        document.querySelector('.navbar').style.background = 'rgba(255, 248, 252, 0.95)';
         document.querySelector('.navbar').style.boxShadow = 'none';
       }
     });
