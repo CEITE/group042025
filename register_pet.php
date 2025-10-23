@@ -58,48 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             // Convert species to lowercase to match ENUM('dog', 'cat')
             $species_lower = strtolower($species);
             
-            // DEBUG: Show table structure
-            $debug_result = $conn->query("DESCRIBE pets");
-            $debug_columns = [];
-            while ($debug_row = $debug_result->fetch_assoc()) {
-                $debug_columns[] = $debug_row['Field'];
-            }
-            
-            // DEBUG: Count actual columns
-            $actual_column_count = count($debug_columns);
-            
-            // Define the columns we're trying to insert
-            $insert_columns = [
-                'user_id', 'name', 'species', 'breed', 'age', 'color', 'weight', 
-                'birth_date', 'gender', 'medical_notes', 'vet_contact', 
-                'previous_conditions', 'vaccination_history', 'surgical_history', 
-                'medication_history', 'has_existing_records', 'records_location',
-                'last_vet_visit', 'next_vet_visit', 'rabies_vaccine_date',
-                'dhpp_vaccine_date', 'is_spayed_neutered', 'spay_neuter_date',
-                'qr_code'
-            ];
-            
-            $insert_column_count = count($insert_columns);
-            $value_placeholders = str_repeat('?, ', $insert_column_count - 1) . '?';
-            
-            // DEBUG: Check if all columns exist in table
-            $missing_columns = [];
-            foreach ($insert_columns as $col) {
-                if (!in_array($col, $debug_columns)) {
-                    $missing_columns[] = $col;
-                }
-            }
-            
-            // DEBUG: Show debug information
-            error_log("=== PET REGISTRATION DEBUG ===");
-            error_log("Actual table columns: " . $actual_column_count);
-            error_log("Insert columns: " . $insert_column_count);
-            error_log("Missing columns: " . implode(', ', $missing_columns));
-            error_log("All table columns: " . implode(', ', $debug_columns));
-            error_log("Inserting columns: " . implode(', ', $insert_columns));
-            
-            // ✅ FIXED: INSERT statement that matches your table structure
-            $sql = "
+            // ✅ FIXED: INSERT statement - REMOVED date_registered since it has default value
+            $stmt = $conn->prepare("
                 INSERT INTO pets (
                     user_id, name, species, breed, age, color, weight, 
                     birth_date, gender, medical_notes, vet_contact, 
@@ -109,35 +69,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                     dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
                     qr_code
                 ) 
-                VALUES ($value_placeholders)
-            ";
-            
-            error_log("SQL: " . $sql);
-            
-            $stmt = $conn->prepare($sql);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
             
             if (!$stmt) {
                 throw new Exception("Prepare failed: " . $conn->error);
             }
             
-            // DEBUG: Show bind parameters
-            $bind_types = "isssisdssssssssisssssis";
-            $bind_values = [
-                $user_id, $petName, $species_lower, $breed, $age, $color, $weight, 
-                $birthDate, $gender, $medicalNotes, $vetContact,
-                $previousConditions, $vaccinationHistory, $surgicalHistory,
-                $medicationHistory, $hasExistingRecords, $recordsLocation,
-                $last_vet_visit, $next_vet_visit, $rabies_vaccine_date,
-                $dhpp_vaccine_date, $is_spayed_neutered, $spay_neuter_date,
+            // ✅ FIXED: Correct parameter types and order - 23 parameters total
+            $bind_result = $stmt->bind_param("isssisdssssssssisssssis", 
+                $user_id, 
+                $petName, 
+                $species_lower,  // Use lowercase species
+                $breed, 
+                $age, 
+                $color, 
+                $weight, 
+                $birthDate, 
+                $gender, 
+                $medicalNotes, 
+                $vetContact,
+                $previousConditions,
+                $vaccinationHistory,
+                $surgicalHistory,
+                $medicationHistory,
+                $hasExistingRecords,
+                $recordsLocation,
+                $last_vet_visit,
+                $next_vet_visit,
+                $rabies_vaccine_date,
+                $dhpp_vaccine_date,
+                $is_spayed_neutered,
+                $spay_neuter_date,
                 $qrCodeFilename
-            ];
-            
-            error_log("Bind types: " . $bind_types);
-            error_log("Bind values count: " . count($bind_values));
-            error_log("Bind types length: " . strlen($bind_types));
-            
-            // ✅ FIXED: Correct parameter types and order
-            $bind_result = $stmt->bind_param($bind_types, ...$bind_values);
+            );
             
             if (!$bind_result) {
                 throw new Exception("Bind failed: " . $stmt->error);
@@ -191,12 +156,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             $stmt->close();
             
         } catch (Exception $e) {
-            $_SESSION['error'] = "Database error: " . $e->getMessage() . " (Check error logs for details)";
-            error_log("Registration Error: " . $e->getMessage());
+            $_SESSION['error'] = "Database error: " . $e->getMessage();
         }
     }
 }
-
 // Enhanced function to generate QR code data with medical history
 function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $previousConditions = '', $vaccinationHistory = '', $surgicalHistory = '', $medicationHistory = '', $last_vet_visit = '', $next_vet_visit = '', $rabies_vaccine_date = '', $dhpp_vaccine_date = '', $is_spayed_neutered = '', $spay_neuter_date = '', $ownerName = '', $ownerEmail = '') {
     $data = "PET MEDICAL RECORD - PETMEDQR\n";
@@ -1424,3 +1387,4 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
