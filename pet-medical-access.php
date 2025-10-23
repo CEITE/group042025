@@ -1,5 +1,5 @@
 <?php
-// pet-medical-access.php - ENHANCED MEDICAL HISTORY DISPLAY
+// pet-medical-access.php - ENHANCED WITH PET_MEDICAL_RECORDS TABLE
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -17,8 +17,8 @@ $pet_data = null;
 $medical_records = [];
 $vaccinations = [];
 $medications = [];
-$allergies = [];
 $procedures = [];
+$checkups = [];
 
 // Try to connect to database safely
 try {
@@ -27,9 +27,13 @@ try {
         
         // Fetch pet data if connection successful
         if ($pet_id > 0 && isset($conn)) {
-            // Enhanced pet data query
+            // Fetch basic pet info
             $stmt = $conn->prepare("
-                SELECT p.*, u.name as owner_name, u.email as owner_email, u.phone as owner_phone
+                SELECT 
+                    p.*, 
+                    u.name as owner_name, 
+                    u.email as owner_email, 
+                    u.phone as owner_phone
                 FROM pets p 
                 LEFT JOIN users u ON p.user_id = u.user_id 
                 WHERE p.pet_id = ?
@@ -44,7 +48,7 @@ try {
                 $stmt->close();
             }
             
-            // Fetch ALL medical records with categorization
+            // Fetch ALL medical records from pet_medical_records table
             $stmt = $conn->prepare("
                 SELECT 
                     record_id,
@@ -55,13 +59,15 @@ try {
                     notes,
                     medication_name,
                     dosage,
+                    frequency,
                     vaccination_name,
                     vaccination_date,
                     next_vaccination_date,
-                    allergy_type,
-                    severity,
                     procedure_type,
-                    cost
+                    cost,
+                    follow_up_required,
+                    follow_up_date,
+                    created_at
                 FROM pet_medical_records 
                 WHERE pet_id = ? 
                 ORDER BY record_date DESC
@@ -73,40 +79,28 @@ try {
                 if ($result) {
                     $medical_records = $result->fetch_all(MYSQLI_ASSOC);
                     
-                    // Categorize records
+                    // Categorize records by type
                     foreach ($medical_records as $record) {
-                        if (!empty($record['vaccination_name'])) {
-                            $vaccinations[] = $record;
-                        }
-                        if (!empty($record['medication_name'])) {
-                            $medications[] = $record;
-                        }
-                        if (!empty($record['allergy_type'])) {
-                            $allergies[] = $record;
-                        }
-                        if (!empty($record['procedure_type'])) {
-                            $procedures[] = $record;
+                        switch($record['record_type']) {
+                            case 'Vaccination':
+                                $vaccinations[] = $record;
+                                break;
+                            case 'Medication':
+                                $medications[] = $record;
+                                break;
+                            case 'Surgery':
+                            case 'Procedure':
+                                $procedures[] = $record;
+                                break;
+                            case 'Checkup':
+                            case 'Examination':
+                                $checkups[] = $record;
+                                break;
+                            default:
+                                // Keep in general medical records
+                                break;
                         }
                     }
-                }
-                $stmt->close();
-            }
-            
-            // Fetch recent vital signs if available
-            $vital_signs = [];
-            $stmt = $conn->prepare("
-                SELECT temperature, heart_rate, respiratory_rate, weight, checkup_date 
-                FROM pet_vital_signs 
-                WHERE pet_id = ? 
-                ORDER BY checkup_date DESC 
-                LIMIT 1
-            ");
-            if ($stmt) {
-                $stmt->bind_param("i", $pet_id);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                if ($result) {
-                    $vital_signs = $result->fetch_assoc();
                 }
                 $stmt->close();
             }
@@ -130,6 +124,31 @@ function calculateAge($birth_date) {
         return $age->m . ' month' . ($age->m > 1 ? 's' : '');
     } else {
         return $age->d . ' day' . ($age->d > 1 ? 's' : '');
+    }
+}
+
+// Get record type icon
+function getRecordIcon($record_type) {
+    switch($record_type) {
+        case 'Vaccination': return 'fas fa-syringe';
+        case 'Medication': return 'fas fa-pills';
+        case 'Surgery': return 'fas fa-procedures';
+        case 'Procedure': return 'fas fa-tools';
+        case 'Checkup': return 'fas fa-stethoscope';
+        case 'Examination': return 'fas fa-search';
+        default: return 'fas fa-file-medical';
+    }
+}
+
+// Get record type color
+function getRecordColor($record_type) {
+    switch($record_type) {
+        case 'Vaccination': return '#22c55e';
+        case 'Medication': return '#3b82f6';
+        case 'Surgery': return '#ea580c';
+        case 'Procedure': return '#8b5cf6';
+        case 'Checkup': return '#06b6d4';
+        default: return '#ec4899';
     }
 }
 ?>
@@ -257,9 +276,10 @@ function calculateAge($birth_date) {
             position: relative;
             margin-bottom: 1.5rem;
             padding: 1rem;
-            background: var(--pink-light);
+            background: white;
             border-radius: var(--radius);
             border-left: 4px solid var(--pink-dark);
+            box-shadow: var(--shadow);
         }
         
         .timeline-item::before {
@@ -276,51 +296,20 @@ function calculateAge($birth_date) {
         }
         
         .record-badge {
-            background: var(--pink-gradient);
             color: white;
-            padding: 4px 12px;
+            padding: 6px 12px;
             border-radius: 15px;
             font-size: 0.75rem;
             font-weight: 600;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
             margin-bottom: 0.5rem;
-        }
-        
-        .vaccination-card {
-            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-            border: 1px solid #22c55e;
-            border-radius: var(--radius);
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .medication-card {
-            background: linear-gradient(135deg, #fef7ed 0%, #fed7aa 100%);
-            border: 1px solid #ea580c;
-            border-radius: var(--radius);
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .allergy-card {
-            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
-            border: 1px solid #dc2626;
-            border-radius: var(--radius);
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .procedure-card {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border: 1px solid #3b82f6;
-            border-radius: var(--radius);
-            padding: 1rem;
-            margin-bottom: 1rem;
         }
         
         .medical-stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 1rem;
             margin: 1rem 0;
         }
@@ -348,16 +337,21 @@ function calculateAge($birth_date) {
             font-weight: 600;
         }
         
-        .vital-signs {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        .record-details {
+            background: var(--pink-light);
             border-radius: var(--radius);
-            padding: 1.5rem;
-            margin: 1rem 0;
+            padding: 1rem;
+            margin-top: 0.5rem;
         }
         
-        .severity-high { color: #dc2626; font-weight: bold; }
-        .severity-medium { color: #ea580c; font-weight: bold; }
-        .severity-low { color: #16a34a; font-weight: bold; }
+        .follow-up-alert {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: var(--radius);
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            border-left: 4px solid #f59e0b;
+        }
         
         .floating {
             animation: float 6s ease-in-out infinite;
@@ -380,12 +374,13 @@ function calculateAge($birth_date) {
             <h1 class="display-5 fw-bold mb-2">Pet Medical Records</h1>
             <p class="lead mb-0 opacity-90">Complete Medical History & Health Information</p>
             <div class="mt-3">
-                <span class="badge bg-light text-dark me-2">
-                    <i class="fas fa-notes-medical me-1"></i>
-                    <?php echo count($medical_records); ?> Medical Records
-                </span>
+                <?php if (!empty($medical_records)): ?>
+                    <span class="badge bg-light text-dark me-2">
+                        <i class="fas fa-notes-medical me-1"></i><?php echo count($medical_records); ?> Medical Records
+                    </span>
+                <?php endif; ?>
                 <span class="badge bg-light text-dark">
-                    <i class="fas fa-shield-alt me-1"></i> Secure Access
+                    <i class="fas fa-shield-alt me-1"></i> Secure QR Access
                 </span>
             </div>
         </div>
@@ -393,6 +388,7 @@ function calculateAge($birth_date) {
         <div class="row">
             <div class="col-lg-10 mx-auto">
                 <!-- Medical Statistics -->
+                <?php if (!empty($medical_records)): ?>
                 <div class="medical-stats">
                     <div class="medical-stat">
                         <span class="number"><?php echo count($medical_records); ?></span>
@@ -411,6 +407,7 @@ function calculateAge($birth_date) {
                         <span class="label">Procedures</span>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- Pet Information Card -->
                 <div class="medical-card">
@@ -460,50 +457,13 @@ function calculateAge($birth_date) {
                                 </div>
                             </div>
                             
-                            <!-- Vital Signs -->
-                            <?php if (!empty($vital_signs)): ?>
-                            <div class="vital-signs mt-4">
-                                <h5 class="text-pink-darker mb-3">
-                                    <i class="fas fa-heartbeat me-2"></i>Recent Vital Signs
-                                </h5>
-                                <div class="row">
-                                    <?php if ($vital_signs['temperature']): ?>
-                                        <div class="col-6 col-md-3 text-center mb-3">
-                                            <div class="medical-stat">
-                                                <span class="number"><?php echo $vital_signs['temperature']; ?>°C</span>
-                                                <span class="label">Temperature</span>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
-                                    <?php if ($vital_signs['heart_rate']): ?>
-                                        <div class="col-6 col-md-3 text-center mb-3">
-                                            <div class="medical-stat">
-                                                <span class="number"><?php echo $vital_signs['heart_rate']; ?> bpm</span>
-                                                <span class="label">Heart Rate</span>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
-                                    <?php if ($vital_signs['respiratory_rate']): ?>
-                                        <div class="col-6 col-md-3 text-center mb-3">
-                                            <div class="medical-stat">
-                                                <span class="number"><?php echo $vital_signs['respiratory_rate']; ?> rpm</span>
-                                                <span class="label">Respiratory Rate</span>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
-                                    <?php if ($vital_signs['weight']): ?>
-                                        <div class="col-6 col-md-3 text-center mb-3">
-                                            <div class="medical-stat">
-                                                <span class="number"><?php echo $vital_signs['weight']; ?> kg</span>
-                                                <span class="label">Weight</span>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
+                            <?php if (!empty($pet_data['medical_notes'])): ?>
+                                <div class="record-details mt-3">
+                                    <h6 class="text-pink-darker mb-2">
+                                        <i class="fas fa-file-medical me-2"></i>Medical Notes
+                                    </h6>
+                                    <p class="mb-0"><?php echo nl2br(htmlspecialchars($pet_data['medical_notes'])); ?></p>
                                 </div>
-                                <?php if ($vital_signs['checkup_date']): ?>
-                                    <small class="text-muted">Last checked: <?php echo date('M j, Y', strtotime($vital_signs['checkup_date'])); ?></small>
-                                <?php endif; ?>
-                            </div>
                             <?php endif; ?>
                             
                         <?php else: ?>
@@ -523,22 +483,18 @@ function calculateAge($birth_date) {
                     <div class="card-header-custom">
                         <h4 class="mb-0">
                             <i class="fas fa-history me-2"></i>Medical History Timeline
+                            <span class="badge bg-primary ms-2"><?php echo count($medical_records); ?> records</span>
                         </h4>
                     </div>
                     <div class="card-body p-4">
                         <div class="medical-timeline">
-                            <?php foreach ($medical_records as $record): ?>
+                            <?php foreach ($medical_records as $record): 
+                                $record_color = getRecordColor($record['record_type']);
+                                $record_icon = getRecordIcon($record['record_type']);
+                            ?>
                                 <div class="timeline-item">
-                                    <span class="record-badge">
-                                        <i class="fas fa-<?php 
-                                            switch($record['record_type']) {
-                                                case 'Vaccination': echo 'syringe'; break;
-                                                case 'Medication': echo 'pills'; break;
-                                                case 'Checkup': echo 'stethoscope'; break;
-                                                case 'Surgery': echo 'procedures'; break;
-                                                default: echo 'file-medical';
-                                            }
-                                        ?> me-1"></i>
+                                    <span class="record-badge" style="background: <?php echo $record_color; ?>">
+                                        <i class="<?php echo $record_icon; ?> me-1"></i>
                                         <?php echo htmlspecialchars($record['record_type']); ?>
                                     </span>
                                     
@@ -551,42 +507,53 @@ function calculateAge($birth_date) {
                                         <p class="mb-1 small"><strong>Veterinarian:</strong> <?php echo htmlspecialchars($record['veterinarian']); ?></p>
                                     <?php endif; ?>
                                     
-                                    <?php if (!empty($record['notes'])): ?>
-                                        <p class="mb-0 small text-muted"><?php echo htmlspecialchars($record['notes']); ?></p>
+                                    <!-- Vaccination Details -->
+                                    <?php if (!empty($record['vaccination_name'])): ?>
+                                        <div class="record-details">
+                                            <strong><i class="fas fa-syringe me-1"></i>Vaccination:</strong> 
+                                            <?php echo htmlspecialchars($record['vaccination_name']); ?>
+                                            <?php if (!empty($record['next_vaccination_date'])): ?>
+                                                <br><small><strong>Next due:</strong> <?php echo date('M j, Y', strtotime($record['next_vaccination_date'])); ?></small>
+                                            <?php endif; ?>
+                                        </div>
                                     <?php endif; ?>
                                     
                                     <!-- Medication Details -->
                                     <?php if (!empty($record['medication_name'])): ?>
-                                        <div class="medication-card mt-2">
+                                        <div class="record-details">
                                             <strong><i class="fas fa-pills me-1"></i>Medication:</strong> 
                                             <?php echo htmlspecialchars($record['medication_name']); ?>
                                             <?php if (!empty($record['dosage'])): ?>
                                                 <span class="text-muted"> - <?php echo htmlspecialchars($record['dosage']); ?></span>
                                             <?php endif; ?>
-                                        </div>
-                                    <?php endif; ?>
-                                    
-                                    <!-- Vaccination Details -->
-                                    <?php if (!empty($record['vaccination_name'])): ?>
-                                        <div class="vaccination-card mt-2">
-                                            <strong><i class="fas fa-syringe me-1"></i>Vaccination:</strong> 
-                                            <?php echo htmlspecialchars($record['vaccination_name']); ?>
-                                            <?php if (!empty($record['next_vaccination_date'])): ?>
-                                                <br><small>Next due: <?php echo date('M j, Y', strtotime($record['next_vaccination_date'])); ?></small>
+                                            <?php if (!empty($record['frequency'])): ?>
+                                                <span class="text-muted"> (<?php echo htmlspecialchars($record['frequency']); ?>)</span>
                                             <?php endif; ?>
                                         </div>
                                     <?php endif; ?>
                                     
-                                    <!-- Allergy Details -->
-                                    <?php if (!empty($record['allergy_type'])): ?>
-                                        <div class="allergy-card mt-2">
-                                            <strong><i class="fas fa-allergies me-1"></i>Allergy:</strong> 
-                                            <?php echo htmlspecialchars($record['allergy_type']); ?>
-                                            <?php if (!empty($record['severity'])): ?>
-                                                <span class="severity-<?php echo strtolower($record['severity']); ?>">
-                                                    (<?php echo htmlspecialchars($record['severity']); ?>)
-                                                </span>
+                                    <!-- Procedure Details -->
+                                    <?php if (!empty($record['procedure_type'])): ?>
+                                        <div class="record-details">
+                                            <strong><i class="fas fa-procedures me-1"></i>Procedure:</strong> 
+                                            <?php echo htmlspecialchars($record['procedure_type']); ?>
+                                            <?php if (!empty($record['cost'])): ?>
+                                                <span class="text-muted"> - $<?php echo number_format($record['cost'], 2); ?></span>
                                             <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($record['notes'])): ?>
+                                        <div class="record-details mt-2">
+                                            <strong>Notes:</strong> <?php echo nl2br(htmlspecialchars($record['notes'])); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <!-- Follow-up Alert -->
+                                    <?php if ($record['follow_up_required'] == 1 && !empty($record['follow_up_date'])): ?>
+                                        <div class="follow-up-alert">
+                                            <i class="fas fa-calendar-check me-2"></i>
+                                            <strong>Follow-up required:</strong> <?php echo date('M j, Y', strtotime($record['follow_up_date'])); ?>
                                         </div>
                                     <?php endif; ?>
                                 </div>
