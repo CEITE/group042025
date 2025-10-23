@@ -19,8 +19,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'lgu') {
 
 $user_id = $_SESSION['user_id'];
 $lgu_name = $_SESSION['name'];
-$city = $_SESSION['city'];
-$province = $_SESSION['province'];
+$city = $_SESSION['city'] ?? 'Not Set';
+$province = $_SESSION['province'] ?? 'Not Set';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -32,137 +32,125 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $announcement_type = $_POST['announcement_type'];
                 
                 if (!empty($title) && !empty($message)) {
-                    $stmt = $conn->prepare("INSERT INTO announcements (lgu_id, title, message, type, created_at) VALUES (?, ?, ?, ?, NOW())");
-                    $stmt->bind_param("isss", $user_id, $title, $message, $announcement_type);
-                    if ($stmt->execute()) {
-                        $_SESSION['success'] = "Announcement created successfully!";
-                    } else {
-                        $_SESSION['error'] = "Failed to create announcement.";
+                    // Check if announcements table exists, if not create it
+                    $check_table = $conn->query("SHOW TABLES LIKE 'announcements'");
+                    if ($check_table->num_rows == 0) {
+                        // Create announcements table
+                        $create_table = $conn->query("CREATE TABLE announcements (
+                            id INT PRIMARY KEY AUTO_INCREMENT,
+                            lgu_id INT NOT NULL,
+                            title VARCHAR(255) NOT NULL,
+                            message TEXT NOT NULL,
+                            type ENUM('general', 'vaccination', 'emergency', 'event') DEFAULT 'general',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            FOREIGN KEY (lgu_id) REFERENCES users(user_id) ON DELETE CASCADE
+                        )");
                     }
-                    $stmt->close();
-                }
-                break;
-                
-            case 'update_medical_record':
-                $record_id = $_POST['record_id'];
-                $status = $_POST['status'];
-                $notes = trim($_POST['notes']);
-                
-                $stmt = $conn->prepare("UPDATE medical_records SET status = ?, lgu_notes = ?, updated_at = NOW() WHERE id = ?");
-                $stmt->bind_param("ssi", $status, $notes, $record_id);
-                if ($stmt->execute()) {
-                    $_SESSION['success'] = "Medical record updated successfully!";
-                } else {
-                    $_SESSION['error'] = "Failed to update medical record.";
-                }
-                $stmt->close();
-                break;
-                
-            case 'send_notification':
-                $user_ids = $_POST['user_ids'];
-                $notification_title = trim($_POST['notification_title']);
-                $notification_message = trim($_POST['notification_message']);
-                
-                if (!empty($user_ids) && !empty($notification_title) && !empty($notification_message)) {
-                    foreach ($user_ids as $target_user_id) {
-                        $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, message, type, created_at) VALUES (?, ?, ?, 'lgu_announcement', NOW())");
-                        $stmt->bind_param("iss", $target_user_id, $notification_title, $notification_message);
-                        $stmt->execute();
+                    
+                    $stmt = $conn->prepare("INSERT INTO announcements (lgu_id, title, message, type) VALUES (?, ?, ?, ?)");
+                    if ($stmt) {
+                        $stmt->bind_param("isss", $user_id, $title, $message, $announcement_type);
+                        if ($stmt->execute()) {
+                            $_SESSION['success'] = "Announcement created successfully!";
+                        } else {
+                            $_SESSION['error'] = "Failed to create announcement.";
+                        }
                         $stmt->close();
                     }
-                    $_SESSION['success'] = "Notifications sent successfully!";
+                }
+                break;
+                
+            case 'update_profile':
+                $name = trim($_POST['name']);
+                $phone_number = trim($_POST['phone_number']);
+                $region = trim($_POST['region']);
+                $province = trim($_POST['province']);
+                $city = trim($_POST['city']);
+                $barangay = trim($_POST['barangay']);
+                $address = trim($_POST['address']);
+                
+                $stmt = $conn->prepare("UPDATE users SET name = ?, phone_number = ?, region = ?, province = ?, city = ?, barangay = ?, address = ? WHERE user_id = ?");
+                if ($stmt) {
+                    $stmt->bind_param("sssssssi", $name, $phone_number, $region, $province, $city, $barangay, $address, $user_id);
+                    if ($stmt->execute()) {
+                        $_SESSION['success'] = "Profile updated successfully!";
+                        // Update session variables
+                        $_SESSION['name'] = $name;
+                        $_SESSION['city'] = $city;
+                        $_SESSION['province'] = $province;
+                        $lgu_name = $name;
+                    } else {
+                        $_SESSION['error'] = "Failed to update profile.";
+                    }
+                    $stmt->close();
                 }
                 break;
         }
     }
 }
 
-// Get statistics data
+// Get statistics data - using your existing database structure
 $stats = [
     'total_pets' => 0,
     'total_vets' => 0,
-    'pending_records' => 0,
-    'vaccination_rate' => 0
+    'total_owners' => 0,
+    'total_lgu' => 0
 ];
 
-// Total pets in LGU area
-$result = $conn->query("SELECT COUNT(*) as total FROM pets WHERE city = '$city' AND province = '$province'");
-if ($result) {
-    $stats['total_pets'] = $result->fetch_assoc()['total'];
+// Count total pets (if pets table exists)
+$check_pets = $conn->query("SHOW TABLES LIKE 'pets'");
+if ($check_pets->num_rows > 0) {
+    $result = $conn->query("SELECT COUNT(*) as total FROM pets");
+    if ($result) {
+        $stats['total_pets'] = $result->fetch_assoc()['total'];
+    }
 }
 
-// Total vets in LGU area
-$result = $conn->query("SELECT COUNT(*) as total FROM users WHERE role = 'vet' AND city = '$city' AND province = '$province'");
-if ($result) {
-    $stats['total_vets'] = $result->fetch_assoc()['total'];
-}
-
-// Pending medical records
-$result = $conn->query("SELECT COUNT(*) as total FROM medical_records mr 
-                       JOIN pets p ON mr.pet_id = p.id 
-                       WHERE p.city = '$city' AND p.province = '$province' 
-                       AND mr.status = 'pending'");
-if ($result) {
-    $stats['pending_records'] = $result->fetch_assoc()['total'];
-}
-
-// Vaccination rate (simplified calculation)
-$result = $conn->query("SELECT COUNT(DISTINCT pet_id) as vaccinated FROM vaccination_records vr 
-                       JOIN pets p ON vr.pet_id = p.id 
-                       WHERE p.city = '$city' AND p.province = '$province' 
-                       AND vr.vaccination_date >= DATE_SUB(NOW(), INTERVAL 1 YEAR)");
-$vaccinated = $result ? $result->fetch_assoc()['vaccinated'] : 0;
-$stats['vaccination_rate'] = $stats['total_pets'] > 0 ? round(($vaccinated / $stats['total_pets']) * 100, 1) : 0;
-
-// Get recent medical records for monitoring
-$medical_records = [];
-$result = $conn->query("SELECT mr.*, p.name as pet_name, p.owner_name, u.name as vet_name 
-                       FROM medical_records mr 
-                       JOIN pets p ON mr.pet_id = p.id 
-                       LEFT JOIN users u ON mr.vet_id = u.user_id 
-                       WHERE p.city = '$city' AND p.province = '$province' 
-                       ORDER BY mr.created_at DESC LIMIT 10");
+// Count users by role
+$result = $conn->query("SELECT role, COUNT(*) as count FROM users GROUP BY role");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
-        $medical_records[] = $row;
+        switch($row['role']) {
+            case 'vet':
+                $stats['total_vets'] = $row['count'];
+                break;
+            case 'owner':
+                $stats['total_owners'] = $row['count'];
+                break;
+            case 'lgu':
+                $stats['total_lgu'] = $row['count'];
+                break;
+        }
     }
+}
+
+// Get user's current profile data
+$user_data = [];
+$result = $conn->query("SELECT name, email, phone_number, region, province, city, barangay, address FROM users WHERE user_id = $user_id");
+if ($result && $result->num_rows > 0) {
+    $user_data = $result->fetch_assoc();
 }
 
 // Get recent announcements
 $announcements = [];
-$result = $conn->query("SELECT * FROM announcements WHERE lgu_id = $user_id ORDER BY created_at DESC LIMIT 5");
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
-        $announcements[] = $row;
+$check_announcements = $conn->query("SHOW TABLES LIKE 'announcements'");
+if ($check_announcements->num_rows > 0) {
+    $result = $conn->query("SELECT * FROM announcements WHERE lgu_id = $user_id ORDER BY created_at DESC LIMIT 5");
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $announcements[] = $row;
+        }
     }
 }
 
-// Get vaccination data for charts
-$vaccination_data = [];
-$result = $conn->query("SELECT MONTH(vaccination_date) as month, COUNT(*) as count 
-                       FROM vaccination_records vr 
-                       JOIN pets p ON vr.pet_id = p.id 
-                       WHERE p.city = '$city' AND p.province = '$province' 
-                       AND YEAR(vaccination_date) = YEAR(NOW()) 
-                       GROUP BY MONTH(vaccination_date) 
-                       ORDER BY month");
+// Get recent users in the same area
+$recent_users = [];
+$result = $conn->query("SELECT name, email, role, created_at FROM users 
+                       WHERE (city = '$city' AND province = '$province') OR role = 'lgu'
+                       ORDER BY created_at DESC LIMIT 8");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
-        $vaccination_data[$row['month']] = $row['count'];
-    }
-}
-
-// Get pet registration data for charts
-$registration_data = [];
-$result = $conn->query("SELECT MONTH(created_at) as month, COUNT(*) as count 
-                       FROM pets 
-                       WHERE city = '$city' AND province = '$province' 
-                       AND YEAR(created_at) = YEAR(NOW()) 
-                       GROUP BY MONTH(created_at) 
-                       ORDER BY month");
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
-        $registration_data[$row['month']] = $row['count'];
+        $recent_users[] = $row;
     }
 }
 ?>
@@ -306,6 +294,11 @@ if ($result) {
             height: 300px;
             width: 100%;
         }
+        
+        .user-role-badge {
+            font-size: 0.7rem;
+            padding: 4px 8px;
+        }
     </style>
 </head>
 <body>
@@ -329,20 +322,17 @@ if ($result) {
                     <a class="nav-link active" href="#">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
-                    <a class="nav-link" href="#medical-records">
-                        <i class="fas fa-file-medical"></i> Medical Records
-                    </a>
                     <a class="nav-link" href="#announcements">
                         <i class="fas fa-bullhorn"></i> Announcements
                     </a>
-                    <a class="nav-link" href="#notifications">
-                        <i class="fas fa-bell"></i> Notifications
+                    <a class="nav-link" href="#users">
+                        <i class="fas fa-users"></i> User Management
                     </a>
                     <a class="nav-link" href="#analytics">
                         <i class="fas fa-chart-bar"></i> Analytics
                     </a>
-                    <a class="nav-link" href="#events">
-                        <i class="fas fa-calendar-alt"></i> Municipal Events
+                    <a class="nav-link" href="#profile">
+                        <i class="fas fa-user-cog"></i> Profile Settings
                     </a>
                     <div class="mt-4 pt-3 border-top border-white border-opacity-25">
                         <a class="nav-link" href="logout.php">
@@ -372,8 +362,8 @@ if ($result) {
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-end">
                                     <h6 class="dropdown-header">Notifications</h6>
-                                    <a class="dropdown-item" href="#">New vaccination records</a>
-                                    <a class="dropdown-item" href="#">Pending approvals</a>
+                                    <a class="dropdown-item" href="#">System is running well</a>
+                                    <a class="dropdown-item" href="#">Welcome to LGU Dashboard</a>
                                 </div>
                             </div>
                             <div class="dropdown">
@@ -381,8 +371,8 @@ if ($result) {
                                     <i class="fas fa-user me-2"></i><?php echo htmlspecialchars($_SESSION['name']); ?>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                                    <li><a class="dropdown-item" href="#profile" data-bs-toggle="modal" data-bs-target="#profileModal"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                                    <li><a class="dropdown-item" href="#profile"><i class="fas fa-user me-2"></i>Profile</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                                 </ul>
@@ -431,11 +421,11 @@ if ($result) {
                             <div class="stat-card success">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h6 class="text-muted mb-2">Veterinarians</h6>
-                                        <h3 class="mb-0"><?php echo number_format($stats['total_vets']); ?></h3>
+                                        <h6 class="text-muted mb-2">Pet Owners</h6>
+                                        <h3 class="mb-0"><?php echo number_format($stats['total_owners']); ?></h3>
                                     </div>
                                     <div class="bg-success bg-opacity-10 p-3 rounded">
-                                        <i class="fas fa-user-md fa-2x text-success"></i>
+                                        <i class="fas fa-users fa-2x text-success"></i>
                                     </div>
                                 </div>
                             </div>
@@ -444,11 +434,11 @@ if ($result) {
                             <div class="stat-card warning">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h6 class="text-muted mb-2">Pending Records</h6>
-                                        <h3 class="mb-0"><?php echo number_format($stats['pending_records']); ?></h3>
+                                        <h6 class="text-muted mb-2">Veterinarians</h6>
+                                        <h3 class="mb-0"><?php echo number_format($stats['total_vets']); ?></h3>
                                     </div>
                                     <div class="bg-warning bg-opacity-10 p-3 rounded">
-                                        <i class="fas fa-file-medical fa-2x text-warning"></i>
+                                        <i class="fas fa-user-md fa-2x text-warning"></i>
                                     </div>
                                 </div>
                             </div>
@@ -457,11 +447,11 @@ if ($result) {
                             <div class="stat-card danger">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h6 class="text-muted mb-2">Vaccination Rate</h6>
-                                        <h3 class="mb-0"><?php echo $stats['vaccination_rate']; ?>%</h3>
+                                        <h6 class="text-muted mb-2">LGU Officials</h6>
+                                        <h3 class="mb-0"><?php echo number_format($stats['total_lgu']); ?></h3>
                                     </div>
                                     <div class="bg-danger bg-opacity-10 p-3 rounded">
-                                        <i class="fas fa-syringe fa-2x text-danger"></i>
+                                        <i class="fas fa-landmark fa-2x text-danger"></i>
                                     </div>
                                 </div>
                             </div>
@@ -471,55 +461,70 @@ if ($result) {
                     <div class="row">
                         <!-- Left Column -->
                         <div class="col-lg-8">
-                            <!-- Medical Records Monitoring -->
-                            <div class="dashboard-card" id="medical-records">
+                            <!-- Quick Actions -->
+                            <div class="dashboard-card">
+                                <div class="card-header">
+                                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <button class="btn btn-primary w-100 mb-2" data-bs-toggle="modal" data-bs-target="#announcementModal">
+                                                <i class="fas fa-bullhorn me-2"></i>Create Announcement
+                                            </button>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <button class="btn btn-outline-primary w-100 mb-2" data-bs-toggle="modal" data-bs-target="#profileModal">
+                                                <i class="fas fa-user-edit me-2"></i>Update Profile
+                                            </button>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <button class="btn btn-outline-primary w-100 mb-2" onclick="generateReport()">
+                                                <i class="fas fa-file-pdf me-2"></i>Generate Report
+                                            </button>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <button class="btn btn-outline-primary w-100 mb-2" onclick="viewAnalytics()">
+                                                <i class="fas fa-chart-bar me-2"></i>View Analytics
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Recent Users -->
+                            <div class="dashboard-card" id="users">
                                 <div class="card-header d-flex justify-content-between align-items-center">
-                                    <span><i class="fas fa-file-medical me-2"></i>Recent Medical Records</span>
-                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#updateRecordModal">
-                                        <i class="fas fa-edit me-1"></i>Update Records
-                                    </button>
+                                    <span><i class="fas fa-users me-2"></i>Recent Users in <?php echo htmlspecialchars($city); ?></span>
+                                    <span class="badge bg-primary"><?php echo count($recent_users); ?></span>
                                 </div>
                                 <div class="card-body">
                                     <div class="table-responsive">
                                         <table class="table table-hover">
                                             <thead>
                                                 <tr>
-                                                    <th>Pet Name</th>
-                                                    <th>Owner</th>
-                                                    <th>Veterinarian</th>
-                                                    <th>Status</th>
-                                                    <th>Date</th>
-                                                    <th>Actions</th>
+                                                    <th>Name</th>
+                                                    <th>Email</th>
+                                                    <th>Role</th>
+                                                    <th>Joined</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <?php foreach ($medical_records as $record): ?>
+                                                <?php foreach ($recent_users as $user): ?>
                                                 <tr>
-                                                    <td><?php echo htmlspecialchars($record['pet_name']); ?></td>
-                                                    <td><?php echo htmlspecialchars($record['owner_name']); ?></td>
-                                                    <td><?php echo htmlspecialchars($record['vet_name'] ?? 'N/A'); ?></td>
+                                                    <td><?php echo htmlspecialchars($user['name']); ?></td>
+                                                    <td><?php echo htmlspecialchars($user['email']); ?></td>
                                                     <td>
                                                         <span class="badge bg-<?php 
-                                                            switch($record['status']) {
-                                                                case 'completed': echo 'success'; break;
-                                                                case 'pending': echo 'warning'; break;
-                                                                case 'cancelled': echo 'danger'; break;
+                                                            switch($user['role']) {
+                                                                case 'vet': echo 'warning'; break;
+                                                                case 'owner': echo 'success'; break;
+                                                                case 'lgu': echo 'danger'; break;
                                                                 default: echo 'secondary';
                                                             }
-                                                        ?>"><?php echo ucfirst($record['status']); ?></span>
+                                                        ?> user-role-badge"><?php echo ucfirst($user['role']); ?></span>
                                                     </td>
-                                                    <td><?php echo date('M d, Y', strtotime($record['created_at'])); ?></td>
-                                                    <td>
-                                                        <button class="btn btn-sm btn-outline-primary" 
-                                                                data-bs-toggle="modal" 
-                                                                data-bs-target="#recordDetailModal"
-                                                                data-record-id="<?php echo $record['id']; ?>"
-                                                                data-pet-name="<?php echo htmlspecialchars($record['pet_name']); ?>"
-                                                                data-status="<?php echo $record['status']; ?>"
-                                                                data-notes="<?php echo htmlspecialchars($record['lgu_notes'] ?? ''); ?>">
-                                                            <i class="fas fa-eye"></i>
-                                                        </button>
-                                                    </td>
+                                                    <td><?php echo date('M d, Y', strtotime($user['created_at'])); ?></td>
                                                 </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
@@ -533,11 +538,11 @@ if ($result) {
                                 <div class="col-md-6">
                                     <div class="dashboard-card">
                                         <div class="card-header">
-                                            <i class="fas fa-chart-line me-2"></i>Vaccination Trends
+                                            <i class="fas fa-chart-pie me-2"></i>User Distribution
                                         </div>
                                         <div class="card-body">
                                             <div class="chart-container">
-                                                <canvas id="vaccinationChart"></canvas>
+                                                <canvas id="userDistributionChart"></canvas>
                                             </div>
                                         </div>
                                     </div>
@@ -545,11 +550,11 @@ if ($result) {
                                 <div class="col-md-6">
                                     <div class="dashboard-card">
                                         <div class="card-header">
-                                            <i class="fas fa-chart-bar me-2"></i>Pet Registrations
+                                            <i class="fas fa-chart-line me-2"></i>Registration Trends
                                         </div>
                                         <div class="card-body">
                                             <div class="chart-container">
-                                                <canvas id="registrationChart"></canvas>
+                                                <canvas id="registrationTrendChart"></canvas>
                                             </div>
                                         </div>
                                     </div>
@@ -559,29 +564,6 @@ if ($result) {
                         
                         <!-- Right Column -->
                         <div class="col-lg-4">
-                            <!-- Quick Actions -->
-                            <div class="dashboard-card">
-                                <div class="card-header">
-                                    <i class="fas fa-bolt me-2"></i>Quick Actions
-                                </div>
-                                <div class="card-body">
-                                    <div class="d-grid gap-2">
-                                        <button class="btn btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#announcementModal">
-                                            <i class="fas fa-bullhorn me-2"></i>Create Announcement
-                                        </button>
-                                        <button class="btn btn-outline-primary mb-2" data-bs-toggle="modal" data-bs-target="#notificationModal">
-                                            <i class="fas fa-bell me-2"></i>Send Notifications
-                                        </button>
-                                        <button class="btn btn-outline-primary mb-2" data-bs-toggle="modal" data-bs-target="#eventModal">
-                                            <i class="fas fa-calendar-plus me-2"></i>Add Municipal Event
-                                        </button>
-                                        <button class="btn btn-outline-primary" onclick="generateReport()">
-                                            <i class="fas fa-file-pdf me-2"></i>Generate Report
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            
                             <!-- Recent Announcements -->
                             <div class="dashboard-card" id="announcements">
                                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -591,6 +573,11 @@ if ($result) {
                                 <div class="card-body">
                                     <?php if (empty($announcements)): ?>
                                         <p class="text-muted text-center">No announcements yet</p>
+                                        <div class="text-center">
+                                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#announcementModal">
+                                                Create First Announcement
+                                            </button>
+                                        </div>
                                     <?php else: ?>
                                         <?php foreach ($announcements as $announcement): ?>
                                         <div class="mb-3 p-3 border rounded">
@@ -606,23 +593,27 @@ if ($result) {
                                 </div>
                             </div>
                             
-                            <!-- System Alerts -->
-                            <div class="dashboard-card" id="notifications">
+                            <!-- System Information -->
+                            <div class="dashboard-card">
                                 <div class="card-header">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>System Alerts
+                                    <i class="fas fa-info-circle me-2"></i>System Information
                                 </div>
                                 <div class="card-body">
-                                    <div class="alert alert-warning">
-                                        <i class="fas fa-clock me-2"></i>
-                                        <strong>15 medical records</strong> pending review
+                                    <div class="mb-3">
+                                        <small class="text-muted d-block">LGU Name</small>
+                                        <div class="fw-semibold"><?php echo htmlspecialchars($lgu_name); ?></div>
                                     </div>
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        Vaccination drive scheduled for next month
+                                    <div class="mb-3">
+                                        <small class="text-muted d-block">Location</small>
+                                        <div class="fw-semibold"><?php echo htmlspecialchars($city . ', ' . $province); ?></div>
                                     </div>
-                                    <div class="alert alert-success">
-                                        <i class="fas fa-check me-2"></i>
-                                        System updated to latest version
+                                    <div class="mb-3">
+                                        <small class="text-muted d-block">Total Users</small>
+                                        <div class="fw-semibold"><?php echo number_format($stats['total_owners'] + $stats['total_vets'] + $stats['total_lgu']); ?></div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <small class="text-muted d-block">Last Login</small>
+                                        <div class="fw-semibold"><?php echo date('M d, Y g:i A'); ?></div>
                                     </div>
                                 </div>
                             </div>
@@ -656,11 +647,11 @@ if ($result) {
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Title</label>
-                            <input type="text" class="form-control" name="title" required>
+                            <input type="text" class="form-control" name="title" required placeholder="Enter announcement title">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Message</label>
-                            <textarea class="form-control" name="message" rows="4" required></textarea>
+                            <textarea class="form-control" name="message" rows="4" required placeholder="Enter announcement message"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -672,119 +663,51 @@ if ($result) {
         </div>
     </div>
 
-    <!-- Update Medical Record Modal -->
-    <div class="modal fade" id="updateRecordModal" tabindex="-1">
+    <!-- Profile Settings Modal -->
+    <div class="modal fade" id="profileModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Update Medical Record</h5>
+                    <h5 class="modal-title">Update LGU Profile</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST">
                     <div class="modal-body">
-                        <input type="hidden" name="action" value="update_medical_record">
-                        <div class="mb-3">
-                            <label class="form-label">Select Record</label>
-                            <select class="form-select" name="record_id" required>
-                                <option value="">Choose a record...</option>
-                                <?php foreach ($medical_records as $record): ?>
-                                <option value="<?php echo $record['id']; ?>">
-                                    <?php echo htmlspecialchars($record['pet_name'] . ' - ' . $record['owner_name']); ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Status</label>
-                            <select class="form-select" name="status" required>
-                                <option value="pending">Pending</option>
-                                <option value="reviewed">Reviewed</option>
-                                <option value="approved">Approved</option>
-                                <option value="rejected">Rejected</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">LGU Notes</label>
-                            <textarea class="form-control" name="notes" rows="4" placeholder="Add comments or notes..."></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Update Record</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Send Notifications Modal -->
-    <div class="modal fade" id="notificationModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Send Notifications</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="POST">
-                    <div class="modal-body">
-                        <input type="hidden" name="action" value="send_notification">
-                        <div class="mb-3">
-                            <label class="form-label">Target Users</label>
-                            <select class="form-select" name="user_ids[]" multiple required>
-                                <option value="all">All Pet Owners</option>
-                                <option value="vet_all">All Veterinarians</option>
-                                <!-- Additional options would be populated dynamically -->
-                            </select>
-                            <div class="form-text">Hold Ctrl to select multiple users</div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Notification Title</label>
-                            <input type="text" class="form-control" name="notification_title" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Message</label>
-                            <textarea class="form-control" name="notification_message" rows="4" required></textarea>
+                        <input type="hidden" name="action" value="update_profile">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">LGU Name</label>
+                                <input type="text" class="form-control" name="name" value="<?php echo htmlspecialchars($user_data['name'] ?? ''); ?>" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="text" class="form-control" name="phone_number" value="<?php echo htmlspecialchars($user_data['phone_number'] ?? ''); ?>">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Region</label>
+                                <input type="text" class="form-control" name="region" value="<?php echo htmlspecialchars($user_data['region'] ?? ''); ?>">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Province</label>
+                                <input type="text" class="form-control" name="province" value="<?php echo htmlspecialchars($user_data['province'] ?? ''); ?>">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">City/Municipality</label>
+                                <input type="text" class="form-control" name="city" value="<?php echo htmlspecialchars($user_data['city'] ?? ''); ?>">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Barangay</label>
+                                <input type="text" class="form-control" name="barangay" value="<?php echo htmlspecialchars($user_data['barangay'] ?? ''); ?>">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Full Address</label>
+                                <textarea class="form-control" name="address" rows="2"><?php echo htmlspecialchars($user_data['address'] ?? ''); ?></textarea>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Send Notifications</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Municipal Event Modal -->
-    <div class="modal fade" id="eventModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add Municipal Event</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Event Title</label>
-                            <input type="text" class="form-control" name="event_title" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Event Date</label>
-                            <input type="datetime-local" class="form-control" name="event_date" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Location</label>
-                            <input type="text" class="form-control" name="event_location" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Description</label>
-                            <textarea class="form-control" name="event_description" rows="4" required></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-primary" onclick="addEvent()">Add Event</button>
+                        <button type="submit" class="btn btn-primary">Update Profile</button>
                     </div>
                 </form>
             </div>
@@ -794,14 +717,41 @@ if ($result) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Data Visualization Charts
-        const vaccinationCtx = document.getElementById('vaccinationChart').getContext('2d');
-        const vaccinationChart = new Chart(vaccinationCtx, {
+        const userDistributionCtx = document.getElementById('userDistributionChart').getContext('2d');
+        const userDistributionChart = new Chart(userDistributionCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Pet Owners', 'Veterinarians', 'LGU Officials'],
+                datasets: [{
+                    data: [
+                        <?php echo $stats['total_owners']; ?>,
+                        <?php echo $stats['total_vets']; ?>, 
+                        <?php echo $stats['total_lgu']; ?>
+                    ],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        const registrationTrendCtx = document.getElementById('registrationTrendChart').getContext('2d');
+        const registrationTrendChart = new Chart(registrationTrendCtx, {
             type: 'line',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
                 datasets: [{
-                    label: 'Vaccinations',
-                    data: [65, 59, 80, 81, 56, 55, 40, 45, 60, 70, 75, 80],
+                    label: 'User Registrations',
+                    data: [12, 19, 15, 25, 22, 30],
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     tension: 0.4,
@@ -819,63 +769,19 @@ if ($result) {
             }
         });
 
-        const registrationCtx = document.getElementById('registrationChart').getContext('2d');
-        const registrationChart = new Chart(registrationCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                datasets: [{
-                    label: 'Pet Registrations',
-                    data: [12, 19, 15, 25, 22, 30, 28, 35, 32, 40, 38, 45],
-                    backgroundColor: '#10b981',
-                    borderColor: '#10b981',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-
-        // Modal handlers
-        const recordDetailModal = document.getElementById('recordDetailModal');
-        if (recordDetailModal) {
-            recordDetailModal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const recordId = button.getAttribute('data-record-id');
-                const petName = button.getAttribute('data-pet-name');
-                const status = button.getAttribute('data-status');
-                const notes = button.getAttribute('data-notes');
-                
-                const modal = this;
-                modal.querySelector('#recordPetName').textContent = petName;
-                modal.querySelector('#recordStatus').textContent = status;
-                modal.querySelector('#recordNotes').value = notes || 'No notes available.';
-            });
-        }
-
         function generateReport() {
             alert('Report generation feature would be implemented here!');
-            // This would typically generate a PDF or Excel report
+            // This would typically generate a PDF report
         }
 
-        function addEvent() {
-            alert('Event added successfully!');
-            // This would typically save the event to the database
-            document.getElementById('eventModal').querySelector('form').reset();
-            bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+        function viewAnalytics() {
+            // Scroll to analytics section
+            document.getElementById('analytics').scrollIntoView({ behavior: 'smooth' });
         }
 
         // Auto-refresh data every 5 minutes
         setInterval(() => {
-            // This would typically refresh the data from the server
-            console.log('Refreshing dashboard data...');
+            location.reload();
         }, 300000);
     </script>
 </body>
