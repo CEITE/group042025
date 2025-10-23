@@ -360,7 +360,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <a href="register_pet.php">
             <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> Register Pet
         </a>
-        <a href="user_setting.php">
+        <a href="user_settings.php">
             <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
         </a>
         <a href="logout.php" class="logout">
@@ -674,6 +674,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 </script>
 </body>
 </html>
+
 
 
 
