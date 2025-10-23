@@ -58,9 +58,6 @@ try {
     // Silent fail - we'll use the basic data
     error_log("Database error: " . $e->getMessage());
 }
-
-// Debug: Check what data we have
-error_log("Pet Data: " . print_r($pet_data, true));
 ?>
 
 <!DOCTYPE html>
@@ -136,6 +133,14 @@ error_log("Pet Data: " . print_r($pet_data, true));
             font-size: 0.8rem;
             font-weight: 600;
         }
+        
+        .medical-content {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            white-space: pre-line;
+        }
     </style>
 </head>
 <body>
@@ -187,7 +192,7 @@ error_log("Pet Data: " . print_r($pet_data, true));
                             <?php if (!empty($pet_data['medical_notes'])): ?>
                                 <div class="mt-3 p-3 bg-light rounded">
                                     <h6><i class="fas fa-file-medical me-2"></i>Current Medical Notes</h6>
-                                    <p class="mb-0"><?php echo nl2br(htmlspecialchars($pet_data['medical_notes'])); ?></p>
+                                    <div class="medical-content"><?php echo htmlspecialchars($pet_data['medical_notes']); ?></div>
                                 </div>
                             <?php endif; ?>
                             
@@ -238,24 +243,13 @@ error_log("Pet Data: " . print_r($pet_data, true));
                     </div>
                     <div class="card-body p-4">
                         <?php if ($pet_data): ?>
-                            <!-- Debug: Show what data we have -->
-                            <?php 
-                            $hasMedicalHistory = false;
-                            if (!empty($pet_data['previous_conditions'])) $hasMedicalHistory = true;
-                            if (!empty($pet_data['vaccination_history'])) $hasMedicalHistory = true;
-                            if (!empty($pet_data['surgical_history'])) $hasMedicalHistory = true;
-                            if (!empty($pet_data['medication_history'])) $hasMedicalHistory = true;
-                            ?>
-
                             <!-- Previous Conditions -->
                             <div class="history-item">
                                 <h5 class="text-dark mb-3">
                                     <i class="fas fa-stethoscope me-2"></i>Previous Conditions
                                 </h5>
-                                <?php if (!empty($pet_data['previous_conditions'])): ?>
-                                    <div class="bg-white p-3 rounded border">
-                                        <?php echo nl2br(htmlspecialchars($pet_data['previous_conditions'])); ?>
-                                    </div>
+                                <?php if (!empty(trim($pet_data['previous_conditions']))): ?>
+                                    <div class="medical-content"><?php echo htmlspecialchars($pet_data['previous_conditions']); ?></div>
                                 <?php else: ?>
                                     <p class="text-muted fst-italic">No previous conditions recorded.</p>
                                 <?php endif; ?>
@@ -266,10 +260,8 @@ error_log("Pet Data: " . print_r($pet_data, true));
                                 <h5 class="text-dark mb-3">
                                     <i class="fas fa-syringe me-2"></i>Vaccination History
                                 </h5>
-                                <?php if (!empty($pet_data['vaccination_history'])): ?>
-                                    <div class="bg-white p-3 rounded border">
-                                        <?php echo nl2br(htmlspecialchars($pet_data['vaccination_history'])); ?>
-                                    </div>
+                                <?php if (!empty(trim($pet_data['vaccination_history']))): ?>
+                                    <div class="medical-content"><?php echo htmlspecialchars($pet_data['vaccination_history']); ?></div>
                                 <?php else: ?>
                                     <p class="text-muted fst-italic">No vaccination history recorded.</p>
                                 <?php endif; ?>
@@ -280,10 +272,8 @@ error_log("Pet Data: " . print_r($pet_data, true));
                                 <h5 class="text-dark mb-3">
                                     <i class="fas fa-scissors me-2"></i>Surgical History
                                 </h5>
-                                <?php if (!empty($pet_data['surgical_history'])): ?>
-                                    <div class="bg-white p-3 rounded border">
-                                        <?php echo nl2br(htmlspecialchars($pet_data['surgical_history'])); ?>
-                                    </div>
+                                <?php if (!empty(trim($pet_data['surgical_history']))): ?>
+                                    <div class="medical-content"><?php echo htmlspecialchars($pet_data['surgical_history']); ?></div>
                                 <?php else: ?>
                                     <p class="text-muted fst-italic">No surgical history recorded.</p>
                                 <?php endif; ?>
@@ -294,65 +284,20 @@ error_log("Pet Data: " . print_r($pet_data, true));
                                 <h5 class="text-dark mb-3">
                                     <i class="fas fa-pills me-2"></i>Medication History
                                 </h5>
-                                <?php if (!empty($pet_data['medication_history'])): ?>
-                                    <div class="bg-white p-3 rounded border">
-                                        <?php echo nl2br(htmlspecialchars($pet_data['medication_history'])); ?>
-                                    </div>
+                                <?php if (!empty(trim($pet_data['medication_history']))): ?>
+                                    <div class="medical-content"><?php echo htmlspecialchars($pet_data['medication_history']); ?></div>
                                 <?php else: ?>
                                     <p class="text-muted fst-italic">No medication history recorded.</p>
                                 <?php endif; ?>
                             </div>
 
-                            <!-- Additional Medical Information -->
-                            <div class="history-item">
-                                <h5 class="text-dark mb-3">
-                                    <i class="fas fa-calendar-alt me-2"></i>Important Dates & Information
-                                </h5>
-                                <div class="row">
-                                    <?php if (!empty($pet_data['rabies_vaccine_date'])): ?>
-                                    <div class="col-md-6 mb-2">
-                                        <strong>Rabies Vaccine:</strong> <?php echo date('M j, Y', strtotime($pet_data['rabies_vaccine_date'])); ?>
-                                    </div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if (!empty($pet_data['dhpp_vaccine_date'])): ?>
-                                    <div class="col-md-6 mb-2">
-                                        <strong>DHPP Vaccine:</strong> <?php echo date('M j, Y', strtotime($pet_data['dhpp_vaccine_date'])); ?>
-                                    </div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if (!empty($pet_data['last_vet_visit'])): ?>
-                                    <div class="col-md-6 mb-2">
-                                        <strong>Last Vet Visit:</strong> <?php echo date('M j, Y', strtotime($pet_data['last_vet_visit'])); ?>
-                                    </div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if (!empty($pet_data['next_vet_visit'])): ?>
-                                    <div class="col-md-6 mb-2">
-                                        <strong>Next Vet Visit:</strong> <?php echo date('M j, Y', strtotime($pet_data['next_vet_visit'])); ?>
-                                    </div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if ($pet_data['is_spayed_neutered']): ?>
-                                    <div class="col-md-6 mb-2">
-                                        <strong>Spayed/Neutered:</strong> Yes
-                                        <?php if (!empty($pet_data['spay_neuter_date'])): ?>
-                                            (<?php echo date('M j, Y', strtotime($pet_data['spay_neuter_date'])); ?>)
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-
                             <!-- Records Location -->
-                            <?php if (!empty($pet_data['records_location'])): ?>
+                            <?php if (!empty(trim($pet_data['records_location']))): ?>
                             <div class="history-item">
                                 <h5 class="text-dark mb-3">
                                     <i class="fas fa-archive me-2"></i>Existing Records Location
                                 </h5>
-                                <div class="bg-white p-3 rounded border">
-                                    <?php echo nl2br(htmlspecialchars($pet_data['records_location'])); ?>
-                                </div>
+                                <div class="medical-content"><?php echo htmlspecialchars($pet_data['records_location']); ?></div>
                             </div>
                             <?php endif; ?>
 
