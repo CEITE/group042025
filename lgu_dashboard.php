@@ -35,7 +35,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Check if announcements table exists, if not create it
                     $check_table = $conn->query("SHOW TABLES LIKE 'announcements'");
                     if ($check_table->num_rows == 0) {
-                        // Create announcements table
                         $create_table = $conn->query("CREATE TABLE announcements (
                             id INT PRIMARY KEY AUTO_INCREMENT,
                             lgu_id INT NOT NULL,
@@ -60,6 +59,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
                 
+            case 'update_medical_record':
+                $record_id = $_POST['record_id'];
+                $diagnosis = trim($_POST['diagnosis']);
+                $treatment = trim($_POST['treatment']);
+                $status = $_POST['status'];
+                $lgu_notes = trim($_POST['lgu_notes']);
+                
+                // Check if medical_records table exists, if not create it
+                $check_table = $conn->query("SHOW TABLES LIKE 'medical_records'");
+                if ($check_table->num_rows == 0) {
+                    $create_table = $conn->query("CREATE TABLE medical_records (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        pet_id INT NOT NULL,
+                        vet_id INT,
+                        lgu_id INT,
+                        diagnosis TEXT,
+                        treatment TEXT,
+                        status ENUM('pending', 'under_treatment', 'completed', 'referred') DEFAULT 'pending',
+                        lgu_notes TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                        FOREIGN KEY (vet_id) REFERENCES users(user_id) ON DELETE SET NULL,
+                        FOREIGN KEY (lgu_id) REFERENCES users(user_id) ON DELETE SET NULL
+                    )");
+                }
+                
+                $stmt = $conn->prepare("UPDATE medical_records SET diagnosis = ?, treatment = ?, status = ?, lgu_notes = ?, lgu_id = ?, updated_at = NOW() WHERE id = ?");
+                if ($stmt) {
+                    $stmt->bind_param("ssssii", $diagnosis, $treatment, $status, $lgu_notes, $user_id, $record_id);
+                    if ($stmt->execute()) {
+                        $_SESSION['success'] = "Medical record updated successfully!";
+                    } else {
+                        $_SESSION['error'] = "Failed to update medical record.";
+                    }
+                    $stmt->close();
+                }
+                break;
+                
+            case 'add_medical_record':
+                $pet_id = $_POST['pet_id'];
+                $diagnosis = trim($_POST['diagnosis']);
+                $treatment = trim($_POST['treatment']);
+                $status = $_POST['status'];
+                $lgu_notes = trim($_POST['lgu_notes']);
+                
+                // Check if medical_records table exists, if not create it
+                $check_table = $conn->query("SHOW TABLES LIKE 'medical_records'");
+                if ($check_table->num_rows == 0) {
+                    $create_table = $conn->query("CREATE TABLE medical_records (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        pet_id INT NOT NULL,
+                        vet_id INT,
+                        lgu_id INT,
+                        diagnosis TEXT,
+                        treatment TEXT,
+                        status ENUM('pending', 'under_treatment', 'completed', 'referred') DEFAULT 'pending',
+                        lgu_notes TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                        FOREIGN KEY (vet_id) REFERENCES users(user_id) ON DELETE SET NULL,
+                        FOREIGN KEY (lgu_id) REFERENCES users(user_id) ON DELETE SET NULL
+                    )");
+                }
+                
+                $stmt = $conn->prepare("INSERT INTO medical_records (pet_id, lgu_id, diagnosis, treatment, status, lgu_notes) VALUES (?, ?, ?, ?, ?, ?)");
+                if ($stmt) {
+                    $stmt->bind_param("iissss", $pet_id, $user_id, $diagnosis, $treatment, $status, $lgu_notes);
+                    if ($stmt->execute()) {
+                        $_SESSION['success'] = "Medical record added successfully!";
+                    } else {
+                        $_SESSION['error'] = "Failed to add medical record.";
+                    }
+                    $stmt->close();
+                }
+                break;
+                
             case 'update_profile':
                 $name = trim($_POST['name']);
                 $phone_number = trim($_POST['phone_number']);
@@ -74,7 +151,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->bind_param("sssssssi", $name, $phone_number, $region, $province, $city, $barangay, $address, $user_id);
                     if ($stmt->execute()) {
                         $_SESSION['success'] = "Profile updated successfully!";
-                        // Update session variables
                         $_SESSION['name'] = $name;
                         $_SESSION['city'] = $city;
                         $_SESSION['province'] = $province;
@@ -89,15 +165,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get statistics data - using your existing database structure
+// Get statistics data
 $stats = [
     'total_pets' => 0,
     'total_vets' => 0,
     'total_owners' => 0,
-    'total_lgu' => 0
+    'total_lgu' => 0,
+    'total_medical_records' => 0
 ];
 
-// Count total pets (if pets table exists)
+// Check if pets table exists and count pets
 $check_pets = $conn->query("SHOW TABLES LIKE 'pets'");
 if ($check_pets->num_rows > 0) {
     $result = $conn->query("SELECT COUNT(*) as total FROM pets");
@@ -124,6 +201,75 @@ if ($result) {
     }
 }
 
+// Count medical records
+$check_medical = $conn->query("SHOW TABLES LIKE 'medical_records'");
+if ($check_medical->num_rows > 0) {
+    $result = $conn->query("SELECT COUNT(*) as total FROM medical_records");
+    if ($result) {
+        $stats['total_medical_records'] = $result->fetch_assoc()['total'];
+    }
+}
+
+// Get all pets with their medical records
+$pets_with_records = [];
+$check_pets = $conn->query("SHOW TABLES LIKE 'pets'");
+if ($check_pets->num_rows > 0) {
+    $query = "SELECT 
+                p.pet_id,
+                p.name as pet_name,
+                p.species,
+                p.breed,
+                p.age,
+                p.created_at as pet_created,
+                u.name as owner_name,
+                u.email as owner_email,
+                u.phone_number as owner_phone,
+                mr.id as record_id,
+                mr.diagnosis,
+                mr.treatment,
+                mr.status,
+                mr.lgu_notes,
+                mr.created_at as record_created,
+                mr.updated_at as record_updated
+              FROM pets p
+              LEFT JOIN users u ON p.owner_id = u.user_id
+              LEFT JOIN medical_records mr ON p.pet_id = mr.pet_id
+              ORDER BY p.name, mr.created_at DESC";
+    
+    $result = $conn->query($query);
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $pet_id = $row['pet_id'];
+            if (!isset($pets_with_records[$pet_id])) {
+                $pets_with_records[$pet_id] = [
+                    'pet_id' => $row['pet_id'],
+                    'pet_name' => $row['pet_name'],
+                    'species' => $row['species'],
+                    'breed' => $row['breed'],
+                    'age' => $row['age'],
+                    'pet_created' => $row['pet_created'],
+                    'owner_name' => $row['owner_name'],
+                    'owner_email' => $row['owner_email'],
+                    'owner_phone' => $row['owner_phone'],
+                    'medical_records' => []
+                ];
+            }
+            
+            if ($row['record_id']) {
+                $pets_with_records[$pet_id]['medical_records'][] = [
+                    'record_id' => $row['record_id'],
+                    'diagnosis' => $row['diagnosis'],
+                    'treatment' => $row['treatment'],
+                    'status' => $row['status'],
+                    'lgu_notes' => $row['lgu_notes'],
+                    'record_created' => $row['record_created'],
+                    'record_updated' => $row['record_updated']
+                ];
+            }
+        }
+    }
+}
+
 // Get user's current profile data
 $user_data = [];
 $result = $conn->query("SELECT name, email, phone_number, region, province, city, barangay, address FROM users WHERE user_id = $user_id");
@@ -140,17 +286,6 @@ if ($check_announcements->num_rows > 0) {
         while ($row = $result->fetch_assoc()) {
             $announcements[] = $row;
         }
-    }
-}
-
-// Get recent users in the same area
-$recent_users = [];
-$result = $conn->query("SELECT name, email, role, created_at FROM users 
-                       WHERE (city = '$city' AND province = '$province') OR role = 'lgu'
-                       ORDER BY created_at DESC LIMIT 8");
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
-        $recent_users[] = $row;
     }
 }
 ?>
@@ -279,25 +414,19 @@ if ($result) {
             background: #f8fafc;
         }
         
-        .notification-dot {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 8px;
-            height: 8px;
-            background: var(--danger);
-            border-radius: 50%;
+        .pet-record {
+            border-left: 4px solid var(--primary);
+            background: #f8fafc;
         }
         
-        .chart-container {
-            position: relative;
-            height: 300px;
-            width: 100%;
+        .medical-record {
+            border-left: 4px solid var(--success);
+            background: #f0fdf4;
         }
         
-        .user-role-badge {
-            font-size: 0.7rem;
-            padding: 4px 8px;
+        .accordion-button:not(.collapsed) {
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
         }
     </style>
 </head>
@@ -322,11 +451,11 @@ if ($result) {
                     <a class="nav-link active" href="#">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
+                    <a class="nav-link" href="#pets-section">
+                        <i class="fas fa-paw"></i> Pets & Medical Records
+                    </a>
                     <a class="nav-link" href="#announcements">
                         <i class="fas fa-bullhorn"></i> Announcements
-                    </a>
-                    <a class="nav-link" href="#users">
-                        <i class="fas fa-users"></i> User Management
                     </a>
                     <a class="nav-link" href="#analytics">
                         <i class="fas fa-chart-bar"></i> Analytics
@@ -362,8 +491,8 @@ if ($result) {
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-end">
                                     <h6 class="dropdown-header">Notifications</h6>
-                                    <a class="dropdown-item" href="#">System is running well</a>
-                                    <a class="dropdown-item" href="#">Welcome to LGU Dashboard</a>
+                                    <a class="dropdown-item" href="#">New medical records available</a>
+                                    <a class="dropdown-item" href="#">System updates completed</a>
                                 </div>
                             </div>
                             <div class="dropdown">
@@ -421,11 +550,11 @@ if ($result) {
                             <div class="stat-card success">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h6 class="text-muted mb-2">Pet Owners</h6>
-                                        <h3 class="mb-0"><?php echo number_format($stats['total_owners']); ?></h3>
+                                        <h6 class="text-muted mb-2">Medical Records</h6>
+                                        <h3 class="mb-0"><?php echo number_format($stats['total_medical_records']); ?></h3>
                                     </div>
                                     <div class="bg-success bg-opacity-10 p-3 rounded">
-                                        <i class="fas fa-users fa-2x text-success"></i>
+                                        <i class="fas fa-file-medical fa-2x text-success"></i>
                                     </div>
                                 </div>
                             </div>
@@ -434,11 +563,11 @@ if ($result) {
                             <div class="stat-card warning">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h6 class="text-muted mb-2">Veterinarians</h6>
-                                        <h3 class="mb-0"><?php echo number_format($stats['total_vets']); ?></h3>
+                                        <h6 class="text-muted mb-2">Pet Owners</h6>
+                                        <h3 class="mb-0"><?php echo number_format($stats['total_owners']); ?></h3>
                                     </div>
                                     <div class="bg-warning bg-opacity-10 p-3 rounded">
-                                        <i class="fas fa-user-md fa-2x text-warning"></i>
+                                        <i class="fas fa-users fa-2x text-warning"></i>
                                     </div>
                                 </div>
                             </div>
@@ -447,17 +576,135 @@ if ($result) {
                             <div class="stat-card danger">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h6 class="text-muted mb-2">LGU Officials</h6>
-                                        <h3 class="mb-0"><?php echo number_format($stats['total_lgu']); ?></h3>
+                                        <h6 class="text-muted mb-2">Veterinarians</h6>
+                                        <h3 class="mb-0"><?php echo number_format($stats['total_vets']); ?></h3>
                                     </div>
                                     <div class="bg-danger bg-opacity-10 p-3 rounded">
-                                        <i class="fas fa-landmark fa-2x text-danger"></i>
+                                        <i class="fas fa-user-md fa-2x text-danger"></i>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
+                    <!-- Pets and Medical Records Section -->
+                    <div class="dashboard-card" id="pets-section">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-paw me-2"></i>Pets & Medical Records</span>
+                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addMedicalRecordModal">
+                                <i class="fas fa-plus me-1"></i>Add Medical Record
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <?php if (empty($pets_with_records)): ?>
+                                <div class="text-center py-4">
+                                    <i class="fas fa-paw fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No Pets Found</h5>
+                                    <p class="text-muted">No pets have been registered in the system yet.</p>
+                                </div>
+                            <?php else: ?>
+                                <div class="accordion" id="petsAccordion">
+                                    <?php foreach ($pets_with_records as $pet): ?>
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pet<?php echo $pet['pet_id']; ?>">
+                                                <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                                    <div>
+                                                        <strong><?php echo htmlspecialchars($pet['pet_name']); ?></strong>
+                                                        <span class="badge bg-primary ms-2"><?php echo htmlspecialchars($pet['species']); ?></span>
+                                                        <span class="badge bg-secondary"><?php echo htmlspecialchars($pet['breed']); ?></span>
+                                                        <span class="badge bg-info">Age: <?php echo htmlspecialchars($pet['age']); ?></span>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted">Owner: <?php echo htmlspecialchars($pet['owner_name']); ?></small>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </h2>
+                                        <div id="pet<?php echo $pet['pet_id']; ?>" class="accordion-collapse collapse" data-bs-parent="#petsAccordion">
+                                            <div class="accordion-body">
+                                                <!-- Pet Information -->
+                                                <div class="row mb-4">
+                                                    <div class="col-md-6">
+                                                        <h6>Pet Information</h6>
+                                                        <p><strong>Name:</strong> <?php echo htmlspecialchars($pet['pet_name']); ?></p>
+                                                        <p><strong>Species:</strong> <?php echo htmlspecialchars($pet['species']); ?></p>
+                                                        <p><strong>Breed:</strong> <?php echo htmlspecialchars($pet['breed']); ?></p>
+                                                        <p><strong>Age:</strong> <?php echo htmlspecialchars($pet['age']); ?></p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <h6>Owner Information</h6>
+                                                        <p><strong>Name:</strong> <?php echo htmlspecialchars($pet['owner_name']); ?></p>
+                                                        <p><strong>Email:</strong> <?php echo htmlspecialchars($pet['owner_email']); ?></p>
+                                                        <p><strong>Phone:</strong> <?php echo htmlspecialchars($pet['owner_phone']); ?></p>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Medical Records -->
+                                                <h6>Medical Records</h6>
+                                                <?php if (empty($pet['medical_records'])): ?>
+                                                    <div class="alert alert-info">
+                                                        <i class="fas fa-info-circle me-2"></i>
+                                                        No medical records found for this pet.
+                                                    </div>
+                                                <?php else: ?>
+                                                    <?php foreach ($pet['medical_records'] as $record): ?>
+                                                    <div class="card medical-record mb-3">
+                                                        <div class="card-body">
+                                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                <div>
+                                                                    <span class="badge bg-<?php 
+                                                                        switch($record['status']) {
+                                                                            case 'completed': echo 'success'; break;
+                                                                            case 'under_treatment': echo 'warning'; break;
+                                                                            case 'pending': echo 'secondary'; break;
+                                                                            case 'referred': echo 'info'; break;
+                                                                            default: echo 'secondary';
+                                                                        }
+                                                                    ?>"><?php echo ucfirst(str_replace('_', ' ', $record['status'])); ?></span>
+                                                                </div>
+                                                                <div>
+                                                                    <button class="btn btn-sm btn-outline-primary" 
+                                                                            data-bs-toggle="modal" 
+                                                                            data-bs-target="#editMedicalRecordModal"
+                                                                            data-record-id="<?php echo $record['record_id']; ?>"
+                                                                            data-diagnosis="<?php echo htmlspecialchars($record['diagnosis'] ?? ''); ?>"
+                                                                            data-treatment="<?php echo htmlspecialchars($record['treatment'] ?? ''); ?>"
+                                                                            data-status="<?php echo $record['status']; ?>"
+                                                                            data-lgu-notes="<?php echo htmlspecialchars($record['lgu_notes'] ?? ''); ?>">
+                                                                        <i class="fas fa-edit"></i> Edit
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            <?php if (!empty($record['diagnosis'])): ?>
+                                                                <p><strong>Diagnosis:</strong> <?php echo htmlspecialchars($record['diagnosis']); ?></p>
+                                                            <?php endif; ?>
+                                                            <?php if (!empty($record['treatment'])): ?>
+                                                                <p><strong>Treatment:</strong> <?php echo htmlspecialchars($record['treatment']); ?></p>
+                                                            <?php endif; ?>
+                                                            <?php if (!empty($record['lgu_notes'])): ?>
+                                                                <p><strong>LGU Notes:</strong> <?php echo htmlspecialchars($record['lgu_notes']); ?></p>
+                                                            <?php endif; ?>
+                                                            <small class="text-muted">
+                                                                Created: <?php echo date('M d, Y g:i A', strtotime($record['record_created'])); ?>
+                                                                <?php if ($record['record_updated'] != $record['record_created']): ?>
+                                                                    | Updated: <?php echo date('M d, Y g:i A', strtotime($record['record_updated'])); ?>
+                                                                <?php endif; ?>
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                    <?php endforeach; ?>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Rest of the dashboard content (announcements, analytics, etc.) -->
                     <div class="row">
                         <!-- Left Column -->
                         <div class="col-lg-8">
@@ -492,57 +739,16 @@ if ($result) {
                                 </div>
                             </div>
                             
-                            <!-- Recent Users -->
-                            <div class="dashboard-card" id="users">
-                                <div class="card-header d-flex justify-content-between align-items-center">
-                                    <span><i class="fas fa-users me-2"></i>Recent Users in <?php echo htmlspecialchars($city); ?></span>
-                                    <span class="badge bg-primary"><?php echo count($recent_users); ?></span>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th>Name</th>
-                                                    <th>Email</th>
-                                                    <th>Role</th>
-                                                    <th>Joined</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php foreach ($recent_users as $user): ?>
-                                                <tr>
-                                                    <td><?php echo htmlspecialchars($user['name']); ?></td>
-                                                    <td><?php echo htmlspecialchars($user['email']); ?></td>
-                                                    <td>
-                                                        <span class="badge bg-<?php 
-                                                            switch($user['role']) {
-                                                                case 'vet': echo 'warning'; break;
-                                                                case 'owner': echo 'success'; break;
-                                                                case 'lgu': echo 'danger'; break;
-                                                                default: echo 'secondary';
-                                                            }
-                                                        ?> user-role-badge"><?php echo ucfirst($user['role']); ?></span>
-                                                    </td>
-                                                    <td><?php echo date('M d, Y', strtotime($user['created_at'])); ?></td>
-                                                </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                            
                             <!-- Data Visualization -->
                             <div class="row" id="analytics">
                                 <div class="col-md-6">
                                     <div class="dashboard-card">
                                         <div class="card-header">
-                                            <i class="fas fa-chart-pie me-2"></i>User Distribution
+                                            <i class="fas fa-chart-pie me-2"></i>Medical Record Status
                                         </div>
                                         <div class="card-body">
                                             <div class="chart-container">
-                                                <canvas id="userDistributionChart"></canvas>
+                                                <canvas id="medicalStatusChart"></canvas>
                                             </div>
                                         </div>
                                     </div>
@@ -550,11 +756,11 @@ if ($result) {
                                 <div class="col-md-6">
                                     <div class="dashboard-card">
                                         <div class="card-header">
-                                            <i class="fas fa-chart-line me-2"></i>Registration Trends
+                                            <i class="fas fa-chart-line me-2"></i>Records Trend
                                         </div>
                                         <div class="card-body">
                                             <div class="chart-container">
-                                                <canvas id="registrationTrendChart"></canvas>
+                                                <canvas id="recordsTrendChart"></canvas>
                                             </div>
                                         </div>
                                     </div>
@@ -608,8 +814,8 @@ if ($result) {
                                         <div class="fw-semibold"><?php echo htmlspecialchars($city . ', ' . $province); ?></div>
                                     </div>
                                     <div class="mb-3">
-                                        <small class="text-muted d-block">Total Users</small>
-                                        <div class="fw-semibold"><?php echo number_format($stats['total_owners'] + $stats['total_vets'] + $stats['total_lgu']); ?></div>
+                                        <small class="text-muted d-block">Total Medical Records</small>
+                                        <div class="fw-semibold"><?php echo number_format($stats['total_medical_records']); ?></div>
                                     </div>
                                     <div class="mb-3">
                                         <small class="text-muted d-block">Last Login</small>
@@ -657,6 +863,106 @@ if ($result) {
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">Publish Announcement</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Medical Record Modal -->
+    <div class="modal fade" id="editMedicalRecordModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Medical Record</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="update_medical_record">
+                        <input type="hidden" name="record_id" id="edit_record_id">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" name="status" id="edit_status" required>
+                                    <option value="pending">Pending</option>
+                                    <option value="under_treatment">Under Treatment</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="referred">Referred</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Diagnosis</label>
+                            <textarea class="form-control" name="diagnosis" id="edit_diagnosis" rows="3" placeholder="Enter diagnosis"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Treatment</label>
+                            <textarea class="form-control" name="treatment" id="edit_treatment" rows="3" placeholder="Enter treatment plan"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">LGU Notes</label>
+                            <textarea class="form-control" name="lgu_notes" id="edit_lgu_notes" rows="3" placeholder="Add LGU notes or comments"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Medical Record Modal -->
+    <div class="modal fade" id="addMedicalRecordModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Medical Record</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="add_medical_record">
+                        <div class="mb-3">
+                            <label class="form-label">Select Pet</label>
+                            <select class="form-select" name="pet_id" required>
+                                <option value="">Choose a pet...</option>
+                                <?php foreach ($pets_with_records as $pet): ?>
+                                <option value="<?php echo $pet['pet_id']; ?>">
+                                    <?php echo htmlspecialchars($pet['pet_name'] . ' - ' . $pet['owner_name']); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" name="status" required>
+                                    <option value="pending">Pending</option>
+                                    <option value="under_treatment">Under Treatment</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="referred">Referred</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Diagnosis</label>
+                            <textarea class="form-control" name="diagnosis" rows="3" placeholder="Enter diagnosis"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Treatment</label>
+                            <textarea class="form-control" name="treatment" rows="3" placeholder="Enter treatment plan"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">LGU Notes</label>
+                            <textarea class="form-control" name="lgu_notes" rows="3" placeholder="Add LGU notes or comments"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Record</button>
                     </div>
                 </form>
             </div>
@@ -716,19 +1022,35 @@ if ($result) {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Edit Medical Record Modal Handler
+        const editMedicalRecordModal = document.getElementById('editMedicalRecordModal');
+        if (editMedicalRecordModal) {
+            editMedicalRecordModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const recordId = button.getAttribute('data-record-id');
+                const diagnosis = button.getAttribute('data-diagnosis');
+                const treatment = button.getAttribute('data-treatment');
+                const status = button.getAttribute('data-status');
+                const lguNotes = button.getAttribute('data-lgu-notes');
+                
+                const modal = this;
+                modal.querySelector('#edit_record_id').value = recordId;
+                modal.querySelector('#edit_diagnosis').value = diagnosis || '';
+                modal.querySelector('#edit_treatment').value = treatment || '';
+                modal.querySelector('#edit_status').value = status;
+                modal.querySelector('#edit_lgu_notes').value = lguNotes || '';
+            });
+        }
+
         // Data Visualization Charts
-        const userDistributionCtx = document.getElementById('userDistributionChart').getContext('2d');
-        const userDistributionChart = new Chart(userDistributionCtx, {
+        const medicalStatusCtx = document.getElementById('medicalStatusChart').getContext('2d');
+        const medicalStatusChart = new Chart(medicalStatusCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Pet Owners', 'Veterinarians', 'LGU Officials'],
+                labels: ['Pending', 'Under Treatment', 'Completed', 'Referred'],
                 datasets: [{
-                    data: [
-                        <?php echo $stats['total_owners']; ?>,
-                        <?php echo $stats['total_vets']; ?>, 
-                        <?php echo $stats['total_lgu']; ?>
-                    ],
-                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                    data: [12, 8, 15, 3],
+                    backgroundColor: ['#6b7280', '#f59e0b', '#10b981', '#3b82f6'],
                     borderWidth: 2,
                     borderColor: '#fff'
                 }]
@@ -744,14 +1066,14 @@ if ($result) {
             }
         });
 
-        const registrationTrendCtx = document.getElementById('registrationTrendChart').getContext('2d');
-        const registrationTrendChart = new Chart(registrationTrendCtx, {
+        const recordsTrendCtx = document.getElementById('recordsTrendChart').getContext('2d');
+        const recordsTrendChart = new Chart(recordsTrendCtx, {
             type: 'line',
             data: {
                 labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
                 datasets: [{
-                    label: 'User Registrations',
-                    data: [12, 19, 15, 25, 22, 30],
+                    label: 'Medical Records',
+                    data: [5, 8, 12, 10, 15, 18],
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     tension: 0.4,
@@ -770,12 +1092,10 @@ if ($result) {
         });
 
         function generateReport() {
-            alert('Report generation feature would be implemented here!');
-            // This would typically generate a PDF report
+            alert('Medical records report generation would be implemented here!');
         }
 
         function viewAnalytics() {
-            // Scroll to analytics section
             document.getElementById('analytics').scrollIntoView({ behavior: 'smooth' });
         }
 
