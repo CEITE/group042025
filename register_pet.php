@@ -31,13 +31,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     $medicalNotes = trim($_POST['medicalNotes'] ?? '');
     $vetContact = trim($_POST['vetContact'] ?? '');
     
-    // NEW: Medical history fields
+    // Medical history fields (KEEP EXISTING)
     $previousConditions = trim($_POST['previousConditions'] ?? '');
     $vaccinationHistory = trim($_POST['vaccinationHistory'] ?? '');
     $surgicalHistory = trim($_POST['surgicalHistory'] ?? '');
     $medicationHistory = trim($_POST['medicationHistory'] ?? '');
     $hasExistingRecords = isset($_POST['hasExistingRecords']) ? 1 : 0;
     $recordsLocation = trim($_POST['recordsLocation'] ?? '');
+    
+    // NEW: Structured medical fields (ADD NEW)
+    $last_vet_visit = !empty($_POST['last_vet_visit']) ? $_POST['last_vet_visit'] : null;
+    $next_vet_visit = !empty($_POST['next_vet_visit']) ? $_POST['next_vet_visit'] : null;
+    $rabies_vaccine_date = !empty($_POST['rabies_vaccine_date']) ? $_POST['rabies_vaccine_date'] : null;
+    $dhpp_vaccine_date = !empty($_POST['dhpp_vaccine_date']) ? $_POST['dhpp_vaccine_date'] : null;
+    $is_spayed_neutered = isset($_POST['is_spayed_neutered']) ? 1 : 0;
+    $spay_neuter_date = !empty($_POST['spay_neuter_date']) ? $_POST['spay_neuter_date'] : null;
     
     // Validate required fields
     if (empty($petName) || empty($species)) {
@@ -47,19 +55,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             // Generate unique QR code filename
             $qrCodeFilename = 'qr_' . uniqid() . '_' . time() . '.svg';
             
-            // Insert pet into database with new fields
+            // Insert pet into database with ALL fields (existing + new)
             $stmt = $conn->prepare("
                 INSERT INTO pets (
                     user_id, name, species, breed, age, color, weight, 
                     birth_date, gender, medical_notes, vet_contact, 
                     previous_conditions, vaccination_history, surgical_history, 
                     medication_history, has_existing_records, records_location,
+                    last_vet_visit, next_vet_visit, rabies_vaccine_date,
+                    dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
                     qr_code, date_registered
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             
-            $stmt->bind_param("isssisdssssssssiss", 
+            $stmt->bind_param("isssisdssssssssisssssiss", 
                 $user_id, 
                 $petName, 
                 $species, 
@@ -77,6 +87,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 $medicationHistory,
                 $hasExistingRecords,
                 $recordsLocation,
+                $last_vet_visit,
+                $next_vet_visit,
+                $rabies_vaccine_date,
+                $dhpp_vaccine_date,
+                $is_spayed_neutered,
+                $spay_neuter_date,
                 $qrCodeFilename
             );
             
@@ -87,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 $qrURL = "https://group042025.ceitesystems.com/view_pet_record.php?pet_id=" . $pet_id;
 
                 // ✅ Generate the actual QR code image
-                require_once 'phpqrcode/qrlib.php'; // make sure you have phpqrcode library
+                require_once 'phpqrcode/qrlib.php';
 
                 $qrDir = 'qrcodes/';
                 if (!is_dir($qrDir)) mkdir($qrDir, 0755, true);
@@ -95,23 +111,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 $qrPath = $qrDir . 'qr_' . $pet_id . '.png';
                 QRcode::png($qrURL, $qrPath, QR_ECLEVEL_L, 4);
 
-                // ✅ Update the pet record in DB with QR code file and link
-                $updateStmt = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
-                $updateStmt->bind_param("ssi", $qrPath, $qrURL, $pet_id);
-                $updateStmt->execute();
-                $updateStmt->close();
-
-                // Generate QR data with medical history
+                // Generate QR data with enhanced medical history
                 $qrData = generateQRData(
                     $user_id, $pet_id, $petName, $species, $breed, $age, 
                     $color, $weight, $birthDate, $gender, $medicalNotes, 
                     $vetContact, $previousConditions, $vaccinationHistory, 
-                    $surgicalHistory, $medicationHistory, $user['name'], $user['email']
+                    $surgicalHistory, $medicationHistory, 
+                    $last_vet_visit, $next_vet_visit, $rabies_vaccine_date,
+                    $dhpp_vaccine_date, $is_spayed_neutered, $spay_neuter_date,
+                    $user['name'], $user['email']
                 );
                 
                 // Update the pet record with the actual QR data
-                $updateStmt = $conn->prepare("UPDATE pets SET qr_code_data = ? WHERE pet_id = ?");
-                $updateStmt->bind_param("si", $qrData, $pet_id);
+                $updateStmt = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
+                $updateStmt->bind_param("ssi", $qrPath, $qrData, $pet_id);
                 $updateStmt->execute();
                 $updateStmt->close();
                 
@@ -136,8 +149,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     }
 }
 
-// Function to generate QR code data
-function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $previousConditions = '', $vaccinationHistory = '', $surgicalHistory = '', $medicationHistory = '', $ownerName = '', $ownerEmail = '') {
+// Enhanced function to generate QR code data with medical history
+function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $previousConditions = '', $vaccinationHistory = '', $surgicalHistory = '', $medicationHistory = '', $last_vet_visit = '', $next_vet_visit = '', $rabies_vaccine_date = '', $dhpp_vaccine_date = '', $is_spayed_neutered = '', $spay_neuter_date = '', $ownerName = '', $ownerEmail = '') {
     $data = "PET MEDICAL RECORD - PETMEDQR\n";
     $data .= "================================\n\n";
     
@@ -152,6 +165,15 @@ function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $co
     $data .= "Weight: " . ($weight ? $weight . ' kg' : 'Not specified') . "\n";
     $data .= "Birth Date: " . ($birthDate ? date('M j, Y', strtotime($birthDate)) : 'Unknown') . "\n";
     $data .= "Gender: " . ($gender ?: 'Not specified') . "\n\n";
+    
+    $data .= "IMPORTANT MEDICAL DATES:\n";
+    $data .= "------------------------\n";
+    if ($last_vet_visit) $data .= "Last Vet Visit: " . date('M j, Y', strtotime($last_vet_visit)) . "\n";
+    if ($next_vet_visit) $data .= "Next Vet Visit: " . date('M j, Y', strtotime($next_vet_visit)) . "\n";
+    if ($rabies_vaccine_date) $data .= "Rabies Vaccine: " . date('M j, Y', strtotime($rabies_vaccine_date)) . "\n";
+    if ($dhpp_vaccine_date) $data .= "DHPP/FVRCP Vaccine: " . date('M j, Y', strtotime($dhpp_vaccine_date)) . "\n";
+    if ($is_spayed_neutered) $data .= "Spayed/Neutered: Yes" . ($spay_neuter_date ? " (" . date('M j, Y', strtotime($spay_neuter_date)) . ")" : "") . "\n";
+    $data .= "\n";
     
     $data .= "CURRENT MEDICAL INFORMATION:\n";
     $data .= "----------------------------\n";
@@ -188,19 +210,6 @@ function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $co
     return $data;
 }
 
-// Function to save QR code as file
-function saveQRCode($qrData, $filename) {
-    $qrDir = 'qrcodes/';
-    
-    // Create directory if it doesn't exist
-    if (!is_dir($qrDir)) {
-        mkdir($qrDir, 0755, true);
-    }
-    
-    $filePath = $qrDir . $filename;
-    return file_put_contents($filePath, $qrData) !== false;
-}
-
 // Check for success redirect
 $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SESSION['new_pet_id']);
 ?>
@@ -214,6 +223,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Your existing CSS remains the same */
         :root {
             --pink: #ffd6e7;
             --pink-2: #f7c5e0;
@@ -871,7 +881,74 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                             <div class="form-text">Current health issues that need immediate attention</div>
                         </div>
 
-                        <!-- NEW: Medical History Section -->
+                        <!-- NEW: Structured Medical Dates Section -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-pink-light">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-calendar-check me-2"></i>Important Medical Dates & Reminders
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="last_vet_visit" class="form-label">
+                                            <i class="fas fa-calendar-alt"></i>Last Vet Visit
+                                        </label>
+                                        <input type="date" class="form-control" id="last_vet_visit" name="last_vet_visit" 
+                                               value="<?php echo $_POST['last_vet_visit'] ?? ''; ?>">
+                                        <div class="form-text">Most recent veterinary appointment</div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="next_vet_visit" class="form-label">
+                                            <i class="fas fa-calendar-plus"></i>Next Vet Visit
+                                        </label>
+                                        <input type="date" class="form-control" id="next_vet_visit" name="next_vet_visit" 
+                                               value="<?php echo $_POST['next_vet_visit'] ?? ''; ?>">
+                                        <div class="form-text">Upcoming scheduled appointment</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="rabies_vaccine_date" class="form-label">
+                                            <i class="fas fa-syringe"></i>Rabies Vaccine Date
+                                        </label>
+                                        <input type="date" class="form-control" id="rabies_vaccine_date" name="rabies_vaccine_date" 
+                                               value="<?php echo $_POST['rabies_vaccine_date'] ?? ''; ?>">
+                                        <div class="form-text">Date of last rabies vaccination</div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="dhpp_vaccine_date" class="form-label">
+                                            <i class="fas fa-syringe"></i>DHPP/FVRCP Vaccine Date
+                                        </label>
+                                        <input type="date" class="form-control" id="dhpp_vaccine_date" name="dhpp_vaccine_date" 
+                                               value="<?php echo $_POST['dhpp_vaccine_date'] ?? ''; ?>">
+                                        <div class="form-text">Core vaccine for dogs (DHPP) or cats (FVRCP)</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="is_spayed_neutered" name="is_spayed_neutered" value="1" 
+                                           <?php echo isset($_POST['is_spayed_neutered']) ? 'checked' : ''; ?>>
+                                    <label class="form-check-label" for="is_spayed_neutered">
+                                        <i class="fas fa-stethoscope"></i> My pet is spayed/neutered
+                                    </label>
+                                </div>
+                                
+                                <div class="form-group" id="spayNeuterDate" style="display: none;">
+                                    <label for="spay_neuter_date" class="form-label">
+                                        <i class="fas fa-calendar-day"></i>Spay/Neuter Date
+                                    </label>
+                                    <input type="date" class="form-control" id="spay_neuter_date" name="spay_neuter_date" 
+                                           value="<?php echo $_POST['spay_neuter_date'] ?? ''; ?>">
+                                    <div class="form-text">Date when the procedure was performed</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KEEP EXISTING: Medical History Section -->
                         <div class="card mb-3">
                             <div class="card-header bg-pink-light">
                                 <h6 class="mb-0">
@@ -918,9 +995,10 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
 
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" id="hasExistingRecords" name="hasExistingRecords" value="1" <?php echo isset($_POST['hasExistingRecords']) ? 'checked' : ''; ?>>
+                                    <input class="form-check-input" type="checkbox" id="hasExistingRecords" name="hasExistingRecords" value="1" 
+                                           <?php echo isset($_POST['hasExistingRecords']) ? 'checked' : ''; ?>>
                                     <label class="form-check-label" for="hasExistingRecords">
-                                        My pet has existing medical records at a veterinary clinic
+                                        <i class="fas fa-clipboard-list"></i> My pet has existing medical records at a veterinary clinic
                                     </label>
                                 </div>
 
@@ -979,7 +1057,19 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                         <p><strong>Birth Date:</strong> <span id="reviewBirthDate">-</span></p>
                                     </div>
                                 </div>
+                                
                                 <div class="mt-3">
+                                    <h6 class="mb-2">Medical Dates:</h6>
+                                    <p><strong>Last Vet Visit:</strong> <span id="reviewLastVetVisit">-</span></p>
+                                    <p><strong>Next Vet Visit:</strong> <span id="reviewNextVetVisit">-</span></p>
+                                    <p><strong>Rabies Vaccine:</strong> <span id="reviewRabiesVaccine">-</span></p>
+                                    <p><strong>DHPP Vaccine:</strong> <span id="reviewDhppVaccine">-</span></p>
+                                    <p><strong>Spayed/Neutered:</strong> <span id="reviewSpayedNeutered">-</span></p>
+                                    <p><strong>Spay/Neuter Date:</strong> <span id="reviewSpayNeuterDate">-</span></p>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <h6 class="mb-2">Medical History:</h6>
                                     <p><strong>Current Medical Notes:</strong> <span id="reviewMedicalNotes">-</span></p>
                                     <p><strong>Previous Conditions:</strong> <span id="reviewPreviousConditions">-</span></p>
                                     <p><strong>Vaccination History:</strong> <span id="reviewVaccinationHistory">-</span></p>
@@ -1133,6 +1223,14 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             document.getElementById('reviewWeight').textContent = document.getElementById('weight').value ? document.getElementById('weight').value + ' kg' : 'Not specified';
             document.getElementById('reviewBirthDate').textContent = document.getElementById('birthDate').value || 'Not specified';
             
+            // New medical dates
+            document.getElementById('reviewLastVetVisit').textContent = document.getElementById('last_vet_visit').value || 'Not specified';
+            document.getElementById('reviewNextVetVisit').textContent = document.getElementById('next_vet_visit').value || 'Not specified';
+            document.getElementById('reviewRabiesVaccine').textContent = document.getElementById('rabies_vaccine_date').value || 'Not specified';
+            document.getElementById('reviewDhppVaccine').textContent = document.getElementById('dhpp_vaccine_date').value || 'Not specified';
+            document.getElementById('reviewSpayedNeutered').textContent = document.getElementById('is_spayed_neutered').checked ? 'Yes' : 'No';
+            document.getElementById('reviewSpayNeuterDate').textContent = document.getElementById('spay_neuter_date').value || 'Not applicable';
+            
             // Medical information
             document.getElementById('reviewMedicalNotes').textContent = document.getElementById('medicalNotes').value || 'None';
             document.getElementById('reviewPreviousConditions').textContent = document.getElementById('previousConditions').value || 'None';
@@ -1144,6 +1242,14 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             document.getElementById('reviewVetContact').textContent = document.getElementById('vetContact').value || 'Not specified';
         }
         
+        // Toggle spay/neuter date
+        document.getElementById('is_spayed_neutered').addEventListener('change', function() {
+            document.getElementById('spayNeuterDate').style.display = this.checked ? 'block' : 'none';
+            if (!this.checked) {
+                document.getElementById('spay_neuter_date').value = '';
+            }
+        });
+
         // Toggle existing records details
         document.getElementById('hasExistingRecords').addEventListener('change', function() {
             const detailsDiv = document.getElementById('existingRecordsDetails');
@@ -1155,12 +1261,20 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             }
         });
         
-        // Initialize the existing records display
+        // Initialize the existing records and spay/neuter displays
         document.addEventListener('DOMContentLoaded', function() {
+            // Existing records
             const hasExistingRecords = document.getElementById('hasExistingRecords');
-            const detailsDiv = document.getElementById('existingRecordsDetails');
+            const recordsDetailsDiv = document.getElementById('existingRecordsDetails');
             if (hasExistingRecords.checked) {
-                detailsDiv.style.display = 'block';
+                recordsDetailsDiv.style.display = 'block';
+            }
+            
+            // Spay/neuter
+            const spayNeuterCheckbox = document.getElementById('is_spayed_neutered');
+            const spayNeuterDateDiv = document.getElementById('spayNeuterDate');
+            if (spayNeuterCheckbox.checked) {
+                spayNeuterDateDiv.style.display = 'block';
             }
         });
         
