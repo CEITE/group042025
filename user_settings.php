@@ -11,13 +11,58 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 
 // Fetch user data with profile picture
-$stmt = $conn->prepare("SELECT name, email, phone_number, address, role, profile_picture FROM users WHERE user_id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
+try {
+    $stmt = $conn->prepare("SELECT name, email, phone_number, address, role, profile_picture, created_at, last_login FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows === 0) {
+        throw new Exception("User not found");
+    }
+    
+    $user = $result->fetch_assoc();
+    $stmt->close();
+    
+    // Set default profile picture if none exists
+    $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] : "https://i.pravatar.cc/150?u=" . urlencode($user['name']);
+    
+    // Format dates
+    $created_at = date('M j, Y', strtotime($user['created_at']));
+    $last_login = !empty($user['last_login']) ? date('M j, Y g:i A', strtotime($user['last_login'])) : 'Never';
+    
+    // Check if profile picture exists locally
+    $profile_picture_exists = false;
+    $profile_picture_last_updated = 'Never';
+    
+    if (!empty($user['profile_picture']) && strpos($user['profile_picture'], 'uploads/') !== false) {
+        $file_path = $user['profile_picture'];
+        if (file_exists($file_path)) {
+            $profile_picture_exists = true;
+            $profile_picture_last_updated = date('M j, Y', filemtime($file_path));
+        }
+    }
+    
+} catch (Exception $e) {
+    error_log("Settings page error: " . $e->getMessage());
+    $_SESSION['error'] = "Unable to load user data. Please try again.";
+    header("Location: user_dashboard.php");
+    exit();
+}
 
-// Set default profile picture if none exists
-$profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] : "https://i.pravatar.cc/150?u=" . urlencode($user['name']);
+// Handle success/error messages from previous actions
+$success_message = '';
+$error_message = '';
+
+if (isset($_SESSION['success'])) {
+    $success_message = $_SESSION['success'];
+    unset($_SESSION['success']);
+}
+
+if (isset($_SESSION['error'])) {
+    $error_message = $_SESSION['error'];
+    unset($_SESSION['error']);
+}
 ?>
 
 <!DOCTYPE html>
@@ -29,129 +74,303 @@ $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] :
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .settings-container {
-            max-width: 800px;
-            margin: 2rem auto;
+        :root {
+            --primary-color: #4a6cf7;
+            --secondary-color: #ffd6e7;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --dark-color: #343a40;
+            --light-color: #f8f9fa;
         }
+        
+        .settings-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
         .settings-card {
             background: white;
             border-radius: 16px;
             padding: 2rem;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             margin-bottom: 2rem;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
+        
+        .settings-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
+        
         .settings-section {
             margin-bottom: 2rem;
         }
+        
         .settings-section:last-child {
             margin-bottom: 0;
         }
+        
         .section-title {
-            font-size: 1.2rem;
+            font-size: 1.25rem;
             font-weight: 600;
-            margin-bottom: 1rem;
-            color: #4a6cf7;
-            border-bottom: 2px solid #ffd6e7;
-            padding-bottom: 0.5rem;
+            margin-bottom: 1.25rem;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
         .info-item {
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: center;
-            padding: 1rem 0;
-            border-bottom: 1px solid #e9ecef;
+            padding: 1rem;
+            border-radius: 8px;
+            background: var(--light-color);
+            transition: background-color 0.3s;
         }
-        .info-item:last-child {
-            border-bottom: none;
+        
+        .info-item:hover {
+            background: #e9ecef;
         }
+        
         .info-label {
             font-weight: 600;
-            color: #495057;
-            min-width: 120px;
+            color: var(--dark-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
+        
         .info-value {
             color: #6c757d;
-            flex: 1;
+            text-align: right;
+            word-break: break-word;
         }
+        
         .profile-picture-container {
             text-align: center;
             margin-bottom: 2rem;
             position: relative;
             display: inline-block;
+            cursor: pointer;
         }
+        
         .profile-picture {
             width: 150px;
             height: 150px;
             border-radius: 50%;
             object-fit: cover;
-            border: 4px solid #ffd6e7;
-            transition: transform 0.3s;
+            border: 4px solid var(--secondary-color);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
+        
         .profile-picture:hover {
             transform: scale(1.05);
+            border-color: var(--primary-color);
         }
+        
         .profile-picture-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.6);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             transition: opacity 0.3s;
-            cursor: pointer;
         }
+        
         .profile-picture-container:hover .profile-picture-overlay {
             opacity: 1;
         }
+        
         .profile-picture-overlay i {
             color: white;
-            font-size: 1.5rem;
+            font-size: 1.75rem;
         }
+        
         .profile-picture-placeholder {
             width: 150px;
             height: 150px;
             border-radius: 50%;
-            background: #f8f9fa;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 3rem;
             color: #6c757d;
-            border: 4px solid #ffd6e7;
+            border: 4px solid var(--secondary-color);
             margin: 0 auto;
+            transition: all 0.3s ease;
         }
+        
+        .profile-picture-placeholder:hover {
+            border-color: var(--primary-color);
+            transform: scale(1.05);
+        }
+        
         .picture-stats {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 1rem;
-            margin-top: 1rem;
+            background: var(--light-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-top: 1.5rem;
+            border-left: 4px solid var(--primary-color);
         }
+        
         .stat-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.5rem 0;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #dee2e6;
         }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
         .stat-label {
             font-weight: 500;
-            color: #495057;
+            color: var(--dark-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
+        
         .stat-value {
             color: #6c757d;
             font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .btn-custom {
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .action-btn {
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: left;
+            transition: all 0.3s ease;
+            border: 1px solid #dee2e6;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            color: inherit;
+        }
+        
+        .action-btn i {
+            font-size: 1.25rem;
+            width: 24px;
+            text-align: center;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .role-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        
+        @media (max-width: 768px) {
+            .settings-container {
+                margin: 1rem;
+            }
+            
+            .settings-card {
+                padding: 1.5rem;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
-<body>
+<body class="bg-light">
     <div class="container settings-container">
+        <!-- Success/Error Messages -->
+        <?php if ($success_message): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                <?php echo htmlspecialchars($success_message); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($error_message): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                <?php echo htmlspecialchars($error_message); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
+
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3><i class="fas fa-cog me-2"></i>Settings</h3>
-            <a href="user_dashboard.php" class="btn btn-outline-primary">
+            <h3 class="fw-bold text-primary">
+                <i class="fas fa-cog me-2"></i>Account Settings
+            </h3>
+            <a href="user_dashboard.php" class="btn btn-outline-primary btn-custom">
                 <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
             </a>
         </div>
@@ -159,92 +378,124 @@ $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] :
         <!-- Profile Information Card -->
         <div class="settings-card">
             <div class="settings-section">
-                <h5 class="section-title"><i class="fas fa-user me-2"></i>Profile Information</h5>
+                <h5 class="section-title">
+                    <i class="fas fa-user"></i>Profile Information
+                </h5>
                 
                 <!-- Profile Picture Section -->
                 <div class="text-center mb-4">
-                    <div class="profile-picture-container">
-                        <?php if (!empty($user['profile_picture'])): ?>
+                    <div class="profile-picture-container" onclick="location.href='update_profile.php'">
+                        <?php if (!empty($user['profile_picture']) && $profile_picture_exists): ?>
                             <img src="<?php echo htmlspecialchars($user['profile_picture']); ?>" 
                                  alt="Profile Picture" 
                                  class="profile-picture"
                                  id="currentProfilePicture"
-                                 onerror="this.src='https://i.pravatar.cc/150?u=<?php echo urlencode($user['name']); ?>'">
+                                 onerror="handleImageError(this)">
                         <?php else: ?>
                             <div class="profile-picture-placeholder">
                                 <i class="fas fa-user"></i>
                             </div>
                         <?php endif; ?>
-                        <div class="profile-picture-overlay" onclick="location.href='update_profile.php'">
+                        <div class="profile-picture-overlay">
                             <i class="fas fa-camera"></i>
                         </div>
                     </div>
                     <div class="mt-2">
-                        <small class="text-muted">Click on the picture to change</small>
+                        <small class="text-muted">Click on the picture to update your profile</small>
                     </div>
                     
                     <!-- Picture Stats -->
                     <div class="picture-stats">
                         <div class="stat-item">
-                            <span class="stat-label">Current Picture:</span>
+                            <span class="stat-label">
+                                <i class="fas fa-image"></i>Current Picture:
+                            </span>
                             <span class="stat-value">
-                                <?php echo !empty($user['profile_picture']) ? 'Custom' : 'Default'; ?>
+                                <?php echo (!empty($user['profile_picture']) && $profile_picture_exists) ? 'Custom' : 'Default'; ?>
                             </span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Last Updated:</span>
+                            <span class="stat-label">
+                                <i class="fas fa-calendar"></i>Last Updated:
+                            </span>
                             <span class="stat-value">
-                                <?php 
-                                if (!empty($user['profile_picture']) && strpos($user['profile_picture'], 'uploads/') !== false) {
-                                    $file_path = $user['profile_picture'];
-                                    if (file_exists($file_path)) {
-                                        echo date('M j, Y', filemtime($file_path));
-                                    } else {
-                                        echo 'Unknown';
-                                    }
-                                } else {
-                                    echo 'Never';
-                                }
-                                ?>
+                                <?php echo $profile_picture_last_updated; ?>
                             </span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="info-item">
-                    <span class="info-label">Full Name:</span>
-                    <span class="info-value"><?php echo htmlspecialchars($user['name']); ?></span>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">
+                            <i class="fas fa-user-tag"></i>Full Name:
+                        </span>
+                        <span class="info-value"><?php echo htmlspecialchars($user['name']); ?></span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">
+                            <i class="fas fa-envelope"></i>Email:
+                        </span>
+                        <span class="info-value"><?php echo htmlspecialchars($user['email']); ?></span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">
+                            <i class="fas fa-phone"></i>Phone:
+                        </span>
+                        <span class="info-value">
+                            <?php echo !empty($user['phone_number']) ? htmlspecialchars($user['phone_number']) : '<span class="text-muted">Not set</span>'; ?>
+                        </span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">
+                            <i class="fas fa-map-marker-alt"></i>Address:
+                        </span>
+                        <span class="info-value">
+                            <?php echo !empty($user['address']) ? htmlspecialchars($user['address']) : '<span class="text-muted">Not set</span>'; ?>
+                        </span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">
+                            <i class="fas fa-user-shield"></i>Role:
+                        </span>
+                        <span class="info-value">
+                            <span class="role-badge bg-primary text-white">
+                                <?php echo htmlspecialchars($user['role']); ?>
+                            </span>
+                        </span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">
+                            <i class="fas fa-calendar-plus"></i>Member Since:
+                        </span>
+                        <span class="info-value"><?php echo $created_at; ?></span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">
+                            <i class="fas fa-sign-in-alt"></i>Last Login:
+                        </span>
+                        <span class="info-value"><?php echo $last_login; ?></span>
+                    </div>
                 </div>
                 
-                <div class="info-item">
-                    <span class="info-label">Email:</span>
-                    <span class="info-value"><?php echo htmlspecialchars($user['email']); ?></span>
-                </div>
-                
-                <div class="info-item">
-                    <span class="info-label">Phone:</span>
-                    <span class="info-value"><?php echo htmlspecialchars($user['phone_number'] ?? 'Not set'); ?></span>
-                </div>
-                
-                <div class="info-item">
-                    <span class="info-label">Address:</span>
-                    <span class="info-value"><?php echo htmlspecialchars($user['address'] ?? 'Not set'); ?></span>
-                </div>
-                
-                <div class="info-item">
-                    <span class="info-label">Role:</span>
-                    <span class="info-value badge bg-primary"><?php echo htmlspecialchars($user['role']); ?></span>
-                </div>
-                
-                <div class="mt-3">
-                    <a href="update_profile.php" class="btn btn-primary">
-                        <i class="fas fa-edit me-1"></i> Edit Profile
+                <div class="mt-4 d-flex flex-wrap gap-2">
+                    <a href="update_profile.php" class="btn btn-primary btn-custom">
+                        <i class="fas fa-edit"></i> Edit Profile
                     </a>
-                    <?php if (!empty($user['profile_picture'])): ?>
-                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removePictureModal">
-                            <i class="fas fa-trash me-1"></i> Remove Picture
+                    <?php if (!empty($user['profile_picture']) && $profile_picture_exists): ?>
+                        <button type="button" class="btn btn-outline-danger btn-custom" data-bs-toggle="modal" data-bs-target="#removePictureModal">
+                            <i class="fas fa-trash"></i> Remove Picture
                         </button>
                     <?php endif; ?>
+                    <button type="button" class="btn btn-outline-info btn-custom" onclick="refreshProfile()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
                 </div>
             </div>
         </div>
@@ -252,15 +503,42 @@ $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] :
         <!-- Account Settings Card -->
         <div class="settings-card">
             <div class="settings-section">
-                <h5 class="section-title"><i class="fas fa-shield-alt me-2"></i>Account Security</h5>
-                <p class="text-muted mb-3">Manage your account security settings</p>
+                <h5 class="section-title">
+                    <i class="fas fa-shield-alt"></i>Account Security
+                </h5>
+                <p class="text-muted mb-3">Manage your account security and privacy settings</p>
                 
-                <div class="d-grid gap-2">
-                    <a href="change_password.php" class="btn btn-outline-warning text-start">
-                        <i class="fas fa-key me-2"></i> Change Password
+                <div class="action-grid">
+                    <a href="change_password.php" class="action-btn border-warning text-warning">
+                        <i class="fas fa-key"></i>
+                        <div>
+                            <strong>Change Password</strong>
+                            <div class="small text-muted">Update your account password</div>
+                        </div>
                     </a>
-                    <a href="privacy_settings.php" class="btn btn-outline-info text-start">
-                        <i class="fas fa-user-shield me-2"></i> Privacy Settings
+                    
+                    <a href="privacy_settings.php" class="action-btn border-info text-info">
+                        <i class="fas fa-user-shield"></i>
+                        <div>
+                            <strong>Privacy Settings</strong>
+                            <div class="small text-muted">Control your privacy preferences</div>
+                        </div>
+                    </a>
+                    
+                    <a href="two_factor.php" class="action-btn border-success text-success">
+                        <i class="fas fa-mobile-alt"></i>
+                        <div>
+                            <strong>Two-Factor Auth</strong>
+                            <div class="small text-muted">Add extra security to your account</div>
+                        </div>
+                    </a>
+                    
+                    <a href="login_sessions.php" class="action-btn border-primary text-primary">
+                        <i class="fas fa-desktop"></i>
+                        <div>
+                            <strong>Login Sessions</strong>
+                            <div class="small text-muted">Manage active sessions</div>
+                        </div>
                     </a>
                 </div>
             </div>
@@ -269,29 +547,58 @@ $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] :
         <!-- Quick Actions Card -->
         <div class="settings-card">
             <div class="settings-section">
-                <h5 class="section-title"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                <h5 class="section-title">
+                    <i class="fas fa-bolt"></i>Quick Actions
+                </h5>
                 
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <a href="user_pet_profile.php" class="btn btn-outline-success w-100 text-start">
-                            <i class="fas fa-paw me-2"></i> Manage Pets
-                        </a>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <a href="qr_code.php" class="btn btn-outline-primary w-100 text-start">
-                            <i class="fas fa-qrcode me-2"></i> QR Codes
-                        </a>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <a href="register_pet.php" class="btn btn-outline-info w-100 text-start">
-                            <i class="fas fa-plus-circle me-2"></i> Add New Pet
-                        </a>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <a href="logout.php" class="btn btn-outline-danger w-100 text-start">
-                            <i class="fas fa-sign-out-alt me-2"></i> Logout
-                        </a>
-                    </div>
+                <div class="action-grid">
+                    <a href="user_pet_profile.php" class="action-btn border-success text-success">
+                        <i class="fas fa-paw"></i>
+                        <div>
+                            <strong>Manage Pets</strong>
+                            <div class="small text-muted">View and edit your pets</div>
+                        </div>
+                    </a>
+                    
+                    <a href="qr_code.php" class="action-btn border-primary text-primary">
+                        <i class="fas fa-qrcode"></i>
+                        <div>
+                            <strong>QR Codes</strong>
+                            <div class="small text-muted">Generate and manage QR codes</div>
+                        </div>
+                    </a>
+                    
+                    <a href="register_pet.php" class="action-btn border-info text-info">
+                        <i class="fas fa-plus-circle"></i>
+                        <div>
+                            <strong>Add New Pet</strong>
+                            <div class="small text-muted">Register a new pet</div>
+                        </div>
+                    </a>
+                    
+                    <a href="pet_medical_records.php" class="action-btn border-warning text-warning">
+                        <i class="fas fa-file-medical"></i>
+                        <div>
+                            <strong>Medical Records</strong>
+                            <div class="small text-muted">View medical history</div>
+                        </div>
+                    </a>
+                    
+                    <a href="backup_data.php" class="action-btn border-secondary text-secondary">
+                        <i class="fas fa-download"></i>
+                        <div>
+                            <strong>Backup Data</strong>
+                            <div class="small text-muted">Download your data</div>
+                        </div>
+                    </a>
+                    
+                    <a href="logout.php" class="action-btn border-danger text-danger">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <div>
+                            <strong>Logout</strong>
+                            <div class="small text-muted">Sign out of your account</div>
+                        </div>
+                    </a>
                 </div>
             </div>
         </div>
@@ -302,7 +609,9 @@ $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] :
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Remove Profile Picture</h5>
+                    <h5 class="modal-title text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Remove Profile Picture
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -310,15 +619,19 @@ $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] :
                     <div class="text-center mb-3">
                         <img src="<?php echo htmlspecialchars($user['profile_picture']); ?>" 
                              alt="Current Profile Picture" 
-                             class="rounded-circle"
-                             style="width: 80px; height: 80px; object-fit: cover;"
+                             class="rounded-circle shadow"
+                             style="width: 100px; height: 100px; object-fit: cover;"
                              onerror="this.style.display='none'">
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Your profile will revert to the default avatar after removal.
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <form method="POST" action="remove_profile_picture.php" style="display: inline;">
-                        <button type="submit" class="btn btn-danger">
+                    <form method="POST" action="remove_profile_picture.php" id="removePictureForm">
+                        <button type="submit" class="btn btn-danger" id="removePictureBtn">
                             <i class="fas fa-trash me-1"></i> Remove Picture
                         </button>
                     </form>
@@ -329,61 +642,99 @@ $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] :
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Profile picture preview and interactions
+        // Enhanced JavaScript functionality
         document.addEventListener('DOMContentLoaded', function() {
-            // Add click event to profile picture container
-            const profileContainer = document.querySelector('.profile-picture-container');
-            if (profileContainer) {
-                profileContainer.addEventListener('click', function() {
-                    window.location.href = 'update_profile.php';
-                });
-            }
-
             // Auto-close alerts after 5 seconds
-            setTimeout(() => {
-                const alerts = document.querySelectorAll('.alert');
-                alerts.forEach(alert => {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                });
-            }, 5000);
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    if (alert.classList.contains('show')) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }
+                }, 5000);
+            });
 
-            // Check if there are success/error messages in URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('success')) {
-                showMessage(urlParams.get('success'), 'success');
+            // Add loading state to forms
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('submit', function() {
+                    const submitBtn = this.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<div class="loading-spinner"></div> Processing...';
+                    }
+                });
+            });
+
+            // Enhanced profile picture error handling
+            const profilePictures = document.querySelectorAll('img[onerror]');
+            profilePictures.forEach(img => {
+                img.addEventListener('error', handleImageError);
+            });
+        });
+
+        function handleImageError(img) {
+            img.src = 'https://i.pravatar.cc/150?u=<?php echo urlencode($user['name']); ?>';
+            img.onerror = null; // Prevent infinite loop
+        }
+
+        function refreshProfile() {
+            const refreshBtn = event.target.closest('button');
+            const originalHtml = refreshBtn.innerHTML;
+            
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<div class="loading-spinner"></div> Refreshing...';
+            
+            // Simulate refresh (in real implementation, this would be an AJAX call)
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
+
+        // Remove picture form handling
+        const removePictureForm = document.getElementById('removePictureForm');
+        if (removePictureForm) {
+            removePictureForm.addEventListener('submit', function(e) {
+                const btn = document.getElementById('removePictureBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<div class="loading-spinner"></div> Removing...';
+            });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl + R to refresh
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                refreshProfile();
             }
-            if (urlParams.has('error')) {
-                showMessage(urlParams.get('error'), 'error');
+            
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                const modals = document.querySelectorAll('.modal.show');
+                modals.forEach(modal => {
+                    const modalInstance = bootstrap.Modal.getInstance(modal);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    }
+                });
             }
         });
 
-        function showMessage(message, type) {
-            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
-            
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
-            alertDiv.innerHTML = `
-                <i class="fas ${icon} me-2"></i>${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            
-            document.querySelector('.settings-container').insertBefore(alertDiv, document.querySelector('.settings-container').firstChild);
-            
-            // Auto-remove after 5 seconds
-            setTimeout(() => {
-                alertDiv.remove();
-            }, 5000);
-        }
-
-        // Profile picture error handling
-        const profilePicture = document.getElementById('currentProfilePicture');
-        if (profilePicture) {
-            profilePicture.addEventListener('error', function() {
-                this.src = 'https://i.pravatar.cc/150?u=<?php echo urlencode($user['name']); ?>';
+        // Add smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
             });
-        }
+        });
     </script>
 </body>
 </html>
