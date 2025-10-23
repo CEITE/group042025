@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             $species_lower = strtolower($species);
             
             // ✅ FIXED: INSERT statement - REMOVED date_registered since it has default value
-            // ✅ FIXED: INSERT statement - EXACT column count match
+// ✅ FIXED: 24 columns = 24 question marks
 $stmt = $conn->prepare("
     INSERT INTO pets (
         user_id, name, species, breed, age, color, weight, 
@@ -70,15 +70,11 @@ $stmt = $conn->prepare("
         dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
         qr_code
     ) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ");
-            
-            if (!$stmt) {
-                throw new Exception("Prepare failed: " . $conn->error);
-            }
-            
-            // ✅ FIXED: Exactly 23 parameters
-$bind_result = $stmt->bind_param("isssisdssssssssisssssis", 
+
+// ✅ FIXED: 24 parameters in bind_param
+$bind_result = $stmt->bind_param("isssisdssssssssisssssiss", 
     $user_id, 
     $petName, 
     $species_lower,
@@ -1388,6 +1384,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
 
 
 
