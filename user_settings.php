@@ -75,13 +75,22 @@ if (isset($_SESSION['error'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-color: #4a6cf7;
-            --secondary-color: #ffd6e7;
-            --success-color: #28a745;
-            --warning-color: #ffc107;
-            --danger-color: #dc3545;
-            --dark-color: #343a40;
-            --light-color: #f8f9fa;
+            --primary-pink: #e91e63;
+            --secondary-pink: #f8bbd9;
+            --light-pink: #fce4ec;
+            --dark-pink: #ad1457;
+            --accent-pink: #f48fb1;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --danger-color: #f44336;
+            --dark-color: #37474f;
+            --light-color: #fafafa;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--light-pink) 0%, #f3e5f5 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
         .settings-container {
@@ -92,17 +101,29 @@ if (isset($_SESSION['error'])) {
         
         .settings-card {
             background: white;
-            border-radius: 16px;
+            border-radius: 20px;
             padding: 2rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            box-shadow: 0 10px 30px rgba(233, 30, 99, 0.1);
             margin-bottom: 2rem;
-            border: 1px solid rgba(0,0,0,0.05);
+            border: none;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .settings-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-pink), var(--accent-pink));
         }
         
         .settings-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(233, 30, 99, 0.15);
         }
         
         .settings-section {
@@ -114,15 +135,15 @@ if (isset($_SESSION['error'])) {
         }
         
         .section-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1.25rem;
-            color: var(--primary-color);
-            border-bottom: 2px solid var(--secondary-color);
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--dark-pink);
             padding-bottom: 0.75rem;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
+            border-bottom: 2px solid var(--secondary-pink);
         }
         
         .info-grid {
@@ -135,28 +156,31 @@ if (isset($_SESSION['error'])) {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem;
-            border-radius: 8px;
-            background: var(--light-color);
-            transition: background-color 0.3s;
+            padding: 1.25rem;
+            border-radius: 12px;
+            background: var(--light-pink);
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--accent-pink);
         }
         
         .info-item:hover {
-            background: #e9ecef;
+            background: #f8bbd9;
+            transform: translateX(5px);
         }
         
         .info-label {
             font-weight: 600;
-            color: var(--dark-color);
+            color: var(--dark-pink);
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
         }
         
         .info-value {
-            color: #6c757d;
+            color: var(--dark-color);
             text-align: right;
             word-break: break-word;
+            font-weight: 500;
         }
         
         .profile-picture-container {
@@ -168,18 +192,19 @@ if (isset($_SESSION['error'])) {
         }
         
         .profile-picture {
-            width: 150px;
-            height: 150px;
+            width: 160px;
+            height: 160px;
             border-radius: 50%;
             object-fit: cover;
-            border: 4px solid var(--secondary-color);
+            border: 5px solid var(--secondary-pink);
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 20px rgba(233, 30, 99, 0.2);
         }
         
         .profile-picture:hover {
-            transform: scale(1.05);
-            border-color: var(--primary-color);
+            transform: scale(1.08);
+            border-color: var(--primary-pink);
+            box-shadow: 0 12px 25px rgba(233, 30, 99, 0.3);
         }
         
         .profile-picture-overlay {
@@ -188,7 +213,7 @@ if (isset($_SESSION['error'])) {
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.6);
+            background: linear-gradient(135deg, rgba(233, 30, 99, 0.7), rgba(244, 143, 177, 0.7));
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -203,35 +228,38 @@ if (isset($_SESSION['error'])) {
         
         .profile-picture-overlay i {
             color: white;
-            font-size: 1.75rem;
+            font-size: 2rem;
         }
         
         .profile-picture-placeholder {
-            width: 150px;
-            height: 150px;
+            width: 160px;
+            height: 160px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            background: linear-gradient(135deg, var(--light-pink), var(--secondary-pink));
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 3rem;
-            color: #6c757d;
-            border: 4px solid var(--secondary-color);
+            font-size: 3.5rem;
+            color: var(--primary-pink);
+            border: 5px solid var(--secondary-pink);
             margin: 0 auto;
             transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(233, 30, 99, 0.2);
         }
         
         .profile-picture-placeholder:hover {
-            border-color: var(--primary-color);
-            transform: scale(1.05);
+            border-color: var(--primary-pink);
+            transform: scale(1.08);
+            box-shadow: 0 12px 25px rgba(233, 30, 99, 0.3);
         }
         
         .picture-stats {
-            background: var(--light-color);
-            border-radius: 12px;
-            padding: 1.25rem;
+            background: linear-gradient(135deg, var(--light-pink), #f3e5f5);
+            border-radius: 15px;
+            padding: 1.5rem;
             margin-top: 1.5rem;
-            border-left: 4px solid var(--primary-color);
+            border-left: 5px solid var(--primary-pink);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
         
         .stat-item {
@@ -239,7 +267,7 @@ if (isset($_SESSION['error'])) {
             justify-content: space-between;
             align-items: center;
             padding: 0.75rem 0;
-            border-bottom: 1px solid #dee2e6;
+            border-bottom: 1px solid rgba(233, 30, 99, 0.1);
         }
         
         .stat-item:last-child {
@@ -247,58 +275,146 @@ if (isset($_SESSION['error'])) {
         }
         
         .stat-label {
-            font-weight: 500;
-            color: var(--dark-color);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .stat-value {
-            color: #6c757d;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-        
-        .btn-custom {
-            border-radius: 8px;
-            padding: 0.75rem 1.5rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .action-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-        }
-        
-        .action-btn {
-            padding: 1rem;
-            border-radius: 10px;
-            text-align: left;
-            transition: all 0.3s ease;
-            border: 1px solid #dee2e6;
-            text-decoration: none;
-            color: inherit;
+            font-weight: 600;
+            color: var(--dark-pink);
             display: flex;
             align-items: center;
             gap: 0.75rem;
         }
         
-        .action-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        .stat-value {
+            color: var(--dark-color);
+            font-weight: 500;
+        }
+        
+        .btn-custom {
+            border-radius: 12px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-pink), var(--accent-pink));
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--dark-pink), var(--primary-pink));
+            transform: translateY(-3px);
+            box-shadow: 0 7px 15px rgba(233, 30, 99, 0.3);
+        }
+        
+        .btn-outline-primary {
+            border: 2px solid var(--primary-pink);
+            color: var(--primary-pink);
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--primary-pink);
+            border-color: var(--primary-pink);
+            transform: translateY(-3px);
+            box-shadow: 0 7px 15px rgba(233, 30, 99, 0.3);
+        }
+        
+        .btn-outline-danger {
+            border: 2px solid var(--danger-color);
+            color: var(--danger-color);
+        }
+        
+        .btn-outline-danger:hover {
+            background: var(--danger-color);
+            transform: translateY(-3px);
+        }
+        
+        .btn-outline-info {
+            border: 2px solid #17a2b8;
+            color: #17a2b8;
+        }
+        
+        .btn-outline-info:hover {
+            background: #17a2b8;
+            transform: translateY(-3px);
+        }
+        
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.25rem;
+        }
+        
+        .action-btn {
+            padding: 1.25rem;
+            border-radius: 15px;
+            text-align: left;
+            transition: all 0.3s ease;
+            border: none;
+            text-decoration: none;
             color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--secondary-pink);
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(233, 30, 99, 0.15);
+            color: inherit;
+            text-decoration: none;
         }
         
         .action-btn i {
-            font-size: 1.25rem;
-            width: 24px;
-            text-align: center;
+            font-size: 1.5rem;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: var(--light-pink);
+            color: var(--primary-pink);
+        }
+        
+        .action-btn.border-warning {
+            border-left: 4px solid var(--warning-color);
+        }
+        
+        .action-btn.border-info {
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .action-btn.border-success {
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .action-btn.border-primary {
+            border-left: 4px solid var(--primary-pink);
+        }
+        
+        .action-btn.border-secondary {
+            border-left: 4px solid #6c757d;
+        }
+        
+        .action-btn.border-danger {
+            border-left: 4px solid var(--danger-color);
         }
         
         @keyframes fadeIn {
@@ -311,7 +427,7 @@ if (isset($_SESSION['error'])) {
             width: 20px;
             height: 20px;
             border: 2px solid #f3f3f3;
-            border-top: 2px solid var(--primary-color);
+            border-top: 2px solid var(--primary-pink);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -326,6 +442,35 @@ if (isset($_SESSION['error'])) {
             border-radius: 20px;
             font-weight: 600;
             text-transform: capitalize;
+            background: linear-gradient(135deg, var(--primary-pink), var(--accent-pink));
+            color: white;
+        }
+        
+        .alert {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        
+        .alert-success {
+            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+            color: #2e7d32;
+            border-left: 5px solid var(--success-color);
+        }
+        
+        .alert-danger {
+            background: linear-gradient(135deg, #ffebee, #ffcdd2);
+            color: #c62828;
+            border-left: 5px solid var(--danger-color);
+        }
+        
+        h3 {
+            color: var(--dark-pink);
+            font-weight: 700;
+        }
+        
+        .text-muted {
+            color: #78909c !important;
         }
         
         @media (max-width: 768px) {
@@ -344,10 +489,37 @@ if (isset($_SESSION['error'])) {
             .action-grid {
                 grid-template-columns: 1fr;
             }
+            
+            .profile-picture, .profile-picture-placeholder {
+                width: 130px;
+                height: 130px;
+            }
+        }
+        
+        /* Custom pink modal */
+        .modal-content {
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, var(--light-pink), #f3e5f5);
+            border-bottom: 1px solid var(--secondary-pink);
+        }
+        
+        .modal-title {
+            color: var(--dark-pink);
+            font-weight: 700;
+        }
+        
+        .modal-footer {
+            border-top: 1px solid var(--secondary-pink);
         }
     </style>
 </head>
-<body class="bg-light">
+<body>
     <div class="container settings-container">
         <!-- Success/Error Messages -->
         <?php if ($success_message): ?>
@@ -367,7 +539,7 @@ if (isset($_SESSION['error'])) {
         <?php endif; ?>
 
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3 class="fw-bold text-primary">
+            <h3 class="fw-bold">
                 <i class="fas fa-cog me-2"></i>Account Settings
             </h3>
             <a href="user_dashboard.php" class="btn btn-outline-primary btn-custom">
@@ -463,7 +635,7 @@ if (isset($_SESSION['error'])) {
                             <i class="fas fa-user-shield"></i>Role:
                         </span>
                         <span class="info-value">
-                            <span class="role-badge bg-primary text-white">
+                            <span class="role-badge">
                                 <?php echo htmlspecialchars($user['role']); ?>
                             </span>
                         </span>
@@ -509,7 +681,7 @@ if (isset($_SESSION['error'])) {
                 <p class="text-muted mb-3">Manage your account security and privacy settings</p>
                 
                 <div class="action-grid">
-                    <a href="change_password.php" class="action-btn border-warning text-warning">
+                    <a href="change_password.php" class="action-btn border-warning">
                         <i class="fas fa-key"></i>
                         <div>
                             <strong>Change Password</strong>
@@ -517,7 +689,7 @@ if (isset($_SESSION['error'])) {
                         </div>
                     </a>
                     
-                    <a href="privacy_settings.php" class="action-btn border-info text-info">
+                    <a href="privacy_settings.php" class="action-btn border-info">
                         <i class="fas fa-user-shield"></i>
                         <div>
                             <strong>Privacy Settings</strong>
@@ -525,7 +697,7 @@ if (isset($_SESSION['error'])) {
                         </div>
                     </a>
                     
-                    <a href="two_factor.php" class="action-btn border-success text-success">
+                    <a href="two_factor.php" class="action-btn border-success">
                         <i class="fas fa-mobile-alt"></i>
                         <div>
                             <strong>Two-Factor Auth</strong>
@@ -533,7 +705,7 @@ if (isset($_SESSION['error'])) {
                         </div>
                     </a>
                     
-                    <a href="login_sessions.php" class="action-btn border-primary text-primary">
+                    <a href="login_sessions.php" class="action-btn border-primary">
                         <i class="fas fa-desktop"></i>
                         <div>
                             <strong>Login Sessions</strong>
@@ -552,7 +724,7 @@ if (isset($_SESSION['error'])) {
                 </h5>
                 
                 <div class="action-grid">
-                    <a href="user_pet_profile.php" class="action-btn border-success text-success">
+                    <a href="user_pet_profile.php" class="action-btn border-success">
                         <i class="fas fa-paw"></i>
                         <div>
                             <strong>Manage Pets</strong>
@@ -560,7 +732,7 @@ if (isset($_SESSION['error'])) {
                         </div>
                     </a>
                     
-                    <a href="qr_code.php" class="action-btn border-primary text-primary">
+                    <a href="qr_code.php" class="action-btn border-primary">
                         <i class="fas fa-qrcode"></i>
                         <div>
                             <strong>QR Codes</strong>
@@ -568,7 +740,7 @@ if (isset($_SESSION['error'])) {
                         </div>
                     </a>
                     
-                    <a href="register_pet.php" class="action-btn border-info text-info">
+                    <a href="register_pet.php" class="action-btn border-info">
                         <i class="fas fa-plus-circle"></i>
                         <div>
                             <strong>Add New Pet</strong>
@@ -576,7 +748,7 @@ if (isset($_SESSION['error'])) {
                         </div>
                     </a>
                     
-                    <a href="pet_medical_records.php" class="action-btn border-warning text-warning">
+                    <a href="pet_medical_records.php" class="action-btn border-warning">
                         <i class="fas fa-file-medical"></i>
                         <div>
                             <strong>Medical Records</strong>
@@ -584,7 +756,7 @@ if (isset($_SESSION['error'])) {
                         </div>
                     </a>
                     
-                    <a href="backup_data.php" class="action-btn border-secondary text-secondary">
+                    <a href="backup_data.php" class="action-btn border-secondary">
                         <i class="fas fa-download"></i>
                         <div>
                             <strong>Backup Data</strong>
@@ -592,7 +764,7 @@ if (isset($_SESSION['error'])) {
                         </div>
                     </a>
                     
-                    <a href="logout.php" class="action-btn border-danger text-danger">
+                    <a href="logout.php" class="action-btn border-danger">
                         <i class="fas fa-sign-out-alt"></i>
                         <div>
                             <strong>Logout</strong>
@@ -609,8 +781,8 @@ if (isset($_SESSION['error'])) {
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title text-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Remove Profile Picture
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2 text-danger"></i>Remove Profile Picture
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
