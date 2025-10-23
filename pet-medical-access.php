@@ -1,5 +1,5 @@
 <?php
-// pet-medical-access.php - ENHANCED DESIGN WITH YOUR PINK THEME
+// pet-medical-access.php - ENHANCED WITH MEDICAL HISTORY FROM PETS TABLE
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -15,6 +15,7 @@ $base_url = 'https://group042025.ceitesystems.com';
 // Initialize variables
 $pet_data = null;
 $recent_records = [];
+$medical_history = [];
 
 // Try to connect to database safely
 try {
@@ -39,7 +40,7 @@ try {
                 $stmt->close();
             }
             
-            // Fetch recent records
+            // Fetch recent records from pet_medical_records table
             $stmt = $conn->prepare("
                 SELECT record_type, record_date, description 
                 FROM pet_medical_records 
@@ -55,6 +56,83 @@ try {
                     $recent_records = $result->fetch_all(MYSQLI_ASSOC);
                 }
                 $stmt->close();
+            }
+            
+            // Fetch medical history from pets table (the historical records)
+            if ($pet_data) {
+                // Build medical history array from pets table fields
+                $medical_history = [];
+                
+                // Previous Conditions
+                if (!empty($pet_data['previous_conditions'])) {
+                    $medical_history[] = [
+                        'type' => 'Previous Conditions',
+                        'details' => $pet_data['previous_conditions'],
+                        'date' => $pet_data['medical_history_updated_at'] ?? 'Historical'
+                    ];
+                }
+                
+                // Vaccination History
+                if (!empty($pet_data['vaccination_history'])) {
+                    $medical_history[] = [
+                        'type' => 'Vaccination History',
+                        'details' => $pet_data['vaccination_history'],
+                        'date' => $pet_data['medical_history_updated_at'] ?? 'Historical'
+                    ];
+                }
+                
+                // Surgical History
+                if (!empty($pet_data['surgical_history'])) {
+                    $medical_history[] = [
+                        'type' => 'Surgical History',
+                        'details' => $pet_data['surgical_history'],
+                        'date' => $pet_data['medical_history_updated_at'] ?? 'Historical'
+                    ];
+                }
+                
+                // Medication History
+                if (!empty($pet_data['medication_history'])) {
+                    $medical_history[] = [
+                        'type' => 'Medication History',
+                        'details' => $pet_data['medication_history'],
+                        'date' => $pet_data['medical_history_updated_at'] ?? 'Historical'
+                    ];
+                }
+                
+                // Specific vaccine dates
+                if (!empty($pet_data['rabies_vaccine_date'])) {
+                    $medical_history[] = [
+                        'type' => 'Rabies Vaccine',
+                        'details' => 'Rabies vaccination administered',
+                        'date' => $pet_data['rabies_vaccine_date']
+                    ];
+                }
+                
+                if (!empty($pet_data['dhpp_vaccine_date'])) {
+                    $medical_history[] = [
+                        'type' => 'DHPP Vaccine',
+                        'details' => 'DHPP vaccination administered',
+                        'date' => $pet_data['dhpp_vaccine_date']
+                    ];
+                }
+                
+                // Spay/Neuter history
+                if (!empty($pet_data['is_spayed_neutered']) && !empty($pet_data['spay_neuter_date'])) {
+                    $medical_history[] = [
+                        'type' => 'Surgical Procedure',
+                        'details' => ($pet_data['gender'] == 'Male' ? 'Neutered' : 'Spayed'),
+                        'date' => $pet_data['spay_neuter_date']
+                    ];
+                }
+                
+                // Vet visit history
+                if (!empty($pet_data['last_vet_visit'])) {
+                    $medical_history[] = [
+                        'type' => 'Veterinary Visit',
+                        'details' => 'Routine checkup or consultation',
+                        'date' => $pet_data['last_vet_visit']
+                    ];
+                }
             }
         }
     }
@@ -228,6 +306,20 @@ try {
             box-shadow: var(--shadow);
         }
         
+        .history-item {
+            background: #f8f9fa;
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid #6c757d;
+            transition: all 0.3s ease;
+        }
+        
+        .history-item:hover {
+            transform: translateX(5px);
+            box-shadow: var(--shadow);
+        }
+        
         .emergency-alert {
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
             border: 1px solid #f59e0b;
@@ -266,6 +358,18 @@ try {
             align-items: center;
             gap: 0.25rem;
         }
+        
+        .medical-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
     </style>
 </head>
 <body>
@@ -284,6 +388,11 @@ try {
                 <span class="stats-badge">
                     <i class="fas fa-bolt"></i> Instant Access
                 </span>
+                <?php if (!empty($medical_history)): ?>
+                <span class="stats-badge">
+                    <i class="fas fa-history"></i> Medical History Available
+                </span>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -381,7 +490,7 @@ try {
                 <div class="medical-card">
                     <div class="card-header-custom">
                         <h5 class="mb-0">
-                            <i class="fas fa-history me-2"></i>Recent Medical History
+                            <i class="fas fa-file-medical me-2"></i>Recent Medical Records
                         </h5>
                     </div>
                     <div class="card-body p-4">
@@ -396,6 +505,95 @@ try {
                                 </div>
                             </div>
                         <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Medical History from Pets Table -->
+                <?php if (!empty($medical_history)): ?>
+                <div class="medical-card">
+                    <div class="card-header-custom">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>Medical History
+                            <span class="medical-badge ms-2"><?php echo count($medical_history); ?> records</span>
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <?php foreach ($medical_history as $history): ?>
+                            <div class="history-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong class="text-dark"><?php echo htmlspecialchars($history['type']); ?></strong>
+                                        <div class="text-muted small mt-1"><?php echo htmlspecialchars($history['details']); ?></div>
+                                    </div>
+                                    <small class="text-muted">
+                                        <?php 
+                                        if ($history['date'] && $history['date'] != 'Historical') {
+                                            echo date('M j, Y', strtotime($history['date']));
+                                        } else {
+                                            echo 'Historical';
+                                        }
+                                        ?>
+                                    </small>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                        
+                        <?php if ($pet_data && $pet_data['has_existing_records'] && !empty($pet_data['records_location'])): ?>
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-archive me-2"></i>
+                                <strong>Additional Records Available:</strong> 
+                                <?php echo htmlspecialchars($pet_data['records_location']); ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Upcoming Appointments -->
+                <?php if ($pet_data && (!empty($pet_data['next_vet_visit']) || !empty($pet_data['rabies_vaccine_date']) || !empty($pet_data['dhpp_vaccine_date']))): ?>
+                <div class="medical-card">
+                    <div class="card-header-custom">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>Upcoming & Important Dates
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <?php if (!empty($pet_data['next_vet_visit'])): ?>
+                            <div class="record-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong class="text-pink-darker">Next Veterinary Visit</strong>
+                                        <div class="text-muted small mt-1">Scheduled appointment</div>
+                                    </div>
+                                    <strong class="text-primary"><?php echo date('M j, Y', strtotime($pet_data['next_vet_visit'])); ?></strong>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($pet_data['rabies_vaccine_date'])): ?>
+                            <div class="record-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong class="text-pink-darker">Rabies Vaccine</strong>
+                                        <div class="text-muted small mt-1">Last administered</div>
+                                    </div>
+                                    <strong class="text-success"><?php echo date('M j, Y', strtotime($pet_data['rabies_vaccine_date'])); ?></strong>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($pet_data['dhpp_vaccine_date'])): ?>
+                            <div class="record-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong class="text-pink-darker">DHPP Vaccine</strong>
+                                        <div class="text-muted small mt-1">Last administered</div>
+                                    </div>
+                                    <strong class="text-success"><?php echo date('M j, Y', strtotime($pet_data['dhpp_vaccine_date'])); ?></strong>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -532,4 +730,3 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
