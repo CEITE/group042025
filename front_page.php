@@ -62,9 +62,11 @@
     width: 70%;
   }
 
-  /* Enhanced HERO */
+  /* Enhanced HERO with Background Image */
   .hero{
-    background: radial-gradient(1200px 600px at 15% 20%, #ffe7f2 0%, #ffd8ec 40%, var(--pink) 100%);
+    background: 
+      linear-gradient(rgba(255, 214, 231, 0.85), rgba(255, 216, 236, 0.85)),
+      url('https://images.unsplash.com/photo-1548199973-03cce0bbc87b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2069&q=80') center/cover no-repeat;
     padding: 80px 0 100px;
     position: relative;
     overflow: hidden;
