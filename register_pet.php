@@ -1160,7 +1160,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                     </div>
                     
                     <div class="d-grid gap-2 col-md-8 mx-auto mt-4">
-                        <a href="pet_profile.php" class="btn btn-submit">
+                        <a href="user_pet_profile.php" class="btn btn-submit">
                             <i class="fas fa-dog"></i> View My Pets
                         </a>
                         <a href="register_pet.php" class="btn btn-prev">
@@ -1384,6 +1384,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
 
 
 
