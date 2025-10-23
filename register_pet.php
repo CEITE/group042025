@@ -17,15 +17,13 @@ $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
-
-
 // ✅ Handle pet registration
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     // Collect and sanitize form data
     $petName = trim($_POST['petName'] ?? '');
     $species = trim($_POST['species'] ?? '');
     $breed = trim($_POST['breed'] ?? '');
-    $age = !empty($_POST['age']) ? intval($_POST['age']) : 0; // Changed to intval to match your int(11) column
+    $age = !empty($_POST['age']) ? intval($_POST['age']) : 0;
     $color = trim($_POST['color'] ?? '');
     $weight = !empty($_POST['weight']) ? floatval($_POST['weight']) : null;
     $birthDate = !empty($_POST['birthDate']) ? $_POST['birthDate'] : null;
@@ -60,8 +58,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             // Convert species to lowercase to match ENUM('dog', 'cat')
             $species_lower = strtolower($species);
             
+            // DEBUG: Show table structure
+            $debug_result = $conn->query("DESCRIBE pets");
+            $debug_columns = [];
+            while ($debug_row = $debug_result->fetch_assoc()) {
+                $debug_columns[] = $debug_row['Field'];
+            }
+            
+            // DEBUG: Count actual columns
+            $actual_column_count = count($debug_columns);
+            
+            // Define the columns we're trying to insert
+            $insert_columns = [
+                'user_id', 'name', 'species', 'breed', 'age', 'color', 'weight', 
+                'birth_date', 'gender', 'medical_notes', 'vet_contact', 
+                'previous_conditions', 'vaccination_history', 'surgical_history', 
+                'medication_history', 'has_existing_records', 'records_location',
+                'last_vet_visit', 'next_vet_visit', 'rabies_vaccine_date',
+                'dhpp_vaccine_date', 'is_spayed_neutered', 'spay_neuter_date',
+                'qr_code'
+            ];
+            
+            $insert_column_count = count($insert_columns);
+            $value_placeholders = str_repeat('?, ', $insert_column_count - 1) . '?';
+            
+            // DEBUG: Check if all columns exist in table
+            $missing_columns = [];
+            foreach ($insert_columns as $col) {
+                if (!in_array($col, $debug_columns)) {
+                    $missing_columns[] = $col;
+                }
+            }
+            
+            // DEBUG: Show debug information
+            error_log("=== PET REGISTRATION DEBUG ===");
+            error_log("Actual table columns: " . $actual_column_count);
+            error_log("Insert columns: " . $insert_column_count);
+            error_log("Missing columns: " . implode(', ', $missing_columns));
+            error_log("All table columns: " . implode(', ', $debug_columns));
+            error_log("Inserting columns: " . implode(', ', $insert_columns));
+            
             // ✅ FIXED: INSERT statement that matches your table structure
-            $stmt = $conn->prepare("
+            $sql = "
                 INSERT INTO pets (
                     user_id, name, species, breed, age, color, weight, 
                     birth_date, gender, medical_notes, vet_contact, 
@@ -71,36 +109,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                     dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
                     qr_code
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
+                VALUES ($value_placeholders)
+            ";
+            
+            error_log("SQL: " . $sql);
+            
+            $stmt = $conn->prepare($sql);
+            
+            if (!$stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
+            
+            // DEBUG: Show bind parameters
+            $bind_types = "isssisdssssssssisssssis";
+            $bind_values = [
+                $user_id, $petName, $species_lower, $breed, $age, $color, $weight, 
+                $birthDate, $gender, $medicalNotes, $vetContact,
+                $previousConditions, $vaccinationHistory, $surgicalHistory,
+                $medicationHistory, $hasExistingRecords, $recordsLocation,
+                $last_vet_visit, $next_vet_visit, $rabies_vaccine_date,
+                $dhpp_vaccine_date, $is_spayed_neutered, $spay_neuter_date,
+                $qrCodeFilename
+            ];
+            
+            error_log("Bind types: " . $bind_types);
+            error_log("Bind values count: " . count($bind_values));
+            error_log("Bind types length: " . strlen($bind_types));
             
             // ✅ FIXED: Correct parameter types and order
-            $stmt->bind_param("isssisdssssssssisssssis", 
-                $user_id, 
-                $petName, 
-                $species_lower,  // Use lowercase species
-                $breed, 
-                $age, 
-                $color, 
-                $weight, 
-                $birthDate, 
-                $gender, 
-                $medicalNotes, 
-                $vetContact,
-                $previousConditions,
-                $vaccinationHistory,
-                $surgicalHistory,
-                $medicationHistory,
-                $hasExistingRecords,
-                $recordsLocation,
-                $last_vet_visit,
-                $next_vet_visit,
-                $rabies_vaccine_date,
-                $dhpp_vaccine_date,
-                $is_spayed_neutered,
-                $spay_neuter_date,
-                $qrCodeFilename
-            );
+            $bind_result = $stmt->bind_param($bind_types, ...$bind_values);
+            
+            if (!$bind_result) {
+                throw new Exception("Bind failed: " . $stmt->error);
+            }
             
             if ($stmt->execute()) {
                 $pet_id = $stmt->insert_id;
@@ -150,10 +191,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             $stmt->close();
             
         } catch (Exception $e) {
-            $_SESSION['error'] = "Database error: " . $e->getMessage();
+            $_SESSION['error'] = "Database error: " . $e->getMessage() . " (Check error logs for details)";
+            error_log("Registration Error: " . $e->getMessage());
         }
     }
 }
+
 // Enhanced function to generate QR code data with medical history
 function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $previousConditions = '', $vaccinationHistory = '', $surgicalHistory = '', $medicationHistory = '', $last_vet_visit = '', $next_vet_visit = '', $rabies_vaccine_date = '', $dhpp_vaccine_date = '', $is_spayed_neutered = '', $spay_neuter_date = '', $ownerName = '', $ownerEmail = '') {
     $data = "PET MEDICAL RECORD - PETMEDQR\n";
@@ -663,6 +706,22 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             opacity: 0.7;
             pointer-events: none;
         }
+
+        /* Debug info styles */
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+        
+        .debug-info h6 {
+            color: #6c757d;
+            margin-bottom: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -725,6 +784,26 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                     </div>
                     <?php unset($_SESSION['error']); ?>
                 <?php endif; ?>
+
+                <!-- Debug Information (visible during development) -->
+                <?php if (isset($_POST['register_pet']) && isset($_SESSION['error'])): ?>
+                <div class="debug-info">
+                    <h6>Debug Information:</h6>
+                    <?php
+                    // Show debug info from error log
+                    if (isset($actual_column_count)) {
+                        echo "<div><strong>Table Columns:</strong> $actual_column_count</div>";
+                    }
+                    if (isset($insert_column_count)) {
+                        echo "<div><strong>Insert Columns:</strong> $insert_column_count</div>";
+                    }
+                    if (isset($missing_columns) && !empty($missing_columns)) {
+                        echo "<div><strong>Missing Columns:</strong> " . implode(', ', $missing_columns) . "</div>";
+                    }
+                    ?>
+                    <div><small>Check your server error logs for complete debug details.</small></div>
+                </div>
+                <?php endif; ?>
                 
                 <!-- Progress Steps -->
                 <div class="progress-steps">
@@ -774,8 +853,8 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </label>
                                 <select class="form-select" id="species" name="species" required>
                                     <option value="">Select Species</option>
-                                    <option value="Dog" <?php echo ($_POST['species'] ?? '') == 'Dog' ? 'selected' : ''; ?>>🐕 Dog</option>
-                                    <option value="Cat" <?php echo ($_POST['species'] ?? '') == 'Cat' ? 'selected' : ''; ?>>🐈 Cat</option>
+                                    <option value="dog" <?php echo ($_POST['species'] ?? '') == 'dog' ? 'selected' : ''; ?>>🐕 Dog</option>
+                                    <option value="cat" <?php echo ($_POST['species'] ?? '') == 'cat' ? 'selected' : ''; ?>>🐈 Cat</option>
                                 </select>
                                 <div class="form-text">What type of pet do you have?</div>
                             </div>
@@ -811,7 +890,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     <i class="fas fa-birthday-cake"></i>Age (years)
                                 </label>
                                 <input type="number" class="form-control" id="age" name="age" 
-                                       min="0" max="50" step="0.1" placeholder="e.g., 2.5" value="<?php echo $_POST['age'] ?? ''; ?>">
+                                       min="0" max="50" step="1" placeholder="e.g., 2" value="<?php echo $_POST['age'] ?? ''; ?>">
                                 <div class="form-text">Your pet's approximate age in years</div>
                             </div>
                             
@@ -823,7 +902,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     <option value="">Select Gender</option>
                                     <option value="Male" <?php echo ($_POST['gender'] ?? '') == 'Male' ? 'selected' : ''; ?>>Male</option>
                                     <option value="Female" <?php echo ($_POST['gender'] ?? '') == 'Female' ? 'selected' : ''; ?>>Female</option>
-                                    <option value="Other" <?php echo ($_POST['gender'] ?? '') == 'Other' ? 'selected' : ''; ?>>Other</option>
                                 </select>
                             </div>
                         </div>
@@ -1346,9 +1424,3 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
-
-
-
-
-
-
