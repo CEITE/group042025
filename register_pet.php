@@ -17,7 +17,8 @@ $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
-// ✅ Handle pet registration
+
+
 // ✅ Handle pet registration
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     // Collect and sanitize form data
@@ -32,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     $medicalNotes = trim($_POST['medicalNotes'] ?? '');
     $vetContact = trim($_POST['vetContact'] ?? '');
     
-    // Medical history fields (KEEP EXISTING)
+    // Medical history fields
     $previousConditions = trim($_POST['previousConditions'] ?? '');
     $vaccinationHistory = trim($_POST['vaccinationHistory'] ?? '');
     $surgicalHistory = trim($_POST['surgicalHistory'] ?? '');
@@ -40,16 +41,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     $hasExistingRecords = isset($_POST['hasExistingRecords']) ? 1 : 0;
     $recordsLocation = trim($_POST['recordsLocation'] ?? '');
     
-    // NEW: Structured medical fields (ADD NEW)
+    // NEW: Structured medical fields
     $last_vet_visit = !empty($_POST['last_vet_visit']) ? $_POST['last_vet_visit'] : null;
     $next_vet_visit = !empty($_POST['next_vet_visit']) ? $_POST['next_vet_visit'] : null;
     $rabies_vaccine_date = !empty($_POST['rabies_vaccine_date']) ? $_POST['rabies_vaccine_date'] : null;
     $dhpp_vaccine_date = !empty($_POST['dhpp_vaccine_date']) ? $_POST['dhpp_vaccine_date'] : null;
     $is_spayed_neutered = isset($_POST['is_spayed_neutered']) ? 1 : 0;
     $spay_neuter_date = !empty($_POST['spay_neuter_date']) ? $_POST['spay_neuter_date'] : null;
-
-echo "</table>";
-echo "</div>";
+    
     // Validate required fields
     if (empty($petName) || empty($species)) {
         $_SESSION['error'] = "❌ Pet name and species are required fields.";
@@ -58,7 +57,7 @@ echo "</div>";
             // Generate unique QR code filename
             $qrCodeFilename = 'qr_' . uniqid() . '_' . time() . '.svg';
             
-            // FIXED: Correct INSERT statement with proper column count
+            // ✅ FIXED: INSERT statement that matches your table structure
             $stmt = $conn->prepare("
                 INSERT INTO pets (
                     user_id, name, species, breed, age, color, weight, 
@@ -67,13 +66,13 @@ echo "</div>";
                     medication_history, has_existing_records, records_location,
                     last_vet_visit, next_vet_visit, rabies_vaccine_date,
                     dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
-                    qr_code, date_registered
+                    qr_code
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
-            // FIXED: Correct bind_param types - 23 parameters + NOW() makes 24 total
-            $stmt->bind_param("isssisdssssssssisssssiss", 
+            // ✅ FIXED: Correct parameter types and order
+            $stmt->bind_param("isssisdssssssssisssssis", 
                 $user_id, 
                 $petName, 
                 $species, 
@@ -126,7 +125,7 @@ echo "</div>";
                     $user['name'], $user['email']
                 );
                 
-                // Update the pet record with the actual QR data
+                // Update the pet record with the QR code path and data
                 $updateStmt = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
                 $updateStmt->bind_param("ssi", $qrPath, $qrData, $pet_id);
                 $updateStmt->execute();
@@ -142,7 +141,7 @@ echo "</div>";
                 exit();
                 
             } else {
-                throw new Exception("Failed to register pet. Please try again.");
+                throw new Exception("Failed to register pet: " . $stmt->error);
             }
             
             $stmt->close();
@@ -152,7 +151,6 @@ echo "</div>";
         }
     }
 }
-
 // Enhanced function to generate QR code data with medical history
 function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $previousConditions = '', $vaccinationHistory = '', $surgicalHistory = '', $medicationHistory = '', $last_vet_visit = '', $next_vet_visit = '', $rabies_vaccine_date = '', $dhpp_vaccine_date = '', $is_spayed_neutered = '', $spay_neuter_date = '', $ownerName = '', $ownerEmail = '') {
     $data = "PET MEDICAL RECORD - PETMEDQR\n";
@@ -1348,6 +1346,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
 
 
 
