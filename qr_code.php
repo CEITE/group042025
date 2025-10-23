@@ -732,11 +732,11 @@ $base_url = 'https://group042025.ceitesystems.com';
             <div class="icon"><i class="fa-solid fa-gauge"></i></div> 
             <span>Dashboard</span>
         </a>
-        <a href="pet_profile.php">
+        <a href="user_pet_profile.php">
             <div class="icon"><i class="fa-solid fa-dog"></i></div> 
             <span>My Pets</span>
         </a>
-        <a href="qr_codes.php" class="active">
+        <a href="qr_code.php" class="active">
             <div class="icon"><i class="fa-solid fa-qrcode"></i></div> 
             <span>QR Codes</span>
         </a>
@@ -1271,6 +1271,7 @@ $base_url = 'https://group042025.ceitesystems.com';
 </script>
 </body>
 </html>
+
 
 
 
