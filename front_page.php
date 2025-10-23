@@ -62,10 +62,10 @@
     width: 70%;
   }
 
-  /* Enhanced HERO with Background Image */
+  /* Enhanced HERO with More Visible Background Image */
   .hero{
     background: 
-      linear-gradient(rgba(255, 214, 231, 0.85), rgba(255, 216, 236, 0.85)),
+      linear-gradient(rgba(255, 214, 231, 0.6), rgba(255, 216, 236, 0.6)),
       url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2043&q=80') center/cover no-repeat;
     padding: 80px 0 100px;
     position: relative;
@@ -92,12 +92,14 @@
     line-height: 1.2;
     margin-bottom: 1.5rem;
     color: var(--ink);
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.8);
   }
   .hero-subtitle {
     font-size: 1.25rem;
     color: #5d6370;
     margin-bottom: 2rem;
     line-height: 1.6;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
   }
   .hero-badge {
     background: rgba(255, 255, 255, 0.9);
@@ -108,6 +110,7 @@
     display: inline-block;
     margin-bottom: 1.5rem;
     border: 1px solid rgba(191, 59, 120, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
   .cta-group {
     display: flex;
@@ -135,7 +138,8 @@
   .btn-outline-pink{
     color: var(--pink-dark);
     border: 2px solid var(--pink-dark);
-    background: transparent;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(5px);
   }
   .btn-outline-pink:hover{
     background: var(--pink-dark);
@@ -153,6 +157,11 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
   .feature-icon {
     width: 40px;
@@ -209,6 +218,10 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    backdrop-filter: blur(5px);
   }
   .legend-color {
     width: 16px;
