@@ -419,7 +419,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <div class="mt-4">
                             <small style="opacity: 0.9;">New LGU official? </small>
-                            <a href="register_lgu.php" class="btn btn-outline-light btn-sm mt-2">
+                            <a href="register-lgu.php" class="btn btn-outline-light btn-sm mt-2">
                                 <i class="fas fa-user-plus me-1"></i> Register LGU Account
                             </a>
                         </div>
@@ -590,4 +590,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
 </body>
+
 </html>
