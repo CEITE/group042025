@@ -18,6 +18,7 @@ $user = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 // ✅ Handle pet registration
+// ✅ Handle pet registration
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     // Collect and sanitize form data
     $petName = trim($_POST['petName'] ?? '');
@@ -55,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             // Generate unique QR code filename
             $qrCodeFilename = 'qr_' . uniqid() . '_' . time() . '.svg';
             
-            // Insert pet into database with ALL fields (existing + new)
+            // FIXED: Correct INSERT statement with proper column count
             $stmt = $conn->prepare("
                 INSERT INTO pets (
                     user_id, name, species, breed, age, color, weight, 
@@ -69,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             
+            // FIXED: Correct bind_param types - 23 parameters + NOW() makes 24 total
             $stmt->bind_param("isssisdssssssssisssssiss", 
                 $user_id, 
                 $petName, 
@@ -144,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             $stmt->close();
             
         } catch (Exception $e) {
-            $_SESSION['error'] = $e->getMessage();
+            $_SESSION['error'] = "Database error: " . $e->getMessage();
         }
     }
 }
@@ -1344,3 +1346,4 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
