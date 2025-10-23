@@ -16,7 +16,7 @@ $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 
-// ✅ Fetch user's pets
+// ✅ Fetch user's pets with medical history from pets table
 $query = "
 SELECT 
     p.pet_id,
@@ -33,11 +33,20 @@ SELECT
     p.date_registered,
     p.qr_code,
     p.qr_code_data,
-    COUNT(m.record_id) as total_records
+    p.previous_conditions,
+    p.vaccination_history,
+    p.surgical_history,
+    p.medication_history,
+    p.has_existing_records,
+    p.records_location,
+    p.last_vet_visit,
+    p.next_vet_visit,
+    p.rabies_vaccine_date,
+    p.dhpp_vaccine_date,
+    p.is_spayed_neutered,
+    p.spay_neuter_date
 FROM pets p
-LEFT JOIN pet_medical_records m ON p.pet_id = m.pet_id
 WHERE p.user_id = ?
-GROUP BY p.pet_id
 ORDER BY p.date_registered DESC
 ";
 
@@ -236,16 +245,53 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             color: var(--blue);
         }
         
-        .medical-records {
+        .medical-history {
+            background: var(--pink-light);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border-left: 4px solid var(--blue);
             margin-top: 1.5rem;
         }
         
-        .record-item {
-            padding: 1rem;
-            border-left: 4px solid var(--blue);
-            background: var(--pink-light);
-            margin-bottom: 0.5rem;
-            border-radius: 0 8px 8px 0;
+        .medical-item {
+            padding: 0.75rem;
+            background: white;
+            border-radius: 8px;
+            border-left: 3px solid var(--green);
+            margin-bottom: 0.75rem;
+        }
+        
+        .medical-item strong {
+            color: var(--blue);
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+        
+        .medical-item p {
+            margin: 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .medical-dates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .medical-date-item {
+            background: white;
+            padding: 0.75rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        
+        .medical-date-item small {
+            color: #6c757d;
+            display: block;
+            margin-bottom: 0.25rem;
         }
         
         .empty-state {
@@ -284,6 +330,10 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             
             .action-buttons {
                 flex-direction: column;
+            }
+            
+            .medical-dates-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -363,7 +413,14 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             </div>
                             <div class="text-end">
                                 <span class="badge bg-primary">ID: <?php echo htmlspecialchars($pet['pet_id']); ?></span>
-                                <span class="badge bg-success"><?php echo $pet['total_records']; ?> Records</span>
+                                <?php 
+                                $hasMedicalHistory = !empty($pet['previous_conditions']) || !empty($pet['vaccination_history']) || 
+                                                     !empty($pet['surgical_history']) || !empty($pet['medication_history']) ||
+                                                     !empty($pet['last_vet_visit']) || !empty($pet['rabies_vaccine_date']);
+                                ?>
+                                <span class="badge <?php echo $hasMedicalHistory ? 'bg-success' : 'bg-secondary'; ?>">
+                                    <?php echo $hasMedicalHistory ? 'Has Medical History' : 'No Medical History'; ?>
+                                </span>
                             </div>
                         </div>
                         
@@ -401,9 +458,9 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             
                             <?php if (!empty($pet['medical_notes'])): ?>
                                 <div class="medical-notes mt-3">
-                                    <h6><i class="fa-solid fa-file-medical me-2"></i>Medical Notes</h6>
+                                    <h6><i class="fa-solid fa-file-medical me-2"></i>Current Medical Notes</h6>
                                     <div class="alert alert-info">
-                                        <?php echo htmlspecialchars($pet['medical_notes']); ?>
+                                        <?php echo nl2br(htmlspecialchars($pet['medical_notes'])); ?>
                                     </div>
                                 </div>
                             <?php endif; ?>
@@ -415,16 +472,117 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                 </div>
                             <?php endif; ?>
                             
+                            <!-- 🆕 Medical History Section -->
+                            <div class="medical-history">
+                                <h6><i class="fa-solid fa-history me-2"></i>Medical History Summary</h6>
+                                
+                                <!-- Medical Dates -->
+                                <?php 
+                                $hasMedicalDates = !empty($pet['last_vet_visit']) || !empty($pet['next_vet_visit']) || 
+                                                  !empty($pet['rabies_vaccine_date']) || !empty($pet['dhpp_vaccine_date']) ||
+                                                  $pet['is_spayed_neutered'];
+                                ?>
+                                
+                                <?php if ($hasMedicalDates): ?>
+                                <div class="medical-dates-grid mb-3">
+                                    <?php if (!empty($pet['last_vet_visit'])): ?>
+                                        <div class="medical-date-item">
+                                            <small>Last Vet Visit</small>
+                                            <div class="fw-bold"><?php echo date('M j, Y', strtotime($pet['last_vet_visit'])); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($pet['next_vet_visit'])): ?>
+                                        <div class="medical-date-item">
+                                            <small>Next Vet Visit</small>
+                                            <div class="fw-bold"><?php echo date('M j, Y', strtotime($pet['next_vet_visit'])); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($pet['rabies_vaccine_date'])): ?>
+                                        <div class="medical-date-item">
+                                            <small>Rabies Vaccine</small>
+                                            <div class="fw-bold"><?php echo date('M j, Y', strtotime($pet['rabies_vaccine_date'])); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($pet['dhpp_vaccine_date'])): ?>
+                                        <div class="medical-date-item">
+                                            <small>DHPP Vaccine</small>
+                                            <div class="fw-bold"><?php echo date('M j, Y', strtotime($pet['dhpp_vaccine_date'])); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($pet['is_spayed_neutered']): ?>
+                                        <div class="medical-date-item">
+                                            <small>Spayed/Neutered</small>
+                                            <div class="fw-bold">
+                                                Yes <?php echo !empty($pet['spay_neuter_date']) ? '<br><small>(' . date('M j, Y', strtotime($pet['spay_neuter_date'])) . ')</small>' : ''; ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
+                                
+                                <!-- Medical History Details -->
+                                <div class="medical-details">
+                                    <?php if (!empty($pet['previous_conditions'])): ?>
+                                        <div class="medical-item">
+                                            <strong><i class="fa-solid fa-file-medical me-1"></i>Previous Conditions</strong>
+                                            <p class="mb-0"><?php echo nl2br(htmlspecialchars($pet['previous_conditions'])); ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($pet['vaccination_history'])): ?>
+                                        <div class="medical-item">
+                                            <strong><i class="fa-solid fa-syringe me-1"></i>Vaccination History</strong>
+                                            <p class="mb-0"><?php echo nl2br(htmlspecialchars($pet['vaccination_history'])); ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($pet['surgical_history'])): ?>
+                                        <div class="medical-item">
+                                            <strong><i class="fa-solid fa-procedures me-1"></i>Surgical History</strong>
+                                            <p class="mb-0"><?php echo nl2br(htmlspecialchars($pet['surgical_history'])); ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($pet['medication_history'])): ?>
+                                        <div class="medical-item">
+                                            <strong><i class="fa-solid fa-pills me-1"></i>Medication History</strong>
+                                            <p class="mb-0"><?php echo nl2br(htmlspecialchars($pet['medication_history'])); ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($pet['has_existing_records'] && !empty($pet['records_location'])): ?>
+                                        <div class="medical-item">
+                                            <strong><i class="fa-solid fa-clipboard-list me-1"></i>Existing Records Location</strong>
+                                            <p class="mb-0"><?php echo htmlspecialchars($pet['records_location']); ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!$hasMedicalHistory): ?>
+                                        <div class="text-center text-muted py-3">
+                                            <i class="fa-solid fa-file-medical fa-2x mb-2"></i>
+                                            <p>No medical history recorded yet.</p>
+                                            <a href="edit_pet.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-sm btn-outline-primary">
+                                                <i class="fa-solid fa-plus me-1"></i> Add Medical History
+                                            </a>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            
                             <div class="action-buttons">
-                                <a href="pet-medical-records.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-primary">
-                                    <i class="fa-solid fa-file-medical me-1"></i> View Medical Records
-                                </a>
-                                <a href="edit_pet.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-secondary">
-                                    <i class="fa-solid fa-pen-to-square me-1"></i> Edit Pet Info
+                                <a href="edit_pet.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-primary">
+                                    <i class="fa-solid fa-pen-to-square me-1"></i> Edit Pet & Medical Info
                                 </a>
                                 <button class="btn btn-outline-info" onclick="generatePetQR(<?php echo $pet['pet_id']; ?>, '<?php echo addslashes($pet['pet_name']); ?>')">
                                     <i class="fa-solid fa-qrcode me-1"></i> Generate QR
                                 </button>
+                                <a href="view_pet_record.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-success">
+                                    <i class="fa-solid fa-eye me-1"></i> View Full Record
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -515,8 +673,4 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
 </script>
 </body>
-
 </html>
-
-
-
