@@ -580,7 +580,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                 <button class="btn btn-outline-info" onclick="generatePetQR(<?php echo $pet['pet_id']; ?>, '<?php echo addslashes($pet['pet_name']); ?>')">
                                     <i class="fa-solid fa-qrcode me-1"></i> Generate QR
                                 </button>
-                                <a href="view_pet_record.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-success">
+                                <a href="pet-medical-records.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-success">
                                     <i class="fa-solid fa-eye me-1"></i> View Full Record
                                 </a>
                             </div>
@@ -674,3 +674,4 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 </script>
 </body>
 </html>
+
