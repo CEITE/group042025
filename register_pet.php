@@ -47,7 +47,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     $dhpp_vaccine_date = !empty($_POST['dhpp_vaccine_date']) ? $_POST['dhpp_vaccine_date'] : null;
     $is_spayed_neutered = isset($_POST['is_spayed_neutered']) ? 1 : 0;
     $spay_neuter_date = !empty($_POST['spay_neuter_date']) ? $_POST['spay_neuter_date'] : null;
-    
+
+    // TEMPORARY DEBUG - Check table structure
+$result = $conn->query("DESCRIBE pets");
+echo "<div style='background: #f8f9fa; padding: 10px; margin: 10px; border: 1px solid #ccc;'>";
+echo "<h3>Debug: Pets Table Structure</h3>";
+echo "<table border='1'><tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th><th>Extra</th></tr>";
+while ($row = $result->fetch_assoc()) {
+    echo "<tr>";
+    echo "<td>" . $row['Field'] . "</td>";
+    echo "<td>" . $row['Type'] . "</td>";
+    echo "<td>" . $row['Null'] . "</td>";
+    echo "<td>" . $row['Key'] . "</td>";
+    echo "<td>" . $row['Default'] . "</td>";
+    echo "<td>" . $row['Extra'] . "</td>";
+    echo "</tr>";
+}
+echo "</table>";
+echo "</div>";
     // Validate required fields
     if (empty($petName) || empty($species)) {
         $_SESSION['error'] = "❌ Pet name and species are required fields.";
@@ -1346,4 +1363,5 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
 
