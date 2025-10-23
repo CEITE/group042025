@@ -26,7 +26,7 @@ try {
             
             // Get ALL pet data including medical fields
             $stmt = $conn->prepare("
-                SELECT p.*, u.name as owner_name, u.email as owner_email, u.phone as owner_phone
+                SELECT p.*, u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone
                 FROM pets p 
                 LEFT JOIN users u ON p.user_id = u.user_id 
                 WHERE p.pet_id = ?
@@ -432,3 +432,4 @@ error_log("Debug Info: " . $debug_info);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
