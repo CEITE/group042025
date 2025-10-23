@@ -1,5 +1,5 @@
 <?php
-// pet-medical-access.php - ENHANCED WITH BOTH PETS AND MEDICAL RECORDS TABLES
+// pet-medical-access.php - FIXED TO SHOW PETS TABLE MEDICAL HISTORY
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -97,19 +97,19 @@ function calculateAge($birth_date) {
 
 // Format text fields with line breaks
 function formatMedicalText($text) {
-    if (!$text) return 'No information available';
-    return nl2br(htmlspecialchars($text));
+    if (!$text || trim($text) === '') return '<span class="text-muted">No information available</span>';
+    return nl2br(htmlspecialchars(trim($text)));
 }
 
 // Check if pet has medical history in pets table
 function hasMedicalHistory($pet_data) {
     if (!$pet_data) return false;
     
-    return !empty($pet_data['medical_notes']) ||
-           !empty($pet_data['previous_conditions']) ||
-           !empty($pet_data['vaccination_history']) ||
-           !empty($pet_data['surgical_history']) ||
-           !empty($pet_data['medication_history']) ||
+    return (!empty($pet_data['medical_notes']) && trim($pet_data['medical_notes']) !== '') ||
+           (!empty($pet_data['previous_conditions']) && trim($pet_data['previous_conditions']) !== '') ||
+           (!empty($pet_data['vaccination_history']) && trim($pet_data['vaccination_history']) !== '') ||
+           (!empty($pet_data['surgical_history']) && trim($pet_data['surgical_history']) !== '') ||
+           (!empty($pet_data['medication_history']) && trim($pet_data['medication_history']) !== '') ||
            !empty($pet_data['last_vet_visit']) ||
            !empty($pet_data['rabies_vaccine_date']) ||
            !empty($pet_data['dhpp_vaccine_date']) ||
@@ -118,6 +118,8 @@ function hasMedicalHistory($pet_data) {
 
 // Get service type icon
 function getServiceIcon($service_type) {
+    if (!$service_type) return 'fas fa-file-medical';
+    
     switch(strtolower($service_type)) {
         case 'vaccination': return 'fas fa-syringe';
         case 'surgery': return 'fas fa-procedures';
@@ -132,6 +134,8 @@ function getServiceIcon($service_type) {
 
 // Get service type color
 function getServiceColor($service_type) {
+    if (!$service_type) return '#6b7280';
+    
     switch(strtolower($service_type)) {
         case 'vaccination': return '#22c55e';
         case 'surgery': return '#ea580c';
@@ -417,6 +421,18 @@ function getServiceColor($service_type) {
             margin-top: 0.5rem;
             border-left: 4px solid #f59e0b;
         }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -442,6 +458,18 @@ function getServiceColor($service_type) {
 
         <div class="row">
             <div class="col-lg-10 mx-auto">
+                <!-- Debug Info (remove in production) -->
+                <?php if ($pet_data): ?>
+                <div class="alert alert-info d-none">
+                    <strong>Debug Info:</strong><br>
+                    Medical Notes: <?php echo !empty($pet_data['medical_notes']) ? 'Yes' : 'No'; ?><br>
+                    Previous Conditions: <?php echo !empty($pet_data['previous_conditions']) ? 'Yes' : 'No'; ?><br>
+                    Vaccination History: <?php echo !empty($pet_data['vaccination_history']) ? 'Yes' : 'No'; ?><br>
+                    Surgical History: <?php echo !empty($pet_data['surgical_history']) ? 'Yes' : 'No'; ?><br>
+                    Medication History: <?php echo !empty($pet_data['medication_history']) ? 'Yes' : 'No'; ?>
+                </div>
+                <?php endif; ?>
+
                 <!-- Medical Statistics -->
                 <?php if ($pet_data && (hasMedicalHistory($pet_data) || !empty($medical_records))): ?>
                 <div class="medical-stats">
@@ -520,7 +548,7 @@ function getServiceColor($service_type) {
                             </div>
                             
                             <!-- Medical Notes -->
-                            <?php if (!empty($pet_data['medical_notes'])): ?>
+                            <?php if (!empty($pet_data['medical_notes']) && trim($pet_data['medical_notes']) !== ''): ?>
                                 <div class="medical-section mt-4">
                                     <h6 class="text-pink-darker mb-3">
                                         <i class="fas fa-file-medical me-2"></i>Medical Notes
@@ -553,7 +581,7 @@ function getServiceColor($service_type) {
                     </div>
                     <div class="card-body p-4">
                         <!-- Previous Conditions -->
-                        <?php if (!empty($pet_data['previous_conditions'])): ?>
+                        <?php if (!empty($pet_data['previous_conditions']) && trim($pet_data['previous_conditions']) !== ''): ?>
                             <div class="condition-card">
                                 <h6 class="text-pink-darker mb-2">
                                     <i class="fas fa-heartbeat me-2"></i>Previous Medical Conditions
@@ -565,14 +593,17 @@ function getServiceColor($service_type) {
                         <?php endif; ?>
 
                         <!-- Vaccination History -->
-                        <?php if (!empty($pet_data['vaccination_history']) || $pet_data['rabies_vaccine_date'] || $pet_data['dhpp_vaccine_date']): ?>
+                        <?php if ((!empty($pet_data['vaccination_history']) && trim($pet_data['vaccination_history']) !== '') || $pet_data['rabies_vaccine_date'] || $pet_data['dhpp_vaccine_date']): ?>
                             <div class="vaccine-card">
                                 <h6 class="text-pink-darker mb-2">
                                     <i class="fas fa-syringe me-2"></i>Vaccination History
                                 </h6>
                                 <div class="medical-text-content">
-                                    <?php if (!empty($pet_data['vaccination_history'])): ?>
+                                    <?php if (!empty($pet_data['vaccination_history']) && trim($pet_data['vaccination_history']) !== ''): ?>
                                         <?php echo formatMedicalText($pet_data['vaccination_history']); ?>
+                                        <?php if ($pet_data['rabies_vaccine_date'] || $pet_data['dhpp_vaccine_date']): ?>
+                                            <hr class="my-2">
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                     
                                     <?php if ($pet_data['rabies_vaccine_date']): ?>
@@ -587,14 +618,17 @@ function getServiceColor($service_type) {
                         <?php endif; ?>
 
                         <!-- Surgical History -->
-                        <?php if (!empty($pet_data['surgical_history']) || $pet_data['is_spayed_neutered']): ?>
+                        <?php if ((!empty($pet_data['surgical_history']) && trim($pet_data['surgical_history']) !== '') || $pet_data['is_spayed_neutered']): ?>
                             <div class="surgery-card">
                                 <h6 class="text-pink-darker mb-2">
                                     <i class="fas fa-procedures me-2"></i>Surgical History
                                 </h6>
                                 <div class="medical-text-content">
-                                    <?php if (!empty($pet_data['surgical_history'])): ?>
+                                    <?php if (!empty($pet_data['surgical_history']) && trim($pet_data['surgical_history']) !== ''): ?>
                                         <?php echo formatMedicalText($pet_data['surgical_history']); ?>
+                                        <?php if ($pet_data['is_spayed_neutered']): ?>
+                                            <hr class="my-2">
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                     
                                     <?php if ($pet_data['is_spayed_neutered']): ?>
@@ -608,7 +642,7 @@ function getServiceColor($service_type) {
                         <?php endif; ?>
 
                         <!-- Medication History -->
-                        <?php if (!empty($pet_data['medication_history'])): ?>
+                        <?php if (!empty($pet_data['medication_history']) && trim($pet_data['medication_history']) !== ''): ?>
                             <div class="medication-card">
                                 <h6 class="text-pink-darker mb-2">
                                     <i class="fas fa-pills me-2"></i>Medication History
@@ -641,6 +675,19 @@ function getServiceColor($service_type) {
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php else: ?>
+                    <!-- Show message if no medical history in pets table -->
+                    <?php if ($pet_data): ?>
+                    <div class="medical-card">
+                        <div class="card-body">
+                            <div class="empty-state">
+                                <i class="fas fa-file-medical"></i>
+                                <h6 class="text-pink-darker mb-2">No Medical History in Pet Profile</h6>
+                                <p class="text-muted mb-0">No detailed medical history found in the pet's main profile.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <!-- Individual Medical Records Timeline -->
