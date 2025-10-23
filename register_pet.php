@@ -773,9 +773,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     <option value="">Select Species</option>
                                     <option value="Dog" <?php echo ($_POST['species'] ?? '') == 'Dog' ? 'selected' : ''; ?>>🐕 Dog</option>
                                     <option value="Cat" <?php echo ($_POST['species'] ?? '') == 'Cat' ? 'selected' : ''; ?>>🐈 Cat</option>
-                                    <option value="Bird" <?php echo ($_POST['species'] ?? '') == 'Bird' ? 'selected' : ''; ?>>🐦 Bird</option>
-                                    <option value="Rabbit" <?php echo ($_POST['species'] ?? '') == 'Rabbit' ? 'selected' : ''; ?>>🐇 Rabbit</option>
-                                    <option value="Other" <?php echo ($_POST['species'] ?? '') == 'Other' ? 'selected' : ''; ?>>🐾 Other</option>
                                 </select>
                                 <div class="form-text">What type of pet do you have?</div>
                             </div>
@@ -1346,6 +1343,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
 
 
 
