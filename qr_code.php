@@ -744,7 +744,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> 
             <span>Register Pet</span>
         </a>
-        <a href="#">
+        <a href="user_settings.php">
             <div class="icon"><i class="fa-solid fa-gear"></i></div> 
             <span>Settings</span>
         </a>
@@ -1271,6 +1271,7 @@ $base_url = 'https://group042025.ceitesystems.com';
 </script>
 </body>
 </html>
+
 
 
 
