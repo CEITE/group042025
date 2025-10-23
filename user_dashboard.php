@@ -133,8 +133,16 @@ $upcomingReminders = 0;
 $recentVisits = 0;
 $thirtyDaysAgo = date('Y-m-d', strtotime('-30 days'));
 
+// Health monitoring data
+$weightHistory = [];
+$serviceFrequency = [];
+$healthScores = [];
+
 foreach ($pets as $pet) {
     $hasVaccination = false;
+    $petWeightHistory = [];
+    $serviceCount = 0;
+    
     foreach ($pet['records'] as $record) {
         // Check if service type indicates vaccination
         if (!empty($record['service_type']) && stripos($record['service_type'], 'vaccin') !== false) {
@@ -150,7 +158,50 @@ foreach ($pets as $pet) {
         if (!empty($record['service_date']) && $record['service_date'] >= $thirtyDaysAgo) {
             $recentVisits++;
         }
+        
+        // Collect weight history
+        if (!empty($record['weight_date']) && !empty($record['weight'])) {
+            $petWeightHistory[] = [
+                'date' => $record['weight_date'],
+                'weight' => floatval($record['weight'])
+            ];
+        }
+        
+        // Count services
+        if (!empty($record['service_date'])) {
+            $serviceCount++;
+        }
     }
+    
+    // Store weight history for this pet
+    if (!empty($petWeightHistory)) {
+        $weightHistory[$pet['pet_id']] = [
+            'pet_name' => $pet['pet_name'],
+            'data' => $petWeightHistory
+        ];
+    }
+    
+    // Calculate service frequency
+    if ($pet['date_registered']) {
+        $registeredDays = max(1, (time() - strtotime($pet['date_registered'])) / (60 * 60 * 24));
+        $serviceFrequency[$pet['pet_id']] = [
+            'pet_name' => $pet['pet_name'],
+            'services_per_month' => round(($serviceCount / $registeredDays) * 30, 2)
+        ];
+    }
+    
+    // Calculate health score (simplified)
+    $healthScore = 70; // Base score
+    if ($hasVaccination) $healthScore += 20;
+    if ($serviceCount > 0) $healthScore += min(10, $serviceCount);
+    if (!empty($petWeightHistory)) $healthScore += 10;
+    
+    $healthScores[$pet['pet_id']] = [
+        'pet_name' => $pet['pet_name'],
+        'score' => min(100, $healthScore),
+        'vaccinated' => $hasVaccination,
+        'service_count' => $serviceCount
+    ];
     
     if ($hasVaccination) {
         $vaccinatedPets++;
@@ -165,13 +216,16 @@ foreach ($pets as $pet) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VetCareQR - Pet Medical Records & QR Generator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --pink: #ffd6e7;
-            --pink-2: #f7c5e0;
-            --pink-light: #fff4f8;
+            --primary-pink: #e91e63;
+            --secondary-pink: #f8bbd9;
+            --light-pink: #fce4ec;
+            --dark-pink: #ad1457;
+            --accent-pink: #f48fb1;
             --blue: #4a6cf7;
             --blue-light: #e8f0fe;
             --green: #2ecc71;
@@ -184,9 +238,10 @@ foreach ($pets as $pet) {
         
         body {
             font-family: 'Segoe UI', sans-serif;
-            background: #f5f7fb;
+            background: linear-gradient(135deg, var(--light-pink) 0%, #f3e5f5 100%);
             margin: 0;
             color: #333;
+            min-height: 100vh;
         }
         
         .wrapper {
@@ -196,7 +251,7 @@ foreach ($pets as $pet) {
         
         .sidebar {
             width: 260px;
-            background: var(--pink-2);
+            background: var(--secondary-pink);
             padding: 2rem 1rem;
             border-radius: var(--radius);
             box-shadow: var(--shadow);
@@ -209,6 +264,7 @@ foreach ($pets as $pet) {
             font-size: 1.2rem;
             text-align: center;
             margin-bottom: 2rem;
+            color: var(--dark-pink);
         }
         
         .sidebar .profile {
@@ -221,7 +277,7 @@ foreach ($pets as $pet) {
             height: 80px;
             border-radius: 50%;
             margin-bottom: .5rem;
-            border: 3px solid rgba(0,0,0,0.1);
+            border: 3px solid var(--accent-pink);
             object-fit: cover;
             transition: transform 0.3s;
         }
@@ -253,18 +309,19 @@ foreach ($pets as $pet) {
         }
         
         .sidebar a.active, .sidebar a:hover {
-            background: var(--pink);
-            color: #000;
+            background: var(--light-pink);
+            color: var(--dark-pink);
         }
         
         .sidebar .logout {
             margin-top: auto;
             font-weight: 600;
             color: #fff;
-            background: #dc3545;
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
             text-align: center;
             padding: 10px;
             border-radius: 10px;
+            border: none;
         }
         
         .main-content {
@@ -291,6 +348,11 @@ foreach ($pets as $pet) {
             box-shadow: var(--shadow);
             margin-bottom: 1.5rem;
             border: none;
+            transition: transform 0.3s;
+        }
+        
+        .card-custom:hover {
+            transform: translateY(-2px);
         }
         
         .stats-card {
@@ -298,6 +360,11 @@ foreach ($pets as $pet) {
             padding: 1.5rem 1rem;
             border-radius: 16px;
             height: 100%;
+            transition: transform 0.3s;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-3px);
         }
         
         .stats-card i {
@@ -427,7 +494,7 @@ foreach ($pets as $pet) {
             font-weight: 600;
             margin-bottom: 1rem;
             color: var(--blue);
-            border-bottom: 2px solid var(--pink);
+            border-bottom: 2px solid var(--secondary-pink);
             padding-bottom: 0.5rem;
         }
         
@@ -441,15 +508,6 @@ foreach ($pets as $pet) {
             font-size: 4rem;
             margin-bottom: 1rem;
             opacity: 0.5;
-        }
-        
-        .debug-info {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
-            font-family: monospace;
         }
         
         .alert-custom {
@@ -487,6 +545,37 @@ foreach ($pets as $pet) {
             font-size: 1.5rem;
         }
         
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 1rem;
+        }
+        
+        .health-score {
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .score-excellent { color: var(--green); }
+        .score-good { color: #7e57c2; }
+        .score-fair { color: var(--orange); }
+        .score-poor { color: #e74c3c; }
+        
+        .visualization-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .viz-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -502,13 +591,10 @@ foreach ($pets as $pet) {
                 gap: 1rem;
                 text-align: center;
             }
-        }
-        
-        .test-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
+            
+            .visualization-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -586,51 +672,113 @@ foreach ($pets as $pet) {
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
-        <!-- Debug Info -->
-        <div class="debug-info">
-            <strong>Debug Info:</strong> 
-            User ID: <?php echo $user_id; ?> | 
-            Total Pets: <?php echo $totalPets; ?> | 
-            Total Records: <?php 
-                $totalRecords = 0;
-                foreach ($pets as $pet) {
-                    $totalRecords += count($pet['records']);
-                }
-                echo $totalRecords;
-            ?>
-        </div>
-
         <!-- Stats Cards -->
         <div class="row stats-row mb-4">
             <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background-color: var(--blue-light);">
+                <div class="stats-card" style="background: linear-gradient(135deg, var(--blue-light), #e3f2fd);">
                     <i class="fa-solid fa-paw text-primary"></i>
                     <h6>Registered Pets</h6>
                     <h4 id="totalPets"><?php echo $totalPets; ?></h4>
                 </div>
             </div>
             <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background-color: var(--green-light);">
+                <div class="stats-card" style="background: linear-gradient(135deg, var(--green-light), #e8f5e8);">
                     <i class="fa-solid fa-syringe text-success"></i>
                     <h6>Vaccinated Pets</h6>
                     <h4 id="vaccinatedPets"><?php echo $vaccinatedPets; ?></h4>
                 </div>
             </div>
             <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background-color: var(--orange-light);">
+                <div class="stats-card" style="background: linear-gradient(135deg, var(--orange-light), #fff3e0);">
                     <i class="fa-solid fa-calendar-check text-warning"></i>
                     <h6>Upcoming Reminders</h6>
                     <h4 id="upcomingVaccines"><?php echo $upcomingReminders; ?></h4>
                 </div>
             </div>
             <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background-color: var(--pink-light);">
+                <div class="stats-card" style="background: linear-gradient(135deg, var(--light-pink), #fce4ec);">
                     <i class="fa-solid fa-stethoscope text-danger"></i>
                     <h6>Recent Visits</h6>
                     <h4 id="recentVisits"><?php echo $recentVisits; ?></h4>
                 </div>
             </div>
         </div>
+
+        <!-- Health Monitoring Visualizations -->
+        <?php if (!empty($pets)): ?>
+        <div class="card-custom">
+            <h4 class="mb-4"><i class="fas fa-chart-line me-2"></i>Health Monitoring Dashboard</h4>
+            
+            <div class="visualization-grid">
+                <!-- Health Scores Chart -->
+                <div class="viz-card">
+                    <h6><i class="fas fa-heartbeat me-2"></i>Pet Health Scores</h6>
+                    <div class="chart-container">
+                        <canvas id="healthScoresChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Weight Trends -->
+                <div class="viz-card">
+                    <h6><i class="fas fa-weight me-2"></i>Weight Trends</h6>
+                    <div class="chart-container">
+                        <canvas id="weightTrendsChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Service Frequency -->
+                <div class="viz-card">
+                    <h6><i class="fas fa-calendar-alt me-2"></i>Vet Visit Frequency</h6>
+                    <div class="chart-container">
+                        <canvas id="serviceFrequencyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Health Distribution -->
+                <div class="viz-card">
+                    <h6><i class="fas fa-chart-pie me-2"></i>Health Status Distribution</h6>
+                    <div class="chart-container">
+                        <canvas id="healthDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Individual Pet Health Cards -->
+            <div class="row mt-4">
+                <?php foreach ($healthScores as $petId => $healthData): ?>
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h6 class="card-title"><?php echo htmlspecialchars($healthData['pet_name']); ?></h6>
+                                <?php
+                                $scoreClass = 'score-poor';
+                                if ($healthData['score'] >= 90) $scoreClass = 'score-excellent';
+                                elseif ($healthData['score'] >= 75) $scoreClass = 'score-good';
+                                elseif ($healthData['score'] >= 60) $scoreClass = 'score-fair';
+                                ?>
+                                <div class="health-score <?php echo $scoreClass; ?>">
+                                    <?php echo $healthData['score']; ?>%
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <?php if ($healthData['vaccinated']): ?>
+                                            <i class="fas fa-check-circle text-success me-1"></i>Vaccinated
+                                        <?php else: ?>
+                                            <i class="fas fa-exclamation-triangle text-warning me-1"></i>Needs Vaccination
+                                        <?php endif; ?>
+                                    </small>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-stethoscope me-1"></i><?php echo $healthData['service_count']; ?> visits
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Quick Add Pet Button -->
         <div class="card-custom text-center">
@@ -802,11 +950,6 @@ foreach ($pets as $pet) {
     </div>
 </div>
 
-<!-- Test Button -->
-<button class="btn btn-info test-btn" onclick="testAllQRCodes()">
-    <i class="fas fa-bug me-1"></i> Test QR Codes
-</button>
-
 <!-- Bootstrap & jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -856,6 +999,9 @@ foreach ($pets as $pet) {
             };
         });
         
+        // Initialize health monitoring charts
+        initializeHealthCharts();
+        
         // Auto-close alerts after 5 seconds
         setTimeout(() => {
             const alerts = document.querySelectorAll('.alert');
@@ -865,6 +1011,191 @@ foreach ($pets as $pet) {
             });
         }, 5000);
     });
+
+    // Health Monitoring Charts
+    function initializeHealthCharts() {
+        // Health Scores Bar Chart
+        const healthScoresCtx = document.getElementById('healthScoresChart').getContext('2d');
+        const healthScoresChart = new Chart(healthScoresCtx, {
+            type: 'bar',
+            data: {
+                labels: [<?php echo implode(',', array_map(function($score) { return "'" . addslashes($score['pet_name']) . "'"; }, $healthScores)); ?>],
+                datasets: [{
+                    label: 'Health Score (%)',
+                    data: [<?php echo implode(',', array_column($healthScores, 'score')); ?>],
+                    backgroundColor: [
+                        <?php 
+                        foreach ($healthScores as $score) {
+                            if ($score['score'] >= 90) echo "'#2ecc71',";
+                            elseif ($score['score'] >= 75) echo "'#7e57c2',";
+                            elseif ($score['score'] >= 60) echo "'#f39c12',";
+                            else echo "'#e74c3c',";
+                        }
+                        ?>
+                    ],
+                    borderColor: '#333',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Health Score (%)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Health Score: ${context.parsed.y}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Weight Trends Line Chart
+        <?php if (!empty($weightHistory)): ?>
+        const weightTrendsCtx = document.getElementById('weightTrendsChart').getContext('2d');
+        const weightTrendsChart = new Chart(weightTrendsCtx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    <?php foreach ($weightHistory as $petId => $petData): ?>
+                    {
+                        label: '<?php echo addslashes($petData['pet_name']); ?>',
+                        data: [
+                            <?php foreach ($petData['data'] as $weightRecord): ?>
+                            {
+                                x: '<?php echo $weightRecord['date']; ?>',
+                                y: <?php echo $weightRecord['weight']; ?>
+                            },
+                            <?php endforeach; ?>
+                        ],
+                        borderColor: '<?php echo getRandomColor($petId); ?>',
+                        backgroundColor: '<?php echo getRandomColor($petId, 0.1); ?>',
+                        tension: 0.4,
+                        fill: false
+                    },
+                    <?php endforeach; ?>
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Weight (kg)'
+                        }
+                    }
+                }
+            }
+        });
+        <?php endif; ?>
+
+        // Service Frequency Chart
+        const serviceFrequencyCtx = document.getElementById('serviceFrequencyChart').getContext('2d');
+        const serviceFrequencyChart = new Chart(serviceFrequencyCtx, {
+            type: 'bar',
+            data: {
+                labels: [<?php echo implode(',', array_map(function($freq) { return "'" . addslashes($freq['pet_name']) . "'"; }, $serviceFrequency)); ?>],
+                datasets: [{
+                    label: 'Visits per Month',
+                    data: [<?php echo implode(',', array_column($serviceFrequency, 'services_per_month')); ?>],
+                    backgroundColor: '#4a6cf7',
+                    borderColor: '#333',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Visits per Month'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Health Distribution Pie Chart
+        const healthDistributionCtx = document.getElementById('healthDistributionChart').getContext('2d');
+        
+        // Calculate health status distribution
+        let excellent = 0, good = 0, fair = 0, poor = 0;
+        <?php foreach ($healthScores as $score): ?>
+            <?php if ($score['score'] >= 90): ?>excellent++;
+            <?php elseif ($score['score'] >= 75): ?>good++;
+            <?php elseif ($score['score'] >= 60): ?>fair++;
+            <?php else: ?>poor++;<?php endif; ?>
+        <?php endforeach; ?>
+
+        const healthDistributionChart = new Chart(healthDistributionCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Excellent (90-100%)', 'Good (75-89%)', 'Fair (60-74%)', 'Poor (<60%)'],
+                datasets: [{
+                    data: [excellent, good, fair, poor],
+                    backgroundColor: [
+                        '#2ecc71',
+                        '#7e57c2',
+                        '#f39c12',
+                        '#e74c3c'
+                    ],
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // Helper function to generate random colors for charts
+    function getRandomColor(seed, opacity = 1) {
+        const colors = [
+            '#e91e63', '#4a6cf7', '#2ecc71', '#f39c12', 
+            '#9c27b0', '#2196f3', '#00bcd4', '#ff9800'
+        ];
+        const index = Math.abs(seed) % colors.length;
+        return opacity < 1 ? 
+            colors[index].replace(')', `, ${opacity})`).replace('rgb', 'rgba') : 
+            colors[index];
+    }
 
     // Update date and time display
     function updateDateTime() {
@@ -1031,26 +1362,6 @@ foreach ($pets as $pet) {
         URL.revokeObjectURL(url);
     }
 
-    // Function to test all QR codes (for development)
-    function testAllQRCodes() {
-        const qrContainers = document.querySelectorAll('[id^="qrcode-"]');
-        console.log(`Testing ${qrContainers.length} QR codes...`);
-        
-        qrContainers.forEach(container => {
-            const petId = container.id.replace('qrcode-', '');
-            const petName = container.getAttribute('data-pet-name');
-            const hasContent = container.getAttribute('data-qr-content');
-            
-            console.log(`Pet ID: ${petId}, Name: ${petName}, Has Data: ${!!hasContent}`);
-            
-            if (!hasContent) {
-                console.warn(`No QR data for pet ${petName} (ID: ${petId})`);
-            }
-        });
-        
-        alert(`Tested ${qrContainers.length} QR codes. Check console for details.`);
-    }
-
     // Search functionality
     document.addEventListener('keydown', function(e) {
         // Ctrl+K for search focus (common shortcut)
@@ -1114,18 +1425,19 @@ foreach ($pets as $pet) {
         // location.reload(); // Simple refresh for demo
     }, 300000); // 5 minutes
 
-    // Export functions for global access (for debugging)
-    window.PetMedQR = {
-        generateQRCode,
-        showQRModal,
-        downloadQRCode,
-        testAllQRCodes,
-        toggleQrData
-    };
-
-    console.log('PetMedQR Dashboard initialized successfully!');
+    console.log('PetMedQR Dashboard with Health Monitoring initialized successfully!');
 </script>
 </body>
 </html>
 
-
+<?php
+// Helper function for random colors in PHP
+function getRandomColor($seed, $opacity = 1) {
+    $colors = [
+        '#e91e63', '#4a6cf7', '#2ecc71', '#f39c12', 
+        '#9c27b0', '#2196f3', '#00bcd4', '#ff9800'
+    ];
+    $index = abs($seed) % count($colors);
+    return $colors[$index];
+}
+?>
