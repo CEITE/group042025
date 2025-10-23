@@ -61,34 +61,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
             case 'update_medical_record':
                 $record_id = $_POST['record_id'];
-                $diagnosis = trim($_POST['diagnosis']);
-                $treatment = trim($_POST['treatment']);
+                $service_type = trim($_POST['service_type']);
+                $service_description = trim($_POST['service_description']);
+                $service_date = $_POST['service_date'];
+                $veterinarian = trim($_POST['veterinarian']);
+                $notes = trim($_POST['notes']);
                 $status = $_POST['status'];
-                $lgu_notes = trim($_POST['lgu_notes']);
+                $clinic_name = trim($_POST['clinic_name']);
+                $clinic_address = trim($_POST['clinic_address']);
                 
-                // Check if medical_records table exists, if not create it
-                $check_table = $conn->query("SHOW TABLES LIKE 'medical_records'");
-                if ($check_table->num_rows == 0) {
-                    $create_table = $conn->query("CREATE TABLE medical_records (
-                        id INT PRIMARY KEY AUTO_INCREMENT,
-                        pet_id INT NOT NULL,
-                        vet_id INT,
-                        lgu_id INT,
-                        diagnosis TEXT,
-                        treatment TEXT,
-                        status ENUM('pending', 'under_treatment', 'completed', 'referred') DEFAULT 'pending',
-                        lgu_notes TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                        FOREIGN KEY (vet_id) REFERENCES users(user_id) ON DELETE SET NULL,
-                        FOREIGN KEY (lgu_id) REFERENCES users(user_id) ON DELETE SET NULL
-                    )");
-                }
+                $stmt = $conn->prepare("UPDATE pet_medical_records SET 
+                    service_type = ?, 
+                    service_description = ?, 
+                    service_date = ?, 
+                    veterinarian = ?, 
+                    notes = ?, 
+                    status = ?, 
+                    clinic_name = ?, 
+                    clinic_address = ? 
+                    WHERE record_id = ?");
                 
-                $stmt = $conn->prepare("UPDATE medical_records SET diagnosis = ?, treatment = ?, status = ?, lgu_notes = ?, lgu_id = ?, updated_at = NOW() WHERE id = ?");
                 if ($stmt) {
-                    $stmt->bind_param("ssssii", $diagnosis, $treatment, $status, $lgu_notes, $user_id, $record_id);
+                    $stmt->bind_param("ssssssssi", $service_type, $service_description, $service_date, $veterinarian, $notes, $status, $clinic_name, $clinic_address, $record_id);
                     if ($stmt->execute()) {
                         $_SESSION['success'] = "Medical record updated successfully!";
                     } else {
@@ -100,40 +94,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
             case 'add_medical_record':
                 $pet_id = $_POST['pet_id'];
-                $diagnosis = trim($_POST['diagnosis']);
-                $treatment = trim($_POST['treatment']);
+                $service_type = trim($_POST['service_type']);
+                $service_description = trim($_POST['service_description']);
+                $service_date = $_POST['service_date'];
+                $veterinarian = trim($_POST['veterinarian']);
+                $notes = trim($_POST['notes']);
                 $status = $_POST['status'];
-                $lgu_notes = trim($_POST['lgu_notes']);
+                $clinic_name = trim($_POST['clinic_name']);
+                $clinic_address = trim($_POST['clinic_address']);
                 
-                // Check if medical_records table exists, if not create it
-                $check_table = $conn->query("SHOW TABLES LIKE 'medical_records'");
-                if ($check_table->num_rows == 0) {
-                    $create_table = $conn->query("CREATE TABLE medical_records (
-                        id INT PRIMARY KEY AUTO_INCREMENT,
-                        pet_id INT NOT NULL,
-                        vet_id INT,
-                        lgu_id INT,
-                        diagnosis TEXT,
-                        treatment TEXT,
-                        status ENUM('pending', 'under_treatment', 'completed', 'referred') DEFAULT 'pending',
-                        lgu_notes TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                        FOREIGN KEY (vet_id) REFERENCES users(user_id) ON DELETE SET NULL,
-                        FOREIGN KEY (lgu_id) REFERENCES users(user_id) ON DELETE SET NULL
-                    )");
-                }
-                
-                $stmt = $conn->prepare("INSERT INTO medical_records (pet_id, lgu_id, diagnosis, treatment, status, lgu_notes) VALUES (?, ?, ?, ?, ?, ?)");
-                if ($stmt) {
-                    $stmt->bind_param("iissss", $pet_id, $user_id, $diagnosis, $treatment, $status, $lgu_notes);
-                    if ($stmt->execute()) {
-                        $_SESSION['success'] = "Medical record added successfully!";
-                    } else {
-                        $_SESSION['error'] = "Failed to add medical record.";
+                // Get owner info for the pet
+                $owner_query = $conn->query("SELECT owner_id, name FROM pets WHERE pet_id = $pet_id");
+                if ($owner_query && $owner_query->num_rows > 0) {
+                    $owner_data = $owner_query->fetch_assoc();
+                    $owner_id = $owner_data['owner_id'];
+                    $owner_name = $owner_data['name'];
+                    
+                    // Get pet info
+                    $pet_query = $conn->query("SELECT name, species, breed FROM pets WHERE pet_id = $pet_id");
+                    $pet_data = $pet_query->fetch_assoc();
+                    
+                    $stmt = $conn->prepare("INSERT INTO pet_medical_records (
+                        owner_id, owner_name, pet_id, pet_name, species, breed, 
+                        service_type, service_description, service_date, veterinarian, 
+                        notes, status, clinic_name, clinic_address, generated_date
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                    
+                    if ($stmt) {
+                        $stmt->bind_param("isssssssssssss", 
+                            $owner_id, $owner_name, $pet_id, $pet_data['name'], $pet_data['species'], $pet_data['breed'],
+                            $service_type, $service_description, $service_date, $veterinarian,
+                            $notes, $status, $clinic_name, $clinic_address
+                        );
+                        if ($stmt->execute()) {
+                            $_SESSION['success'] = "Medical record added successfully!";
+                        } else {
+                            $_SESSION['error'] = "Failed to add medical record.";
+                        }
+                        $stmt->close();
                     }
-                    $stmt->close();
                 }
                 break;
                 
@@ -202,9 +201,9 @@ if ($result) {
 }
 
 // Count medical records
-$check_medical = $conn->query("SHOW TABLES LIKE 'medical_records'");
+$check_medical = $conn->query("SHOW TABLES LIKE 'pet_medical_records'");
 if ($check_medical->num_rows > 0) {
-    $result = $conn->query("SELECT COUNT(*) as total FROM medical_records");
+    $result = $conn->query("SELECT COUNT(*) as total FROM pet_medical_records");
     if ($result) {
         $stats['total_medical_records'] = $result->fetch_assoc()['total'];
     }
@@ -224,17 +223,20 @@ if ($check_pets->num_rows > 0) {
                 u.name as owner_name,
                 u.email as owner_email,
                 u.phone_number as owner_phone,
-                mr.id as record_id,
-                mr.diagnosis,
-                mr.treatment,
-                mr.status,
-                mr.lgu_notes,
-                mr.created_at as record_created,
-                mr.updated_at as record_updated
+                pmr.record_id,
+                pmr.service_type,
+                pmr.service_description,
+                pmr.service_date,
+                pmr.veterinarian,
+                pmr.notes,
+                pmr.status,
+                pmr.generated_date,
+                pmr.clinic_name,
+                pmr.clinic_address
               FROM pets p
               LEFT JOIN users u ON p.owner_id = u.user_id
-              LEFT JOIN medical_records mr ON p.pet_id = mr.pet_id
-              ORDER BY p.name, mr.created_at DESC";
+              LEFT JOIN pet_medical_records pmr ON p.pet_id = pmr.pet_id
+              ORDER BY p.name, pmr.generated_date DESC";
     
     $result = $conn->query($query);
     if ($result) {
@@ -258,12 +260,15 @@ if ($check_pets->num_rows > 0) {
             if ($row['record_id']) {
                 $pets_with_records[$pet_id]['medical_records'][] = [
                     'record_id' => $row['record_id'],
-                    'diagnosis' => $row['diagnosis'],
-                    'treatment' => $row['treatment'],
+                    'service_type' => $row['service_type'],
+                    'service_description' => $row['service_description'],
+                    'service_date' => $row['service_date'],
+                    'veterinarian' => $row['veterinarian'],
+                    'notes' => $row['notes'],
                     'status' => $row['status'],
-                    'lgu_notes' => $row['lgu_notes'],
-                    'record_created' => $row['record_created'],
-                    'record_updated' => $row['record_updated']
+                    'generated_date' => $row['generated_date'],
+                    'clinic_name' => $row['clinic_name'],
+                    'clinic_address' => $row['clinic_address']
                 ];
             }
         }
@@ -658,38 +663,45 @@ if ($check_announcements->num_rows > 0) {
                                                                             case 'completed': echo 'success'; break;
                                                                             case 'under_treatment': echo 'warning'; break;
                                                                             case 'pending': echo 'secondary'; break;
-                                                                            case 'referred': echo 'info'; break;
                                                                             default: echo 'secondary';
                                                                         }
-                                                                    ?>"><?php echo ucfirst(str_replace('_', ' ', $record['status'])); ?></span>
+                                                                    ?>"><?php echo ucfirst($record['status']); ?></span>
                                                                 </div>
                                                                 <div>
                                                                     <button class="btn btn-sm btn-outline-primary" 
                                                                             data-bs-toggle="modal" 
                                                                             data-bs-target="#editMedicalRecordModal"
                                                                             data-record-id="<?php echo $record['record_id']; ?>"
-                                                                            data-diagnosis="<?php echo htmlspecialchars($record['diagnosis'] ?? ''); ?>"
-                                                                            data-treatment="<?php echo htmlspecialchars($record['treatment'] ?? ''); ?>"
+                                                                            data-service-type="<?php echo htmlspecialchars($record['service_type'] ?? ''); ?>"
+                                                                            data-service-description="<?php echo htmlspecialchars($record['service_description'] ?? ''); ?>"
+                                                                            data-service-date="<?php echo $record['service_date']; ?>"
+                                                                            data-veterinarian="<?php echo htmlspecialchars($record['veterinarian'] ?? ''); ?>"
+                                                                            data-notes="<?php echo htmlspecialchars($record['notes'] ?? ''); ?>"
                                                                             data-status="<?php echo $record['status']; ?>"
-                                                                            data-lgu-notes="<?php echo htmlspecialchars($record['lgu_notes'] ?? ''); ?>">
+                                                                            data-clinic-name="<?php echo htmlspecialchars($record['clinic_name'] ?? ''); ?>"
+                                                                            data-clinic-address="<?php echo htmlspecialchars($record['clinic_address'] ?? ''); ?>">
                                                                         <i class="fas fa-edit"></i> Edit
                                                                     </button>
                                                                 </div>
                                                             </div>
-                                                            <?php if (!empty($record['diagnosis'])): ?>
-                                                                <p><strong>Diagnosis:</strong> <?php echo htmlspecialchars($record['diagnosis']); ?></p>
+                                                            <?php if (!empty($record['service_type'])): ?>
+                                                                <p><strong>Service Type:</strong> <?php echo htmlspecialchars($record['service_type']); ?></p>
                                                             <?php endif; ?>
-                                                            <?php if (!empty($record['treatment'])): ?>
-                                                                <p><strong>Treatment:</strong> <?php echo htmlspecialchars($record['treatment']); ?></p>
+                                                            <?php if (!empty($record['service_description'])): ?>
+                                                                <p><strong>Description:</strong> <?php echo htmlspecialchars($record['service_description']); ?></p>
                                                             <?php endif; ?>
-                                                            <?php if (!empty($record['lgu_notes'])): ?>
-                                                                <p><strong>LGU Notes:</strong> <?php echo htmlspecialchars($record['lgu_notes']); ?></p>
+                                                            <?php if (!empty($record['veterinarian'])): ?>
+                                                                <p><strong>Veterinarian:</strong> <?php echo htmlspecialchars($record['veterinarian']); ?></p>
+                                                            <?php endif; ?>
+                                                            <?php if (!empty($record['notes'])): ?>
+                                                                <p><strong>Notes:</strong> <?php echo htmlspecialchars($record['notes']); ?></p>
+                                                            <?php endif; ?>
+                                                            <?php if (!empty($record['clinic_name'])): ?>
+                                                                <p><strong>Clinic:</strong> <?php echo htmlspecialchars($record['clinic_name']); ?></p>
                                                             <?php endif; ?>
                                                             <small class="text-muted">
-                                                                Created: <?php echo date('M d, Y g:i A', strtotime($record['record_created'])); ?>
-                                                                <?php if ($record['record_updated'] != $record['record_created']): ?>
-                                                                    | Updated: <?php echo date('M d, Y g:i A', strtotime($record['record_updated'])); ?>
-                                                                <?php endif; ?>
+                                                                Service Date: <?php echo date('M d, Y', strtotime($record['service_date'])); ?> | 
+                                                                Generated: <?php echo date('M d, Y', strtotime($record['generated_date'])); ?>
                                                             </small>
                                                         </div>
                                                     </div>
@@ -883,26 +895,45 @@ if ($check_announcements->num_rows > 0) {
                         <input type="hidden" name="record_id" id="edit_record_id">
                         <div class="row">
                             <div class="col-md-6 mb-3">
+                                <label class="form-label">Service Type</label>
+                                <input type="text" class="form-control" name="service_type" id="edit_service_type" placeholder="e.g., Vaccination, Check-up">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Service Date</label>
+                                <input type="date" class="form-control" name="service_date" id="edit_service_date">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Service Description</label>
+                            <textarea class="form-control" name="service_description" id="edit_service_description" rows="3" placeholder="Describe the service provided"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Veterinarian</label>
+                                <input type="text" class="form-control" name="veterinarian" id="edit_veterinarian" placeholder="Veterinarian name">
+                            </div>
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Status</label>
                                 <select class="form-select" name="status" id="edit_status" required>
                                     <option value="pending">Pending</option>
-                                    <option value="under_treatment">Under Treatment</option>
                                     <option value="completed">Completed</option>
-                                    <option value="referred">Referred</option>
+                                    <option value="under_treatment">Under Treatment</option>
                                 </select>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Diagnosis</label>
-                            <textarea class="form-control" name="diagnosis" id="edit_diagnosis" rows="3" placeholder="Enter diagnosis"></textarea>
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" id="edit_notes" rows="3" placeholder="Additional notes"></textarea>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Treatment</label>
-                            <textarea class="form-control" name="treatment" id="edit_treatment" rows="3" placeholder="Enter treatment plan"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">LGU Notes</label>
-                            <textarea class="form-control" name="lgu_notes" id="edit_lgu_notes" rows="3" placeholder="Add LGU notes or comments"></textarea>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Clinic Name</label>
+                                <input type="text" class="form-control" name="clinic_name" id="edit_clinic_name" placeholder="Clinic name">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Clinic Address</label>
+                                <input type="text" class="form-control" name="clinic_address" id="edit_clinic_address" placeholder="Clinic address">
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -938,26 +969,45 @@ if ($check_announcements->num_rows > 0) {
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
+                                <label class="form-label">Service Type</label>
+                                <input type="text" class="form-control" name="service_type" placeholder="e.g., Vaccination, Check-up">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Service Date</label>
+                                <input type="date" class="form-control" name="service_date">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Service Description</label>
+                            <textarea class="form-control" name="service_description" rows="3" placeholder="Describe the service provided"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Veterinarian</label>
+                                <input type="text" class="form-control" name="veterinarian" placeholder="Veterinarian name">
+                            </div>
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Status</label>
                                 <select class="form-select" name="status" required>
                                     <option value="pending">Pending</option>
-                                    <option value="under_treatment">Under Treatment</option>
                                     <option value="completed">Completed</option>
-                                    <option value="referred">Referred</option>
+                                    <option value="under_treatment">Under Treatment</option>
                                 </select>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Diagnosis</label>
-                            <textarea class="form-control" name="diagnosis" rows="3" placeholder="Enter diagnosis"></textarea>
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" rows="3" placeholder="Additional notes"></textarea>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Treatment</label>
-                            <textarea class="form-control" name="treatment" rows="3" placeholder="Enter treatment plan"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">LGU Notes</label>
-                            <textarea class="form-control" name="lgu_notes" rows="3" placeholder="Add LGU notes or comments"></textarea>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Clinic Name</label>
+                                <input type="text" class="form-control" name="clinic_name" placeholder="Clinic name">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Clinic Address</label>
+                                <input type="text" class="form-control" name="clinic_address" placeholder="Clinic address">
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1028,17 +1078,25 @@ if ($check_announcements->num_rows > 0) {
             editMedicalRecordModal.addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
                 const recordId = button.getAttribute('data-record-id');
-                const diagnosis = button.getAttribute('data-diagnosis');
-                const treatment = button.getAttribute('data-treatment');
+                const serviceType = button.getAttribute('data-service-type');
+                const serviceDescription = button.getAttribute('data-service-description');
+                const serviceDate = button.getAttribute('data-service-date');
+                const veterinarian = button.getAttribute('data-veterinarian');
+                const notes = button.getAttribute('data-notes');
                 const status = button.getAttribute('data-status');
-                const lguNotes = button.getAttribute('data-lgu-notes');
+                const clinicName = button.getAttribute('data-clinic-name');
+                const clinicAddress = button.getAttribute('data-clinic-address');
                 
                 const modal = this;
                 modal.querySelector('#edit_record_id').value = recordId;
-                modal.querySelector('#edit_diagnosis').value = diagnosis || '';
-                modal.querySelector('#edit_treatment').value = treatment || '';
+                modal.querySelector('#edit_service_type').value = serviceType || '';
+                modal.querySelector('#edit_service_description').value = serviceDescription || '';
+                modal.querySelector('#edit_service_date').value = serviceDate || '';
+                modal.querySelector('#edit_veterinarian').value = veterinarian || '';
+                modal.querySelector('#edit_notes').value = notes || '';
                 modal.querySelector('#edit_status').value = status;
-                modal.querySelector('#edit_lgu_notes').value = lguNotes || '';
+                modal.querySelector('#edit_clinic_name').value = clinicName || '';
+                modal.querySelector('#edit_clinic_address').value = clinicAddress || '';
             });
         }
 
@@ -1047,10 +1105,10 @@ if ($check_announcements->num_rows > 0) {
         const medicalStatusChart = new Chart(medicalStatusCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Pending', 'Under Treatment', 'Completed', 'Referred'],
+                labels: ['Pending', 'Completed', 'Under Treatment'],
                 datasets: [{
-                    data: [12, 8, 15, 3],
-                    backgroundColor: ['#6b7280', '#f59e0b', '#10b981', '#3b82f6'],
+                    data: [12, 15, 8],
+                    backgroundColor: ['#6b7280', '#10b981', '#f59e0b'],
                     borderWidth: 2,
                     borderColor: '#fff'
                 }]
