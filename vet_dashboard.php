@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if ($insert_stmt->execute()) {
                 $_SESSION['success'] = "Appointment booked successfully! The vet will confirm your appointment soon.";
-                header("Location: appointment.php");
+                header("Location: user_appointment.php");
                 exit();
             } else {
                 $_SESSION['error'] = "Error booking appointment. Please try again.";
@@ -82,7 +82,7 @@ if (isset($_GET['cancel_id'])) {
     
     if ($cancel_stmt->execute()) {
         $_SESSION['success'] = "Appointment cancelled successfully!";
-        header("Location: appointment.php");
+        header("Location: user_appointment.php");
         exit();
     } else {
         $_SESSION['error'] = "Error cancelling appointment. Please try again.";
@@ -419,7 +419,7 @@ if (isset($_GET['cancel_id'])) {
         </div>
 
         <!-- Appointment Button -->
-        <a href="appointment.php" class="appointment-btn active">
+        <a href="user_appointment.php" class="appointment-btn active">
             <i class="fas fa-calendar-plus"></i> Book Appointment
         </a>
 
@@ -502,7 +502,7 @@ if (isset($_GET['cancel_id'])) {
                 <div class="card-custom">
                     <h4 class="mb-4"><i class="fas fa-calendar-plus me-2"></i>Book New Appointment</h4>
                     
-                    <form method="POST" action="appointment.php">
+                    <form method="POST" action="user_appointment.php">
                         <div class="row">
                             <!-- Pet Selection -->
                             <div class="col-md-12 mb-3">
@@ -657,7 +657,7 @@ if (isset($_GET['cancel_id'])) {
                                         
                                         <?php if ($appointment['status'] == 'scheduled'): ?>
                                             <div class="mt-3 text-end">
-                                                <a href="appointment.php?cancel_id=<?php echo $appointment['appointment_id']; ?>" 
+                                                <a href="user_appointment.php?cancel_id=<?php echo $appointment['appointment_id']; ?>" 
                                                    class="btn btn-sm btn-outline-danger"
                                                    onclick="return confirm('Are you sure you want to cancel this appointment?')">
                                                     <i class="fas fa-times me-1"></i>Cancel
@@ -809,3 +809,4 @@ if (isset($_GET['cancel_id'])) {
 </script>
 </body>
 </html>
+
