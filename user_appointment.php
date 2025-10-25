@@ -108,18 +108,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pet_id'])) {
                     }
                 }
                 
-                // Insert appointment - MATCHING YOUR EXACT TABLE COLUMNS
+                // Insert appointment - FIXED PARAMETER COUNT
                 $insert_stmt = $conn->prepare("
                     INSERT INTO appointments (
                         pet_id, pet_name, pet_type, user_id, appointment_date, 
-                        appointment_time, service_type, reason, status, notes, 
-                        notification_sent
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, 0)
+                        appointment_time, service_type, reason, status, notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?)
                 ");
                 
                 if ($insert_stmt) {
+                    // FIXED: 10 parameters for 10 placeholders
                     $insert_stmt->bind_param(
-                        "isssssssss", 
+                        "issssssss", 
                         $pet_id, $pet_name, $pet_type, $user_id, $appointment_date, 
                         $appointment_time, $service_type, $reason, $notes
                     );
@@ -131,11 +131,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pet_id'])) {
                         $user_name = $user['name'];
                         $notification_message = "📅 New appointment booked by $user_name for $pet_name ($pet_type) on $appointment_date at $appointment_time - Service: $service_type";
                         createVetNotification($conn, $notification_message, $appointment_id);
-                        
-                        // Update notification_sent flag
-                        $update_stmt = $conn->prepare("UPDATE appointments SET notification_sent = 1 WHERE appointment_id = ?");
-                        $update_stmt->bind_param("i", $appointment_id);
-                        $update_stmt->execute();
                         
                         $_SESSION['success'] = "Appointment booked successfully! The veterinary team has been notified.";
                         header("Location: user_appointment.php");
