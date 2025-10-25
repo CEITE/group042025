@@ -317,6 +317,28 @@ foreach ($pets as $pet) {
             color: var(--accent-yellow);
         }
         
+        .sidebar .appointment-btn {
+            background: var(--accent-yellow);
+            color: var(--dark-red);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin: 1rem 0;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .sidebar .appointment-btn:hover {
+            background: var(--yellow-dark);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
         .sidebar .logout {
             margin-top: auto;
             font-weight: 600;
@@ -399,6 +421,7 @@ foreach ($pets as $pet) {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            background: linear-gradient(135deg, var(--light-red) 0%, #ffcdd2 100%);
         }
         
         .pet-card-body {
@@ -413,6 +436,8 @@ foreach ($pets as $pet) {
             align-items: center;
             justify-content: center;
             font-size: 1.5rem;
+            background: var(--accent-yellow);
+            color: var(--dark-red);
         }
         
         .health-status {
@@ -607,36 +632,6 @@ foreach ($pets as $pet) {
             color: white;
         }
         
-        .appointment-section {
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 15px;
-            margin: 1rem 0;
-        }
-        
-        .appointment-section h6 {
-            color: var(--accent-yellow);
-            margin-bottom: 10px;
-            font-size: 0.9rem;
-        }
-        
-        .appointment-btn {
-            background: var(--accent-yellow);
-            color: var(--dark-red);
-            border: none;
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-weight: 600;
-            width: 100%;
-            transition: all 0.3s;
-        }
-        
-        .appointment-btn:hover {
-            background: var(--yellow-dark);
-            color: white;
-            transform: translateY(-2px);
-        }
-        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -678,14 +673,10 @@ foreach ($pets as $pet) {
             <small><?php echo htmlspecialchars($user['role']); ?></small>
         </div>
         
-        <!-- Appointment Section in Sidebar -->
-        <div class="appointment-section">
-            <h6><i class="fas fa-calendar-plus me-2"></i>Vet Appointments</h6>
-            <p style="font-size: 0.8rem; margin-bottom: 10px;">Book your pet's next vet visit</p>
-            <button class="appointment-btn" onclick="location.href='appointment.php'">
-                <i class="fas fa-calendar-check me-1"></i> Book Appointment
-            </button>
-        </div>
+        <!-- Single Appointment Button in Sidebar -->
+        <button class="appointment-btn" onclick="location.href='appointment.php'">
+            <i class="fas fa-calendar-plus"></i> Book Vet Appointment
+        </button>
         
         <a href="user_dashboard.php" class="active">
             <div class="icon"><i class="fa-solid fa-gauge"></i></div> Dashboard
@@ -698,9 +689,6 @@ foreach ($pets as $pet) {
         </a>
         <a href="register_pet.php">
             <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> Register Pet
-        </a>
-        <a href="appointment.php">
-            <div class="icon"><i class="fas fa-calendar-alt"></i></div> Appointments
         </a>
         <a href="user_settings.php">
             <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
@@ -778,21 +766,6 @@ foreach ($pets as $pet) {
             </div>
         </div>
 
-        <!-- Quick Appointment Card -->
-        <div class="card-custom text-center" style="border-left: 4px solid var(--accent-yellow);">
-            <div class="row align-items-center">
-                <div class="col-md-8 text-start">
-                    <h5><i class="fas fa-calendar-plus me-2" style="color: var(--primary-red);"></i>Need a Vet Appointment?</h5>
-                    <p class="text-muted mb-0">Schedule your pet's next checkup or vaccination appointment</p>
-                </div>
-                <div class="col-md-4">
-                    <button class="btn btn-warning btn-lg" onclick="location.href='appointment.php'">
-                        <i class="fas fa-calendar-check me-2"></i> Book Now
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <!-- Health Monitoring Visualizations -->
         <?php if (!empty($pets)): ?>
         <div class="card-custom">
@@ -861,9 +834,6 @@ foreach ($pets as $pet) {
                                         <i class="fas fa-stethoscope me-1"></i><?php echo $healthData['service_count']; ?> visits
                                     </small>
                                 </div>
-                                <button class="btn btn-sm btn-primary mt-2" onclick="location.href='appointment.php?pet_id=<?php echo $petId; ?>'">
-                                    <i class="fas fa-calendar-plus me-1"></i> Book Appointment
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -876,11 +846,8 @@ foreach ($pets as $pet) {
         <div class="card-custom text-center">
             <h5><i class="fa-solid fa-paw me-2"></i>Manage Your Pets</h5>
             <p class="text-muted">Register your pets to track their medical records and generate QR codes</p>
-            <a href="register_pet.php" class="btn btn-primary me-2">
+            <a href="register_pet.php" class="btn btn-primary">
                 <i class="fa-solid fa-plus-circle me-1"></i> Add New Pet
-            </a>
-            <a href="appointment.php" class="btn btn-warning">
-                <i class="fas fa-calendar-alt me-1"></i> Book Appointment
             </a>
         </div>
 
@@ -888,14 +855,9 @@ foreach ($pets as $pet) {
         <div class="card-custom">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 class="mb-0"><i class="fa-solid fa-paw me-2"></i>Your Pets & Medical Records</h4>
-                <div>
-                    <a href="register_pet.php" class="btn btn-sm btn-primary me-2">
-                        <i class="fa-solid fa-plus me-1"></i> Add Pet
-                    </a>
-                    <a href="appointment.php" class="btn btn-sm btn-warning">
-                        <i class="fas fa-calendar-plus me-1"></i> Book Appointment
-                    </a>
-                </div>
+                <a href="register_pet.php" class="btn btn-sm btn-primary">
+                    <i class="fa-solid fa-plus me-1"></i> Add Pet
+                </a>
             </div>
             
             <?php if (empty($pets)): ?>
@@ -903,11 +865,8 @@ foreach ($pets as $pet) {
                     <i class="fa-solid fa-paw"></i>
                     <h5>No Pets Registered</h5>
                     <p class="text-muted">You haven't added any pets yet. Register your first pet to get started!</p>
-                    <a href="register_pet.php" class="btn btn-primary me-2">
+                    <a href="register_pet.php" class="btn btn-primary">
                         <i class="fa-solid fa-plus me-1"></i> Add Your First Pet
-                    </a>
-                    <a href="appointment.php" class="btn btn-warning">
-                        <i class="fas fa-calendar-plus me-1"></i> Book Appointment
                     </a>
                 </div>
             <?php else: ?>
@@ -935,12 +894,12 @@ foreach ($pets as $pet) {
                         ?>
                         <div class="col-md-6 col-lg-6 mb-3">
                             <div class="pet-card">
-                                <div class="pet-card-header" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#e8f4fd' : '#ffebee'; ?>">
+                                <div class="pet-card-header">
                                     <div>
                                         <h5 class="mb-0"><?php echo htmlspecialchars($pet['pet_name']); ?></h5>
                                         <small class="text-muted"><?php echo htmlspecialchars($pet['species']) . " • " . htmlspecialchars($pet['breed']); ?></small>
                                     </div>
-                                    <div class="pet-species-icon" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bbdefb' : '#ffcdd2'; ?>">
+                                    <div class="pet-species-icon">
                                         <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
                                     </div>
                                 </div>
@@ -968,13 +927,6 @@ foreach ($pets as $pet) {
                                                 <i class="fas fa-download"></i>
                                             </button>
                                         </div>
-                                    </div>
-                                    
-                                    <!-- Appointment Button for this pet -->
-                                    <div class="mb-3">
-                                        <button class="btn btn-sm btn-warning w-100" onclick="location.href='appointment.php?pet_id=<?php echo $pet['pet_id']; ?>'">
-                                            <i class="fas fa-calendar-plus me-1"></i> Book Appointment for <?php echo htmlspecialchars($pet['pet_name']); ?>
-                                        </button>
                                     </div>
                                     
                                     <!-- QR Data Preview -->
@@ -1022,7 +974,6 @@ foreach ($pets as $pet) {
                                     <?php else: ?>
                                         <div class="alert alert-info mb-0">
                                             <i class="fas fa-info-circle me-1"></i> No medical records found for <?php echo htmlspecialchars($pet['pet_name']); ?>.
-                                            <a href="appointment.php?pet_id=<?php echo $pet['pet_id']; ?>" class="alert-link">Book an appointment now</a>.
                                         </div>
                                     <?php endif; ?>
                                 </div>
