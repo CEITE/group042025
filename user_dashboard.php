@@ -221,11 +221,13 @@ foreach ($pets as $pet) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-pink: #e91e63;
-            --secondary-pink: #f8bbd9;
-            --light-pink: #fce4ec;
-            --dark-pink: #ad1457;
-            --accent-pink: #f48fb1;
+            --primary-red: #d32f2f;
+            --secondary-red: #f44336;
+            --light-red: #ffebee;
+            --dark-red: #b71c1c;
+            --accent-yellow: #ffd600;
+            --yellow-light: #fff9c4;
+            --yellow-dark: #f57f17;
             --blue: #4a6cf7;
             --blue-light: #e8f0fe;
             --green: #2ecc71;
@@ -238,7 +240,7 @@ foreach ($pets as $pet) {
         
         body {
             font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, var(--light-pink) 0%, #f3e5f5 100%);
+            background: linear-gradient(135deg, var(--light-red) 0%, #ffcdd2 100%);
             margin: 0;
             color: #333;
             min-height: 100vh;
@@ -251,12 +253,13 @@ foreach ($pets as $pet) {
         
         .sidebar {
             width: 260px;
-            background: var(--secondary-pink);
+            background: linear-gradient(135deg, var(--primary-red) 0%, var(--secondary-red) 100%);
             padding: 2rem 1rem;
             border-radius: var(--radius);
             box-shadow: var(--shadow);
             display: flex;
             flex-direction: column;
+            color: white;
         }
         
         .sidebar .brand {
@@ -264,7 +267,7 @@ foreach ($pets as $pet) {
             font-size: 1.2rem;
             text-align: center;
             margin-bottom: 2rem;
-            color: var(--dark-pink);
+            color: var(--accent-yellow);
         }
         
         .sidebar .profile {
@@ -277,7 +280,7 @@ foreach ($pets as $pet) {
             height: 80px;
             border-radius: 50%;
             margin-bottom: .5rem;
-            border: 3px solid var(--accent-pink);
+            border: 3px solid var(--accent-yellow);
             object-fit: cover;
             transition: transform 0.3s;
         }
@@ -293,7 +296,7 @@ foreach ($pets as $pet) {
             border-radius: 12px;
             margin: .3rem 0;
             text-decoration: none;
-            color: #333;
+            color: white;
             font-weight: 600;
             transition: .2s;
         }
@@ -304,24 +307,30 @@ foreach ($pets as $pet) {
             border-radius: 12px;
             display: grid;
             place-items: center;
-            background: rgba(255,255,255,.6);
+            background: rgba(255,255,255,.2);
             margin-right: 10px;
+            color: var(--accent-yellow);
         }
         
         .sidebar a.active, .sidebar a:hover {
-            background: var(--light-pink);
-            color: var(--dark-pink);
+            background: rgba(255,255,255,.2);
+            color: var(--accent-yellow);
         }
         
         .sidebar .logout {
             margin-top: auto;
             font-weight: 600;
-            color: #fff;
-            background: linear-gradient(135deg, #dc3545, #e74c3c);
+            color: var(--dark-red);
+            background: var(--accent-yellow);
             text-align: center;
             padding: 10px;
             border-radius: 10px;
             border: none;
+        }
+        
+        .sidebar .logout:hover {
+            background: var(--yellow-dark);
+            color: white;
         }
         
         .main-content {
@@ -429,7 +438,7 @@ foreach ($pets as $pet) {
         }
         
         .status-bad {
-            background-color: #e74c3c;
+            background-color: var(--primary-red);
         }
         
         .medical-table {
@@ -478,8 +487,8 @@ foreach ($pets as $pet) {
         }
         
         .badge-checkup {
-            background: linear-gradient(to right, var(--orange), #f39c12);
-            color: white;
+            background: linear-gradient(to right, var(--accent-yellow), var(--yellow-dark));
+            color: #333;
             padding: 4px 8px;
             border-radius: 12px;
             font-size: 0.75rem;
@@ -493,8 +502,8 @@ foreach ($pets as $pet) {
             font-size: 1.2rem;
             font-weight: 600;
             margin-bottom: 1rem;
-            color: var(--blue);
-            border-bottom: 2px solid var(--secondary-pink);
+            color: var(--primary-red);
+            border-bottom: 2px solid var(--light-red);
             padding-bottom: 0.5rem;
         }
         
@@ -560,7 +569,7 @@ foreach ($pets as $pet) {
         .score-excellent { color: var(--green); }
         .score-good { color: #7e57c2; }
         .score-fair { color: var(--orange); }
-        .score-poor { color: #e74c3c; }
+        .score-poor { color: var(--primary-red); }
         
         .visualization-grid {
             display: grid;
@@ -574,6 +583,58 @@ foreach ($pets as $pet) {
             border-radius: 16px;
             padding: 1.5rem;
             box-shadow: var(--shadow);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-red), var(--secondary-red));
+            border: none;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--dark-red), var(--primary-red));
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, var(--accent-yellow), var(--yellow-dark));
+            border: none;
+            color: #333;
+        }
+        
+        .btn-warning:hover {
+            background: linear-gradient(135deg, var(--yellow-dark), #e65100);
+            color: white;
+        }
+        
+        .appointment-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 1rem 0;
+        }
+        
+        .appointment-section h6 {
+            color: var(--accent-yellow);
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .appointment-btn {
+            background: var(--accent-yellow);
+            color: var(--dark-red);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        
+        .appointment-btn:hover {
+            background: var(--yellow-dark);
+            color: white;
+            transform: translateY(-2px);
         }
         
         @media (max-width: 768px) {
@@ -614,8 +675,18 @@ foreach ($pets as $pet) {
                 </div>
             </div>
             <h6 id="ownerNameSidebar"><?php echo htmlspecialchars($user['name']); ?></h6>
-            <small class="text-muted"><?php echo htmlspecialchars($user['role']); ?></small>
+            <small><?php echo htmlspecialchars($user['role']); ?></small>
         </div>
+        
+        <!-- Appointment Section in Sidebar -->
+        <div class="appointment-section">
+            <h6><i class="fas fa-calendar-plus me-2"></i>Vet Appointments</h6>
+            <p style="font-size: 0.8rem; margin-bottom: 10px;">Book your pet's next vet visit</p>
+            <button class="appointment-btn" onclick="location.href='appointment.php'">
+                <i class="fas fa-calendar-check me-1"></i> Book Appointment
+            </button>
+        </div>
+        
         <a href="user_dashboard.php" class="active">
             <div class="icon"><i class="fa-solid fa-gauge"></i></div> Dashboard
         </a>
@@ -627,6 +698,9 @@ foreach ($pets as $pet) {
         </a>
         <a href="register_pet.php">
             <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> Register Pet
+        </a>
+        <a href="appointment.php">
+            <div class="icon"><i class="fas fa-calendar-alt"></i></div> Appointments
         </a>
         <a href="user_settings.php">
             <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
@@ -676,30 +750,45 @@ foreach ($pets as $pet) {
         <div class="row stats-row mb-4">
             <div class="col-xl-3 col-md-6 mb-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, var(--blue-light), #e3f2fd);">
-                    <i class="fa-solid fa-paw text-primary"></i>
+                    <i class="fa-solid fa-paw" style="color: var(--blue);"></i>
                     <h6>Registered Pets</h6>
                     <h4 id="totalPets"><?php echo $totalPets; ?></h4>
                 </div>
             </div>
             <div class="col-xl-3 col-md-6 mb-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, var(--green-light), #e8f5e8);">
-                    <i class="fa-solid fa-syringe text-success"></i>
+                    <i class="fa-solid fa-syringe" style="color: var(--green);"></i>
                     <h6>Vaccinated Pets</h6>
                     <h4 id="vaccinatedPets"><?php echo $vaccinatedPets; ?></h4>
                 </div>
             </div>
             <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, var(--orange-light), #fff3e0);">
-                    <i class="fa-solid fa-calendar-check text-warning"></i>
+                <div class="stats-card" style="background: linear-gradient(135deg, var(--yellow-light), #fffde7);">
+                    <i class="fa-solid fa-calendar-check" style="color: var(--yellow-dark);"></i>
                     <h6>Upcoming Reminders</h6>
                     <h4 id="upcomingVaccines"><?php echo $upcomingReminders; ?></h4>
                 </div>
             </div>
             <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, var(--light-pink), #fce4ec);">
-                    <i class="fa-solid fa-stethoscope text-danger"></i>
+                <div class="stats-card" style="background: linear-gradient(135deg, var(--light-red), #ffcdd2);">
+                    <i class="fa-solid fa-stethoscope" style="color: var(--primary-red);"></i>
                     <h6>Recent Visits</h6>
                     <h4 id="recentVisits"><?php echo $recentVisits; ?></h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Appointment Card -->
+        <div class="card-custom text-center" style="border-left: 4px solid var(--accent-yellow);">
+            <div class="row align-items-center">
+                <div class="col-md-8 text-start">
+                    <h5><i class="fas fa-calendar-plus me-2" style="color: var(--primary-red);"></i>Need a Vet Appointment?</h5>
+                    <p class="text-muted mb-0">Schedule your pet's next checkup or vaccination appointment</p>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-warning btn-lg" onclick="location.href='appointment.php'">
+                        <i class="fas fa-calendar-check me-2"></i> Book Now
+                    </button>
                 </div>
             </div>
         </div>
@@ -772,6 +861,9 @@ foreach ($pets as $pet) {
                                         <i class="fas fa-stethoscope me-1"></i><?php echo $healthData['service_count']; ?> visits
                                     </small>
                                 </div>
+                                <button class="btn btn-sm btn-primary mt-2" onclick="location.href='appointment.php?pet_id=<?php echo $petId; ?>'">
+                                    <i class="fas fa-calendar-plus me-1"></i> Book Appointment
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -784,8 +876,11 @@ foreach ($pets as $pet) {
         <div class="card-custom text-center">
             <h5><i class="fa-solid fa-paw me-2"></i>Manage Your Pets</h5>
             <p class="text-muted">Register your pets to track their medical records and generate QR codes</p>
-            <a href="register_pet.php" class="btn btn-primary">
+            <a href="register_pet.php" class="btn btn-primary me-2">
                 <i class="fa-solid fa-plus-circle me-1"></i> Add New Pet
+            </a>
+            <a href="appointment.php" class="btn btn-warning">
+                <i class="fas fa-calendar-alt me-1"></i> Book Appointment
             </a>
         </div>
 
@@ -793,9 +888,14 @@ foreach ($pets as $pet) {
         <div class="card-custom">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 class="mb-0"><i class="fa-solid fa-paw me-2"></i>Your Pets & Medical Records</h4>
-                <a href="register_pet.php" class="btn btn-sm btn-primary">
-                    <i class="fa-solid fa-plus me-1"></i> Add Pet
-                </a>
+                <div>
+                    <a href="register_pet.php" class="btn btn-sm btn-primary me-2">
+                        <i class="fa-solid fa-plus me-1"></i> Add Pet
+                    </a>
+                    <a href="appointment.php" class="btn btn-sm btn-warning">
+                        <i class="fas fa-calendar-plus me-1"></i> Book Appointment
+                    </a>
+                </div>
             </div>
             
             <?php if (empty($pets)): ?>
@@ -803,8 +903,11 @@ foreach ($pets as $pet) {
                     <i class="fa-solid fa-paw"></i>
                     <h5>No Pets Registered</h5>
                     <p class="text-muted">You haven't added any pets yet. Register your first pet to get started!</p>
-                    <a href="register_pet.php" class="btn btn-primary">
+                    <a href="register_pet.php" class="btn btn-primary me-2">
                         <i class="fa-solid fa-plus me-1"></i> Add Your First Pet
+                    </a>
+                    <a href="appointment.php" class="btn btn-warning">
+                        <i class="fas fa-calendar-plus me-1"></i> Book Appointment
                     </a>
                 </div>
             <?php else: ?>
@@ -832,12 +935,12 @@ foreach ($pets as $pet) {
                         ?>
                         <div class="col-md-6 col-lg-6 mb-3">
                             <div class="pet-card">
-                                <div class="pet-card-header" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#e8f4fd' : '#fde8f2'; ?>">
+                                <div class="pet-card-header" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#e8f4fd' : '#ffebee'; ?>">
                                     <div>
                                         <h5 class="mb-0"><?php echo htmlspecialchars($pet['pet_name']); ?></h5>
                                         <small class="text-muted"><?php echo htmlspecialchars($pet['species']) . " • " . htmlspecialchars($pet['breed']); ?></small>
                                     </div>
-                                    <div class="pet-species-icon" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bbdefb' : '#f8bbd0'; ?>">
+                                    <div class="pet-species-icon" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bbdefb' : '#ffcdd2'; ?>">
                                         <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
                                     </div>
                                 </div>
@@ -865,6 +968,13 @@ foreach ($pets as $pet) {
                                                 <i class="fas fa-download"></i>
                                             </button>
                                         </div>
+                                    </div>
+                                    
+                                    <!-- Appointment Button for this pet -->
+                                    <div class="mb-3">
+                                        <button class="btn btn-sm btn-warning w-100" onclick="location.href='appointment.php?pet_id=<?php echo $pet['pet_id']; ?>'">
+                                            <i class="fas fa-calendar-plus me-1"></i> Book Appointment for <?php echo htmlspecialchars($pet['pet_name']); ?>
+                                        </button>
                                     </div>
                                     
                                     <!-- QR Data Preview -->
@@ -912,6 +1022,7 @@ foreach ($pets as $pet) {
                                     <?php else: ?>
                                         <div class="alert alert-info mb-0">
                                             <i class="fas fa-info-circle me-1"></i> No medical records found for <?php echo htmlspecialchars($pet['pet_name']); ?>.
+                                            <a href="appointment.php?pet_id=<?php echo $pet['pet_id']; ?>" class="alert-link">Book an appointment now</a>.
                                         </div>
                                     <?php endif; ?>
                                 </div>
@@ -1029,7 +1140,7 @@ foreach ($pets as $pet) {
                             if ($score['score'] >= 90) echo "'#2ecc71',";
                             elseif ($score['score'] >= 75) echo "'#7e57c2',";
                             elseif ($score['score'] >= 60) echo "'#f39c12',";
-                            else echo "'#e74c3c',";
+                            else echo "'#d32f2f',";
                         }
                         ?>
                     ],
@@ -1125,7 +1236,7 @@ foreach ($pets as $pet) {
                 datasets: [{
                     label: 'Visits per Month',
                     data: [<?php echo implode(',', array_column($serviceFrequency, 'services_per_month')); ?>],
-                    backgroundColor: '#4a6cf7',
+                    backgroundColor: '#d32f2f',
                     borderColor: '#333',
                     borderWidth: 1
                 }]
@@ -1167,7 +1278,7 @@ foreach ($pets as $pet) {
                         '#2ecc71',
                         '#7e57c2',
                         '#f39c12',
-                        '#e74c3c'
+                        '#d32f2f'
                     ],
                     borderColor: '#fff',
                     borderWidth: 2
@@ -1188,8 +1299,8 @@ foreach ($pets as $pet) {
     // Helper function to generate random colors for charts
     function getRandomColor(seed, opacity = 1) {
         const colors = [
-            '#e91e63', '#4a6cf7', '#2ecc71', '#f39c12', 
-            '#9c27b0', '#2196f3', '#00bcd4', '#ff9800'
+            '#d32f2f', '#4a6cf7', '#2ecc71', '#f39c12', 
+            '#9c27b0', '#2196f3', '#00bcd4', '#ffd600'
         ];
         const index = Math.abs(seed) % colors.length;
         return opacity < 1 ? 
@@ -1434,8 +1545,8 @@ foreach ($pets as $pet) {
 // Helper function for random colors in PHP
 function getRandomColor($seed, $opacity = 1) {
     $colors = [
-        '#e91e63', '#4a6cf7', '#2ecc71', '#f39c12', 
-        '#9c27b0', '#2196f3', '#00bcd4', '#ff9800'
+        '#d32f2f', '#4a6cf7', '#2ecc71', '#f39c12', 
+        '#9c27b0', '#2196f3', '#00bcd4', '#ffd600'
     ];
     $index = abs($seed) % count($colors);
     return $colors[$index];
