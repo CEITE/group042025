@@ -323,6 +323,30 @@ foreach ($pets as $pet) {
             border-radius: 10px;
             border: none;
         }
+
+        /* Appointment Button Styles */
+        .sidebar .appointment-btn {
+            background: linear-gradient(135deg, var(--primary-pink), var(--dark-pink));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin: 1rem 0;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+        
+        .sidebar .appointment-btn:hover {
+            background: linear-gradient(135deg, var(--dark-pink), var(--primary-pink));
+            color: white;
+            transform: translateY(-2px);
+        }
         
         .main-content {
             flex: 1;
@@ -616,6 +640,12 @@ foreach ($pets as $pet) {
             <h6 id="ownerNameSidebar"><?php echo htmlspecialchars($user['name']); ?></h6>
             <small class="text-muted"><?php echo htmlspecialchars($user['role']); ?></small>
         </div>
+
+        <!-- Appointment Button -->
+        <a href="appointment.php" class="appointment-btn">
+            <i class="fas fa-calendar-plus"></i> Book Appointment
+        </a>
+
         <a href="user_dashboard.php" class="active">
             <div class="icon"><i class="fa-solid fa-gauge"></i></div> Dashboard
         </a>
