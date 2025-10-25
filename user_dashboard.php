@@ -642,7 +642,7 @@ foreach ($pets as $pet) {
         </div>
 
         <!-- Appointment Button -->
-        <a href="appointment.php" class="appointment-btn">
+        <a href="user_appointment.php" class="appointment-btn">
             <i class="fas fa-calendar-plus"></i> Book Appointment
         </a>
 
@@ -1471,3 +1471,4 @@ function getRandomColor($seed, $opacity = 1) {
     return $colors[$index];
 }
 ?>
+
