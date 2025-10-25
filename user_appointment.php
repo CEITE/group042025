@@ -1,4 +1,8 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 session_start();
 include("conn.php");
 
@@ -12,165 +16,180 @@ $user_id = $_SESSION['user_id'];
 
 // Function to create vet notification
 function createVetNotification($conn, $message, $appointment_id = null) {
-    $stmt = $conn->prepare("INSERT INTO vet_notifications (message, appointment_id, is_read, created_at) VALUES (?, ?, 0, NOW())");
-    if ($appointment_id) {
-        $stmt->bind_param("si", $message, $appointment_id);
-    } else {
-        $stmt->bind_param("ss", $message, $appointment_id);
+    try {
+        $stmt = $conn->prepare("INSERT INTO vet_notifications (message, appointment_id, is_read, created_at) VALUES (?, ?, 0, NOW())");
+        if ($appointment_id) {
+            $stmt->bind_param("si", $message, $appointment_id);
+        } else {
+            // Handle case where appointment_id might be null
+            $null = null;
+            $stmt->bind_param("si", $message, $null);
+        }
+        return $stmt->execute();
+    } catch (Exception $e) {
+        error_log("Notification error: " . $e->getMessage());
+        return false;
     }
-    return $stmt->execute();
 }
 
 // Fetch user info
-$stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
-
-// Set default profile picture
-$profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($user['name']);
+try {
+    $stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    
+    if (!$user) {
+        die("User not found!");
+    }
+    
+    // Set default profile picture
+    $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($user['name']);
+} catch (Exception $e) {
+    die("Error fetching user: " . $e->getMessage());
+}
 
 // Fetch user's pets for appointment booking
-$pets_stmt = $conn->prepare("SELECT pet_id, name, species, breed FROM pets WHERE user_id = ?");
-$pets_stmt->bind_param("i", $user_id);
-$pets_stmt->execute();
-$pets = $pets_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+try {
+    $pets_stmt = $conn->prepare("SELECT pet_id, name, species, breed FROM pets WHERE user_id = ?");
+    $pets_stmt->bind_param("i", $user_id);
+    $pets_stmt->execute();
+    $pets = $pets_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+} catch (Exception $e) {
+    $pets = [];
+    error_log("Error fetching pets: " . $e->getMessage());
+}
 
 // Fetch existing appointments
-$appointments_stmt = $conn->prepare("
-    SELECT a.*, p.name as pet_name, p.species 
-    FROM appointments a 
-    LEFT JOIN pets p ON a.pet_id = p.pet_id 
-    WHERE a.user_id = ? 
-    ORDER BY a.appointment_date DESC, a.appointment_time DESC
-");
-$appointments_stmt->bind_param("i", $user_id);
-$appointments_stmt->execute();
-$appointments = $appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+try {
+    $appointments_stmt = $conn->prepare("
+        SELECT a.*, p.name as pet_name, p.species 
+        FROM appointments a 
+        LEFT JOIN pets p ON a.pet_id = p.pet_id 
+        WHERE a.user_id = ? 
+        ORDER BY a.appointment_date DESC, a.appointment_time DESC
+    ");
+    $appointments_stmt->bind_param("i", $user_id);
+    $appointments_stmt->execute();
+    $appointments = $appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+} catch (Exception $e) {
+    $appointments = [];
+    error_log("Error fetching appointments: " . $e->getMessage());
+}
 
 // Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $pet_id = $_POST['pet_id'];
-    $appointment_date = $_POST['appointment_date'];
-    $appointment_time = $_POST['appointment_time'];
-    $service_type = $_POST['service_type'];
-    $reason = $_POST['reason'];
-    $preferred_vet = $_POST['preferred_vet'];
-    $notes = $_POST['notes'];
-    
-    // Validate required fields
-    if (empty($pet_id) || empty($appointment_date) || empty($appointment_time) || empty($service_type)) {
-        $_SESSION['error'] = "Please fill in all required fields.";
-    } else {
-        // Check if the selected date is in the future
-        $selected_datetime = strtotime($appointment_date . ' ' . $appointment_time);
-        if ($selected_datetime <= time()) {
-            $_SESSION['error'] = "Please select a future date and time for the appointment.";
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pet_id'])) {
+    try {
+        $pet_id = $_POST['pet_id'];
+        $appointment_date = $_POST['appointment_date'];
+        $appointment_time = $_POST['appointment_time'];
+        $service_type = $_POST['service_type'];
+        $reason = $_POST['reason'] ?? '';
+        $preferred_vet = $_POST['preferred_vet'] ?? '';
+        $notes = $_POST['notes'] ?? '';
+        
+        // Validate required fields
+        if (empty($pet_id) || empty($appointment_date) || empty($appointment_time) || empty($service_type)) {
+            $_SESSION['error'] = "Please fill in all required fields.";
         } else {
-            // Insert appointment
-            $insert_stmt = $conn->prepare("
-                INSERT INTO appointments (user_id, pet_id, appointment_date, appointment_time, service_type, reason, preferred_vet, notes, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled')
-            ");
-            $insert_stmt->bind_param("iissssss", $user_id, $pet_id, $appointment_date, $appointment_time, $service_type, $reason, $preferred_vet, $notes);
-            
-            if ($insert_stmt->execute()) {
-                $appointment_id = $insert_stmt->insert_id;
-                
-                // Create notification for vet
+            // Check if the selected date is in the future
+            $selected_datetime = strtotime($appointment_date . ' ' . $appointment_time);
+            if ($selected_datetime <= time()) {
+                $_SESSION['error'] = "Please select a future date and time for the appointment.";
+            } else {
+                // Get pet name and type for the appointment
                 $pet_name = '';
+                $pet_type = '';
                 foreach($pets as $pet) {
                     if ($pet['pet_id'] == $pet_id) {
                         $pet_name = $pet['name'];
+                        $pet_type = $pet['species']; // Using species as pet_type
                         break;
                     }
                 }
                 
-                $user_name = $user['name'];
-                $notification_message = "📅 New appointment booked by $user_name for $pet_name on $appointment_date at $appointment_time - Service: $service_type";
-                createVetNotification($conn, $notification_message, $appointment_id);
+                // Insert appointment - MATCHING YOUR EXACT TABLE COLUMNS
+                $insert_stmt = $conn->prepare("
+                    INSERT INTO appointments (
+                        pet_id, pet_name, pet_type, user_id, appointment_date, 
+                        appointment_time, service_type, reason, status, notes, 
+                        notification_sent
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, 0)
+                ");
                 
-                $_SESSION['success'] = "Appointment booked successfully! The veterinary team has been notified.";
-                header("Location: user_appointment.php");
-                exit();
-            } else {
-                $_SESSION['error'] = "Error booking appointment. Please try again.";
+                if ($insert_stmt) {
+                    $insert_stmt->bind_param(
+                        "isssssssss", 
+                        $pet_id, $pet_name, $pet_type, $user_id, $appointment_date, 
+                        $appointment_time, $service_type, $reason, $notes
+                    );
+                    
+                    if ($insert_stmt->execute()) {
+                        $appointment_id = $insert_stmt->insert_id;
+                        
+                        // Create notification for vet
+                        $user_name = $user['name'];
+                        $notification_message = "📅 New appointment booked by $user_name for $pet_name ($pet_type) on $appointment_date at $appointment_time - Service: $service_type";
+                        createVetNotification($conn, $notification_message, $appointment_id);
+                        
+                        // Update notification_sent flag
+                        $update_stmt = $conn->prepare("UPDATE appointments SET notification_sent = 1 WHERE appointment_id = ?");
+                        $update_stmt->bind_param("i", $appointment_id);
+                        $update_stmt->execute();
+                        
+                        $_SESSION['success'] = "Appointment booked successfully! The veterinary team has been notified.";
+                        header("Location: user_appointment.php");
+                        exit();
+                    } else {
+                        $_SESSION['error'] = "Error booking appointment: " . $insert_stmt->error;
+                    }
+                } else {
+                    $_SESSION['error'] = "Error preparing statement: " . $conn->error;
+                }
             }
         }
+    } catch (Exception $e) {
+        $_SESSION['error'] = "Error: " . $e->getMessage();
     }
 }
 
 // Handle appointment cancellation
 if (isset($_GET['cancel_id'])) {
-    $cancel_id = $_GET['cancel_id'];
-    
-    // Get appointment details first
-    $get_stmt = $conn->prepare("
-        SELECT a.*, p.name as pet_name 
-        FROM appointments a 
-        LEFT JOIN pets p ON a.pet_id = p.pet_id 
-        WHERE a.appointment_id = ? AND a.user_id = ?
-    ");
-    $get_stmt->bind_param("ii", $cancel_id, $user_id);
-    $get_stmt->execute();
-    $appointment_details = $get_stmt->get_result()->fetch_assoc();
-    
-    if ($appointment_details) {
-        $cancel_stmt = $conn->prepare("UPDATE appointments SET status = 'cancelled' WHERE appointment_id = ? AND user_id = ?");
-        $cancel_stmt->bind_param("ii", $cancel_id, $user_id);
+    try {
+        $cancel_id = $_GET['cancel_id'];
         
-        if ($cancel_stmt->execute()) {
-            // Notify vet about cancellation
-            $user_name = $user['name'];
-            $cancel_message = "❌ Appointment cancelled by $user_name for " . $appointment_details['pet_name'] . " on " . $appointment_details['appointment_date'] . " at " . $appointment_details['appointment_time'];
-            createVetNotification($conn, $cancel_message, $cancel_id);
-            
-            $_SESSION['success'] = "Appointment cancelled successfully! The veterinary team has been notified.";
-            header("Location: user_appointment.php");
-            exit();
-        } else {
-            $_SESSION['error'] = "Error cancelling appointment. Please try again.";
-        }
-    } else {
-        $_SESSION['error'] = "Appointment not found or you don't have permission to cancel it.";
-    }
-}
-
-// Handle appointment rescheduling
-if (isset($_POST['reschedule_appointment'])) {
-    $reschedule_id = $_POST['reschedule_id'];
-    $new_date = $_POST['new_appointment_date'];
-    $new_time = $_POST['new_appointment_time'];
-    
-    // Get appointment details
-    $get_stmt = $conn->prepare("
-        SELECT a.*, p.name as pet_name 
-        FROM appointments a 
-        LEFT JOIN pets p ON a.pet_id = p.pet_id 
-        WHERE a.appointment_id = ? AND a.user_id = ?
-    ");
-    $get_stmt->bind_param("ii", $reschedule_id, $user_id);
-    $get_stmt->execute();
-    $appointment_details = $get_stmt->get_result()->fetch_assoc();
-    
-    if ($appointment_details) {
-        $reschedule_stmt = $conn->prepare("UPDATE appointments SET appointment_date = ?, appointment_time = ?, status = 'rescheduled' WHERE appointment_id = ? AND user_id = ?");
-        $reschedule_stmt->bind_param("ssii", $new_date, $new_time, $reschedule_id, $user_id);
+        // Get appointment details first
+        $get_stmt = $conn->prepare("
+            SELECT a.*, p.name as pet_name 
+            FROM appointments a 
+            LEFT JOIN pets p ON a.pet_id = p.pet_id 
+            WHERE a.appointment_id = ? AND a.user_id = ?
+        ");
+        $get_stmt->bind_param("ii", $cancel_id, $user_id);
+        $get_stmt->execute();
+        $appointment_details = $get_stmt->get_result()->fetch_assoc();
         
-        if ($reschedule_stmt->execute()) {
-            // Notify vet about rescheduling
-            $user_name = $user['name'];
-            $reschedule_message = "🔄 Appointment rescheduled by $user_name for " . $appointment_details['pet_name'] . " to $new_date at $new_time";
-            createVetNotification($conn, $reschedule_message, $reschedule_id);
+        if ($appointment_details) {
+            $cancel_stmt = $conn->prepare("UPDATE appointments SET status = 'cancelled' WHERE appointment_id = ? AND user_id = ?");
+            $cancel_stmt->bind_param("ii", $cancel_id, $user_id);
             
-            $_SESSION['success'] = "Appointment rescheduled successfully! The veterinary team has been notified.";
-            header("Location: user_appointment.php");
-            exit();
+            if ($cancel_stmt->execute()) {
+                // Notify vet about cancellation
+                $user_name = $user['name'];
+                $cancel_message = "❌ Appointment cancelled by $user_name for " . $appointment_details['pet_name'] . " on " . $appointment_details['appointment_date'] . " at " . $appointment_details['appointment_time'];
+                createVetNotification($conn, $cancel_message, $cancel_id);
+                
+                $_SESSION['success'] = "Appointment cancelled successfully! The veterinary team has been notified.";
+                header("Location: user_appointment.php");
+                exit();
+            } else {
+                $_SESSION['error'] = "Error cancelling appointment: " . $cancel_stmt->error;
+            }
         } else {
-            $_SESSION['error'] = "Error rescheduling appointment. Please try again.";
+            $_SESSION['error'] = "Appointment not found or you don't have permission to cancel it.";
         }
-    } else {
-        $_SESSION['error'] = "Appointment not found or you don't have permission to reschedule it.";
+    } catch (Exception $e) {
+        $_SESSION['error'] = "Error: " . $e->getMessage();
     }
 }
 ?>
@@ -288,7 +307,6 @@ if (isset($_POST['reschedule_appointment'])) {
             border: none;
         }
 
-        /* Appointment Button Styles */
         .sidebar .appointment-btn {
             background: linear-gradient(135deg, var(--primary-pink), var(--dark-pink));
             color: white;
@@ -343,19 +361,6 @@ if (isset($_POST['reschedule_appointment'])) {
             transform: translateY(-2px);
         }
         
-        .form-section {
-            margin-bottom: 2rem;
-        }
-        
-        .form-section-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: var(--blue);
-            border-bottom: 2px solid var(--secondary-pink);
-            padding-bottom: 0.5rem;
-        }
-        
         .alert-custom {
             border-radius: 12px;
             border: none;
@@ -397,19 +402,6 @@ if (isset($_POST['reschedule_appointment'])) {
             color: #e74c3c;
         }
         
-        .status-rescheduled {
-            background-color: var(--orange-light);
-            color: var(--orange);
-        }
-        
-        .service-badge {
-            background: linear-gradient(135deg, var(--primary-pink), var(--dark-pink));
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-        }
-        
         .empty-state {
             text-align: center;
             padding: 3rem 2rem;
@@ -433,27 +425,6 @@ if (isset($_POST['reschedule_appointment'])) {
             color: white;
         }
         
-        .time-slot {
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 10px;
-            margin: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
-        }
-        
-        .time-slot:hover {
-            border-color: var(--primary-pink);
-            background-color: var(--light-pink);
-        }
-        
-        .time-slot.selected {
-            border-color: var(--primary-pink);
-            background-color: var(--primary-pink);
-            color: white;
-        }
-        
         .pet-avatar {
             width: 50px;
             height: 50px;
@@ -464,27 +435,6 @@ if (isset($_POST['reschedule_appointment'])) {
             font-size: 1.2rem;
             background: var(--light-pink);
             color: var(--dark-pink);
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #dc3545;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         
         @media (max-width: 768px) {
@@ -501,10 +451,6 @@ if (isset($_POST['reschedule_appointment'])) {
                 flex-direction: column;
                 gap: 1rem;
                 text-align: center;
-            }
-            
-            .action-buttons {
-                flex-direction: column;
             }
         }
     </style>
@@ -525,7 +471,6 @@ if (isset($_POST['reschedule_appointment'])) {
             <small class="text-muted"><?php echo htmlspecialchars($user['role']); ?></small>
         </div>
 
-        <!-- Appointment Button -->
         <a href="user_appointment.php" class="appointment-btn active">
             <i class="fas fa-calendar-plus"></i> Book Appointment
         </a>
@@ -603,8 +548,7 @@ if (isset($_POST['reschedule_appointment'])) {
                                     <select class="form-select" name="pet_id" required id="petSelect">
                                         <option value="">Choose your pet...</option>
                                         <?php foreach ($pets as $pet): ?>
-                                            <option value="<?php echo $pet['pet_id']; ?>" 
-                                                <?php echo isset($_POST['pet_id']) && $_POST['pet_id'] == $pet['pet_id'] ? 'selected' : ''; ?>>
+                                            <option value="<?php echo $pet['pet_id']; ?>">
                                                 <?php echo htmlspecialchars($pet['name']); ?> (<?php echo htmlspecialchars($pet['species']); ?> - <?php echo htmlspecialchars($pet['breed']); ?>)
                                             </option>
                                         <?php endforeach; ?>
@@ -619,7 +563,6 @@ if (isset($_POST['reschedule_appointment'])) {
                                        class="form-control" 
                                        name="appointment_date" 
                                        id="appointmentDate"
-                                       value="<?php echo isset($_POST['appointment_date']) ? $_POST['appointment_date'] : ''; ?>" 
                                        min="<?php echo date('Y-m-d'); ?>" 
                                        required>
                                 <small class="text-muted">Select a future date</small>
@@ -630,13 +573,13 @@ if (isset($_POST['reschedule_appointment'])) {
                                 <label class="form-label">Appointment Time <span class="text-danger">*</span></label>
                                 <select class="form-select" name="appointment_time" required id="appointmentTime">
                                     <option value="">Select time...</option>
-                                    <option value="09:00" <?php echo isset($_POST['appointment_time']) && $_POST['appointment_time'] == '09:00' ? 'selected' : ''; ?>>9:00 AM</option>
-                                    <option value="10:00" <?php echo isset($_POST['appointment_time']) && $_POST['appointment_time'] == '10:00' ? 'selected' : ''; ?>>10:00 AM</option>
-                                    <option value="11:00" <?php echo isset($_POST['appointment_time']) && $_POST['appointment_time'] == '11:00' ? 'selected' : ''; ?>>11:00 AM</option>
-                                    <option value="12:00" <?php echo isset($_POST['appointment_time']) && $_POST['appointment_time'] == '12:00' ? 'selected' : ''; ?>>12:00 PM</option>
-                                    <option value="14:00" <?php echo isset($_POST['appointment_time']) && $_POST['appointment_time'] == '14:00' ? 'selected' : ''; ?>>2:00 PM</option>
-                                    <option value="15:00" <?php echo isset($_POST['appointment_time']) && $_POST['appointment_time'] == '15:00' ? 'selected' : ''; ?>>3:00 PM</option>
-                                    <option value="16:00" <?php echo isset($_POST['appointment_time']) && $_POST['appointment_time'] == '16:00' ? 'selected' : ''; ?>>4:00 PM</option>
+                                    <option value="09:00">9:00 AM</option>
+                                    <option value="10:00">10:00 AM</option>
+                                    <option value="11:00">11:00 AM</option>
+                                    <option value="12:00">12:00 PM</option>
+                                    <option value="14:00">2:00 PM</option>
+                                    <option value="15:00">3:00 PM</option>
+                                    <option value="16:00">4:00 PM</option>
                                 </select>
                             </div>
 
@@ -645,20 +588,20 @@ if (isset($_POST['reschedule_appointment'])) {
                                 <label class="form-label">Service Type <span class="text-danger">*</span></label>
                                 <select class="form-select" name="service_type" required id="serviceType">
                                     <option value="">Select service...</option>
-                                    <option value="General Checkup" <?php echo isset($_POST['service_type']) && $_POST['service_type'] == 'General Checkup' ? 'selected' : ''; ?>>General Checkup</option>
-                                    <option value="Vaccination" <?php echo isset($_POST['service_type']) && $_POST['service_type'] == 'Vaccination' ? 'selected' : ''; ?>>Vaccination</option>
-                                    <option value="Dental Care" <?php echo isset($_POST['service_type']) && $_POST['service_type'] == 'Dental Care' ? 'selected' : ''; ?>>Dental Care</option>
-                                    <option value="Grooming" <?php echo isset($_POST['service_type']) && $_POST['service_type'] == 'Grooming' ? 'selected' : ''; ?>>Grooming</option>
-                                    <option value="Emergency" <?php echo isset($_POST['service_type']) && $_POST['service_type'] == 'Emergency' ? 'selected' : ''; ?>>Emergency</option>
-                                    <option value="Surgery" <?php echo isset($_POST['service_type']) && $_POST['service_type'] == 'Surgery' ? 'selected' : ''; ?>>Surgery</option>
-                                    <option value="Other" <?php echo isset($_POST['service_type']) && $_POST['service_type'] == 'Other' ? 'selected' : ''; ?>>Other</option>
+                                    <option value="General Checkup">General Checkup</option>
+                                    <option value="Vaccination">Vaccination</option>
+                                    <option value="Dental Care">Dental Care</option>
+                                    <option value="Grooming">Grooming</option>
+                                    <option value="Emergency">Emergency</option>
+                                    <option value="Surgery">Surgery</option>
+                                    <option value="Other">Other</option>
                                 </select>
                             </div>
 
                             <!-- Reason for Visit -->
                             <div class="col-md-12 mb-3">
                                 <label class="form-label">Reason for Visit</label>
-                                <textarea class="form-control" name="reason" rows="3" placeholder="Briefly describe the reason for your visit..."><?php echo isset($_POST['reason']) ? $_POST['reason'] : ''; ?></textarea>
+                                <textarea class="form-control" name="reason" rows="3" placeholder="Briefly describe the reason for your visit..."></textarea>
                             </div>
 
                             <!-- Preferred Veterinarian -->
@@ -666,17 +609,17 @@ if (isset($_POST['reschedule_appointment'])) {
                                 <label class="form-label">Preferred Veterinarian</label>
                                 <select class="form-select" name="preferred_vet">
                                     <option value="">Any available</option>
-                                    <option value="Dr. Smith" <?php echo isset($_POST['preferred_vet']) && $_POST['preferred_vet'] == 'Dr. Smith' ? 'selected' : ''; ?>>Dr. Smith</option>
-                                    <option value="Dr. Johnson" <?php echo isset($_POST['preferred_vet']) && $_POST['preferred_vet'] == 'Dr. Johnson' ? 'selected' : ''; ?>>Dr. Johnson</option>
-                                    <option value="Dr. Williams" <?php echo isset($_POST['preferred_vet']) && $_POST['preferred_vet'] == 'Dr. Williams' ? 'selected' : ''; ?>>Dr. Williams</option>
-                                    <option value="Dr. Brown" <?php echo isset($_POST['preferred_vet']) && $_POST['preferred_vet'] == 'Dr. Brown' ? 'selected' : ''; ?>>Dr. Brown</option>
+                                    <option value="Dr. Smith">Dr. Smith</option>
+                                    <option value="Dr. Johnson">Dr. Johnson</option>
+                                    <option value="Dr. Williams">Dr. Williams</option>
+                                    <option value="Dr. Brown">Dr. Brown</option>
                                 </select>
                             </div>
 
                             <!-- Additional Notes -->
                             <div class="col-md-12 mb-3">
                                 <label class="form-label">Additional Notes</label>
-                                <textarea class="form-control" name="notes" rows="2" placeholder="Any additional information..."><?php echo isset($_POST['notes']) ? $_POST['notes'] : ''; ?></textarea>
+                                <textarea class="form-control" name="notes" rows="2" placeholder="Any additional information..."></textarea>
                             </div>
 
                             <!-- Submit Button -->
@@ -707,7 +650,7 @@ if (isset($_POST['reschedule_appointment'])) {
                     <?php else: ?>
                         <div class="appointments-list">
                             <?php foreach ($appointments as $appointment): ?>
-                                <div class="card appointment-card mb-3" id="appointment-<?php echo $appointment['appointment_id']; ?>">
+                                <div class="card appointment-card mb-3">
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-start mb-2">
                                             <div class="d-flex align-items-center">
@@ -747,24 +690,14 @@ if (isset($_POST['reschedule_appointment'])) {
                                             </div>
                                         <?php endif; ?>
                                         
-                                        <div class="mt-3 action-buttons">
+                                        <div class="mt-3">
                                             <?php if ($appointment['status'] == 'scheduled' || $appointment['status'] == 'confirmed'): ?>
                                                 <a href="user_appointment.php?cancel_id=<?php echo $appointment['appointment_id']; ?>" 
                                                    class="btn btn-sm btn-outline-danger"
                                                    onclick="return confirm('Are you sure you want to cancel this appointment? The veterinary team will be notified.')">
                                                     <i class="fas fa-times me-1"></i>Cancel
                                                 </a>
-                                                <button type="button" 
-                                                        class="btn btn-sm btn-outline-primary" 
-                                                        onclick="openRescheduleModal(<?php echo $appointment['appointment_id']; ?>)">
-                                                    <i class="fas fa-calendar-alt me-1"></i>Reschedule
-                                                </button>
                                             <?php endif; ?>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-outline-secondary" 
-                                                    onclick="viewAppointmentDetails(<?php echo $appointment['appointment_id']; ?>)">
-                                                <i class="fas fa-eye me-1"></i>Details
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -774,241 +707,35 @@ if (isset($_POST['reschedule_appointment'])) {
                 </div>
             </div>
         </div>
-
-        <!-- Quick Actions -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card-custom text-center">
-                    <h5><i class="fas fa-clock me-2"></i>Clinic Hours</h5>
-                    <div class="row mt-3">
-                        <div class="col-md-3 mb-2">
-                            <strong>Monday - Friday</strong><br>
-                            <span class="text-muted">9:00 AM - 5:00 PM</span>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <strong>Saturday</strong><br>
-                            <span class="text-muted">9:00 AM - 2:00 PM</span>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <strong>Sunday</strong><br>
-                            <span class="text-muted">Closed</span>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <strong>Emergency</strong><br>
-                            <span class="text-muted">24/7 Available</span>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <small class="text-muted">
-                            <i class="fas fa-phone me-1"></i> Emergency Contact: (555) 123-4567
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
-<!-- Reschedule Modal -->
-<div class="modal fade" id="rescheduleModal" tabindex="-1" aria-labelledby="rescheduleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="rescheduleModalLabel">Reschedule Appointment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="POST" action="user_appointment.php" id="rescheduleForm">
-                <div class="modal-body">
-                    <input type="hidden" name="reschedule_id" id="rescheduleId">
-                    <div class="mb-3">
-                        <label class="form-label">New Appointment Date</label>
-                        <input type="date" class="form-control" name="new_appointment_date" id="newAppointmentDate" min="<?php echo date('Y-m-d'); ?>" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">New Appointment Time</label>
-                        <select class="form-select" name="new_appointment_time" required>
-                            <option value="">Select time...</option>
-                            <option value="09:00">9:00 AM</option>
-                            <option value="10:00">10:00 AM</option>
-                            <option value="11:00">11:00 AM</option>
-                            <option value="12:00">12:00 PM</option>
-                            <option value="14:00">2:00 PM</option>
-                            <option value="15:00">3:00 PM</option>
-                            <option value="16:00">4:00 PM</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" name="reschedule_appointment">Reschedule Appointment</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Bootstrap & jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Initialize the page
     document.addEventListener('DOMContentLoaded', function() {
         // Set current date and time
         updateDateTime();
         setInterval(updateDateTime, 60000);
         
-        // Set minimum date to today
-        const dateInput = document.querySelector('input[name="appointment_date"]');
+        // Set default date to tomorrow
+        const dateInput = document.getElementById('appointmentDate');
         if (dateInput) {
-            const today = new Date().toISOString().split('T')[0];
-            dateInput.min = today;
-            
-            // If no value is set, set it to tomorrow as default
-            if (!dateInput.value) {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                dateInput.value = tomorrow.toISOString().split('T')[0];
-            }
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            dateInput.value = tomorrow.toISOString().split('T')[0];
         }
         
-        // Auto-close alerts after 5 seconds
-        setTimeout(() => {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            });
-        }, 5000);
-        
-        // Initialize form validation
-        initializeFormValidation();
+        console.log('Appointment page loaded successfully');
     });
 
-    // Update date and time display
     function updateDateTime() {
         const now = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
         document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US');
     }
-
-    // Form validation
-    function validateAppointmentForm() {
-        const petSelect = document.getElementById('petSelect');
-        const dateInput = document.getElementById('appointmentDate');
-        const timeSelect = document.getElementById('appointmentTime');
-        const serviceSelect = document.getElementById('serviceType');
-        
-        if (!petSelect || !petSelect.value) {
-            showAlert('Please select a pet for the appointment.', 'danger');
-            petSelect?.focus();
-            return false;
-        }
-        
-        if (!dateInput || !dateInput.value) {
-            showAlert('Please select an appointment date.', 'danger');
-            dateInput?.focus();
-            return false;
-        }
-        
-        if (!timeSelect || !timeSelect.value) {
-            showAlert('Please select an appointment time.', 'danger');
-            timeSelect?.focus();
-            return false;
-        }
-        
-        if (!serviceSelect || !serviceSelect.value) {
-            showAlert('Please select a service type.', 'danger');
-            serviceSelect?.focus();
-            return false;
-        }
-        
-        // Check if selected date is in the future
-        const selectedDate = new Date(dateInput.value);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        if (selectedDate < today) {
-            showAlert('Please select a future date for the appointment.', 'danger');
-            dateInput.focus();
-            return false;
-        }
-        
-        return true;
-    }
-
-    // Initialize form validation
-    function initializeFormValidation() {
-        const form = document.getElementById('appointmentForm');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                if (!validateAppointmentForm()) {
-                    e.preventDefault();
-                } else {
-                    // Show loading state
-                    const submitBtn = document.getElementById('submitBtn');
-                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Booking...';
-                    submitBtn.disabled = true;
-                }
-            });
-        }
-    }
-
-    // Show alert message
-    function showAlert(message, type) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-custom alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            <i class="fas ${type === 'danger' ? 'fa-exclamation-circle' : 'fa-check-circle'} me-2"></i>${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        
-        const container = document.querySelector('.main-content');
-        container.insertBefore(alertDiv, container.firstChild);
-        
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            alertDiv.remove();
-        }, 5000);
-    }
-
-    // Open reschedule modal
-    function openRescheduleModal(appointmentId) {
-        document.getElementById('rescheduleId').value = appointmentId;
-        
-        // Set minimum date to today for rescheduling
-        const newDateInput = document.getElementById('newAppointmentDate');
-        const today = new Date().toISOString().split('T')[0];
-        newDateInput.min = today;
-        
-        // Set default date to tomorrow
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        newDateInput.value = tomorrow.toISOString().split('T')[0];
-        
-        const modal = new bootstrap.Modal(document.getElementById('rescheduleModal'));
-        modal.show();
-    }
-
-    // View appointment details
-    function viewAppointmentDetails(appointmentId) {
-        // You can implement a detailed view modal here
-        showAlert(`Viewing details for appointment #${appointmentId}. Detailed view coming soon!`, 'info');
-    }
-
-    // Check for real-time updates (optional feature)
-    function checkForUpdates() {
-        // This could be used to check for appointment status changes
-        console.log('Checking for appointment updates...');
-    }
-
-    // Refresh appointments list
-    function refreshAppointments() {
-        location.reload(); // Simple refresh for now
-    }
-
-    console.log('Appointment booking page initialized successfully!');
 </script>
 </body>
 </html>
