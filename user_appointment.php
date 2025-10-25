@@ -8,47 +8,60 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+$user_id = $_SESSION['user_id'];
+$error = '';
+$success = '';
+
 // Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $pet_name = $_POST['pet_name'];
-    $pet_type = $_POST['pet_type'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pet_name'])) {
+    $pet_name = trim($_POST['pet_name']);
+    $pet_type = trim($_POST['pet_type']);
     $appointment_date = $_POST['appointment_date'];
     $appointment_time = $_POST['appointment_time'];
     $service_type = $_POST['service_type'];
-    $reason = $_POST['reason'];
-    $user_id = $_SESSION['user_id'];
+    $reason = trim($_POST['reason']);
     
-    // Validate date and time
-    $appointment_datetime = $appointment_date . ' ' . $appointment_time;
-    $current_datetime = date('Y-m-d H:i:s');
-    
-    if (strtotime($appointment_datetime) <= strtotime($current_datetime)) {
-        $error = "Appointment date and time must be in the future.";
+    // Validate inputs
+    if (empty($pet_name) || empty($appointment_date) || empty($appointment_time)) {
+        $error = "Please fill in all required fields.";
     } else {
-        // Insert appointment
-        $stmt = $pdo->prepare("INSERT INTO appointments (user_id, pet_name, pet_type, appointment_date, appointment_time, service_type, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')");
+        // Validate date and time
+        $appointment_datetime = $appointment_date . ' ' . $appointment_time;
+        $current_datetime = date('Y-m-d H:i:s');
         
-        if ($stmt->execute([$user_id, $pet_name, $pet_type, $appointment_date, $appointment_time, $service_type, $reason])) {
-            $success = "Appointment scheduled successfully! You will be notified when confirmed.";
-            
-            // Create notification for vet
-            createVetNotification($pdo, "New appointment request from " . $_SESSION['user_name'] . " for " . $pet_name);
+        if (strtotime($appointment_datetime) <= strtotime($current_datetime)) {
+            $error = "Appointment date and time must be in the future.";
         } else {
-            $error = "Failed to schedule appointment. Please try again.";
+            try {
+                // Insert appointment - using your existing column names
+                $stmt = $pdo->prepare("INSERT INTO appointments (user_id, pet_name, pet_type, appointment_date, appointment_time, service_type, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')");
+                
+                if ($stmt->execute([$user_id, $pet_name, $pet_type, $appointment_date, $appointment_time, $service_type, $reason])) {
+                    $success = "Appointment scheduled successfully!";
+                    
+                    // Create notification for vet
+                    $notification_stmt = $pdo->prepare("INSERT INTO vet_notifications (message, is_read, created_at) VALUES (?, 0, NOW())");
+                    $notification_message = "New appointment request for " . $pet_name . " (" . $pet_type . ") on " . $appointment_date . " at " . $appointment_time;
+                    $notification_stmt->execute([$notification_message]);
+                } else {
+                    $error = "Failed to schedule appointment. Please try again.";
+                }
+            } catch (PDOException $e) {
+                $error = "Database error: " . $e->getMessage();
+            }
         }
     }
 }
 
-// Function to create vet notification
-function createVetNotification($pdo, $message) {
-    $stmt = $pdo->prepare("INSERT INTO vet_notifications (message, is_read, created_at) VALUES (?, 0, NOW())");
-    $stmt->execute([$message]);
-}
-
 // Get user's appointments
-$stmt = $pdo->prepare("SELECT * FROM appointments WHERE user_id = ? ORDER BY appointment_date DESC, appointment_time DESC");
-$stmt->execute([$_SESSION['user_id']]);
-$appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare("SELECT * FROM appointments WHERE user_id = ? ORDER BY appointment_date DESC, appointment_time DESC");
+    $stmt->execute([$user_id]);
+    $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $error = "Error loading appointments: " . $e->getMessage();
+    $appointments = [];
+}
 ?>
 
 <!DOCTYPE html>
@@ -78,58 +91,58 @@ $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="container">
         <h1>Schedule Vet Appointment</h1>
         
-        <?php if (isset($success)): ?>
-            <div class="alert success"><?php echo $success; ?></div>
+        <?php if (!empty($success)): ?>
+            <div class="alert success"><?php echo htmlspecialchars($success); ?></div>
         <?php endif; ?>
         
-        <?php if (isset($error)): ?>
-            <div class="alert error"><?php echo $error; ?></div>
+        <?php if (!empty($error)): ?>
+            <div class="alert error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
         <form method="POST" action="">
             <div class="form-group">
                 <label for="pet_name">Pet Name *</label>
-                <input type="text" id="pet_name" name="pet_name" required>
+                <input type="text" id="pet_name" name="pet_name" required value="<?php echo isset($_POST['pet_name']) ? htmlspecialchars($_POST['pet_name']) : ''; ?>">
             </div>
             
             <div class="form-group">
                 <label for="pet_type">Pet Type *</label>
                 <select id="pet_type" name="pet_type" required>
                     <option value="">Select Pet Type</option>
-                    <option value="dog">Dog</option>
-                    <option value="cat">Cat</option>
-                    <option value="bird">Bird</option>
-                    <option value="rabbit">Rabbit</option>
-                    <option value="other">Other</option>
+                    <option value="dog" <?php echo (isset($_POST['pet_type']) && $_POST['pet_type'] == 'dog') ? 'selected' : ''; ?>>Dog</option>
+                    <option value="cat" <?php echo (isset($_POST['pet_type']) && $_POST['pet_type'] == 'cat') ? 'selected' : ''; ?>>Cat</option>
+                    <option value="bird" <?php echo (isset($_POST['pet_type']) && $_POST['pet_type'] == 'bird') ? 'selected' : ''; ?>>Bird</option>
+                    <option value="rabbit" <?php echo (isset($_POST['pet_type']) && $_POST['pet_type'] == 'rabbit') ? 'selected' : ''; ?>>Rabbit</option>
+                    <option value="other" <?php echo (isset($_POST['pet_type']) && $_POST['pet_type'] == 'other') ? 'selected' : ''; ?>>Other</option>
                 </select>
             </div>
             
             <div class="form-group">
                 <label for="appointment_date">Appointment Date *</label>
-                <input type="date" id="appointment_date" name="appointment_date" min="<?php echo date('Y-m-d'); ?>" required>
+                <input type="date" id="appointment_date" name="appointment_date" min="<?php echo date('Y-m-d'); ?>" required value="<?php echo isset($_POST['appointment_date']) ? htmlspecialchars($_POST['appointment_date']) : ''; ?>">
             </div>
             
             <div class="form-group">
                 <label for="appointment_time">Appointment Time *</label>
-                <input type="time" id="appointment_time" name="appointment_time" required>
+                <input type="time" id="appointment_time" name="appointment_time" required value="<?php echo isset($_POST['appointment_time']) ? htmlspecialchars($_POST['appointment_time']) : ''; ?>">
             </div>
             
             <div class="form-group">
                 <label for="service_type">Service Type *</label>
                 <select id="service_type" name="service_type" required>
                     <option value="">Select Service</option>
-                    <option value="checkup">Regular Checkup</option>
-                    <option value="vaccination">Vaccination</option>
-                    <option value="grooming">Grooming</option>
-                    <option value="surgery">Surgery</option>
-                    <option value="emergency">Emergency</option>
-                    <option value="other">Other</option>
+                    <option value="checkup" <?php echo (isset($_POST['service_type']) && $_POST['service_type'] == 'checkup') ? 'selected' : ''; ?>>Regular Checkup</option>
+                    <option value="vaccination" <?php echo (isset($_POST['service_type']) && $_POST['service_type'] == 'vaccination') ? 'selected' : ''; ?>>Vaccination</option>
+                    <option value="grooming" <?php echo (isset($_POST['service_type']) && $_POST['service_type'] == 'grooming') ? 'selected' : ''; ?>>Grooming</option>
+                    <option value="surgery" <?php echo (isset($_POST['service_type']) && $_POST['service_type'] == 'surgery') ? 'selected' : ''; ?>>Surgery</option>
+                    <option value="emergency" <?php echo (isset($_POST['service_type']) && $_POST['service_type'] == 'emergency') ? 'selected' : ''; ?>>Emergency</option>
+                    <option value="other" <?php echo (isset($_POST['service_type']) && $_POST['service_type'] == 'other') ? 'selected' : ''; ?>>Other</option>
                 </select>
             </div>
             
             <div class="form-group">
                 <label for="reason">Reason for Visit *</label>
-                <textarea id="reason" name="reason" rows="4" required placeholder="Please describe the reason for the appointment..."></textarea>
+                <textarea id="reason" name="reason" rows="4" required placeholder="Please describe the reason for the appointment..."><?php echo isset($_POST['reason']) ? htmlspecialchars($_POST['reason']) : ''; ?></textarea>
             </div>
             
             <button type="submit">Schedule Appointment</button>
@@ -151,10 +164,9 @@ $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         
                         <div class="appointment-actions">
                             <?php if ($appointment['status'] == 'pending'): ?>
-                                <button onclick="cancelAppointment(<?php echo $appointment['id']; ?>)">Cancel Appointment</button>
-                            <?php elseif ($appointment['status'] == 'confirmed'): ?>
-                                <button onclick="viewAppointmentDetails(<?php echo $appointment['id']; ?>)">View Details</button>
+                                <button onclick="cancelAppointment(<?php echo $appointment['appointment_id']; ?>)">Cancel Appointment</button>
                             <?php endif; ?>
+                            <button onclick="viewAppointmentDetails(<?php echo $appointment['appointment_id']; ?>)">View Details</button>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -163,82 +175,34 @@ $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <script>
-    // Appointment Management Functions
-    function confirmAppointment(appointmentId) {
-        if (confirm('Are you sure you want to confirm this appointment?')) {
-            updateAppointmentStatus(appointmentId, 'confirmed');
-        }
-    }
-
+    // Your existing JavaScript functions here
     function cancelAppointment(appointmentId) {
         if (confirm('Are you sure you want to cancel this appointment?')) {
-            updateAppointmentStatus(appointmentId, 'cancelled');
-        }
-    }
-
-    function updateAppointmentStatus(appointmentId, status) {
-        fetch('update_appointment_status.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `appointment_id=${appointmentId}&status=${status}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Create notification for vet when appointment is cancelled
-                if (status === 'cancelled') {
-                    createVetNotification(`Appointment #${appointmentId} has been cancelled by user.`);
-                }
-                location.reload();
-            } else {
-                alert('Error: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('Network error: Could not update appointment.');
-            console.error('Error:', error);
-        });
-    }
-
-    function createVetNotification(message) {
-        // Send notification to vet dashboard
-        fetch('create_vet_notification.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `message=${encodeURIComponent(message)}`
-        })
-        .catch(error => console.error('Notification error:', error));
-    }
-
-    function viewAppointmentDetails(appointmentId) {
-        // You can implement a modal to show detailed appointment information
-        fetch('get_appointment_details.php?id=' + appointmentId)
+            fetch('update_appointment_status.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `appointment_id=${appointmentId}&status=cancelled`
+            })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    const appointment = data.appointment;
-                    const details = `
-                        Pet: ${appointment.pet_name} (${appointment.pet_type})
-                        Date: ${appointment.appointment_date}
-                        Time: ${appointment.appointment_time}
-                        Service: ${appointment.service_type}
-                        Status: ${appointment.status}
-                        Reason: ${appointment.reason}
-                        ${appointment.vet_notes ? `Vet Notes: ${appointment.vet_notes}` : ''}
-                    `;
-                    alert('Appointment Details:\n' + details);
+                    location.reload();
                 } else {
-                    alert('Error loading appointment details.');
+                    alert('Error cancelling appointment: ' + data.error);
                 }
             })
             .catch(error => {
-                alert('Error loading appointment details.');
+                alert('Network error: Could not cancel appointment.');
                 console.error('Error:', error);
             });
+        }
+    }
+
+    function viewAppointmentDetails(appointmentId) {
+        alert('Viewing appointment details for ID: ' + appointmentId);
+        // You can implement a modal here
     }
 
     // Set minimum time for appointment (current time + 1 hour)
@@ -248,6 +212,14 @@ $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
         const timeInput = document.getElementById('appointment_time');
         const minTime = now.toTimeString().slice(0, 5);
         timeInput.min = minTime;
+        
+        // Set default date to tomorrow
+        const dateInput = document.getElementById('appointment_date');
+        if (!dateInput.value) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            dateInput.value = tomorrow.toISOString().split('T')[0];
+        }
     });
     </script>
 </body>
