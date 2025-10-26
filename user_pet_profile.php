@@ -55,6 +55,57 @@ $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// ✅ Handle pet deletion
+if (isset($_POST['delete_pet'])) {
+    $pet_id_to_delete = intval($_POST['pet_id']);
+    
+    // Verify pet belongs to user
+    $check_stmt = $conn->prepare("SELECT user_id, profile_picture FROM pets WHERE pet_id = ?");
+    $check_stmt->bind_param("i", $pet_id_to_delete);
+    $check_stmt->execute();
+    $pet_to_delete = $check_stmt->get_result()->fetch_assoc();
+    
+    if ($pet_to_delete && $pet_to_delete['user_id'] == $user_id) {
+        try {
+            // Delete profile picture if exists
+            if (!empty($pet_to_delete['profile_picture'])) {
+                $picture_path = 'uploads/pet_profile_pictures/' . $pet_to_delete['profile_picture'];
+                if (file_exists($picture_path)) {
+                    unlink($picture_path);
+                }
+            }
+            
+            // Delete QR code if exists
+            if (!empty($pet_to_delete['qr_code'])) {
+                $qr_path = $pet_to_delete['qr_code'];
+                if (file_exists($qr_path)) {
+                    unlink($qr_path);
+                }
+            }
+            
+            // Delete pet from database
+            $delete_stmt = $conn->prepare("DELETE FROM pets WHERE pet_id = ? AND user_id = ?");
+            $delete_stmt->bind_param("ii", $pet_id_to_delete, $user_id);
+            
+            if ($delete_stmt->execute()) {
+                $_SESSION['success'] = "✅ Pet has been successfully deleted.";
+            } else {
+                throw new Exception("Failed to delete pet from database.");
+            }
+            
+            $delete_stmt->close();
+            
+        } catch (Exception $e) {
+            $_SESSION['error'] = "❌ Error deleting pet: " . $e->getMessage();
+        }
+    } else {
+        $_SESSION['error'] = "❌ Pet not found or you don't have permission to delete this pet.";
+    }
+    
+    header("Location: user_pet_profile.php");
+    exit();
+}
 ?>
 
 <!DOCTYPE html>
@@ -77,6 +128,8 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             --green-light: #eafaf1;
             --orange: #f39c12;
             --orange-light: #fef5e7;
+            --red: #e74c3c;
+            --red-light: #fdedec;
             --radius: 16px;
             --shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
@@ -322,6 +375,7 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             display: flex;
             gap: 0.5rem;
             margin-top: 1rem;
+            flex-wrap: wrap;
         }
         
         .profile-picture-section {
@@ -356,6 +410,102 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             color: #6c757d;
         }
         
+        .btn-custom {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        
+        .btn-primary {
+            background: var(--blue);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3a5bd9;
+            transform: translateY(-2px);
+        }
+        
+        .btn-outline-primary {
+            background: transparent;
+            border: 2px solid var(--blue);
+            color: var(--blue);
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--blue);
+            color: white;
+        }
+        
+        .btn-outline-info {
+            background: transparent;
+            border: 2px solid var(--blue);
+            color: var(--blue);
+        }
+        
+        .btn-outline-info:hover {
+            background: var(--blue);
+            color: white;
+        }
+        
+        .btn-outline-success {
+            background: transparent;
+            border: 2px solid var(--green);
+            color: var(--green);
+        }
+        
+        .btn-outline-success:hover {
+            background: var(--green);
+            color: white;
+        }
+        
+        .btn-outline-danger {
+            background: transparent;
+            border: 2px solid var(--red);
+            color: var(--red);
+        }
+        
+        .btn-outline-danger:hover {
+            background: var(--red);
+            color: white;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            text-align: center;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--blue);
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--blue);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-weight: 600;
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -384,6 +534,10 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 flex-direction: column;
                 text-align: center;
                 gap: 1rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -432,6 +586,66 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             </div>
         </div>
 
+        <?php if (isset($_SESSION['success'])): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fa-solid fa-check-circle me-2"></i>
+                <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($_SESSION['error'])): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fa-solid fa-exclamation-circle me-2"></i>
+                <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+
+        <!-- Stats Overview -->
+        <?php if (!empty($pets)): ?>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number"><?php echo count($pets); ?></div>
+                <div class="stat-label">Total Pets</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">
+                    <?php 
+                    $dogs = array_filter($pets, function($pet) { 
+                        return strtolower($pet['species']) == 'dog'; 
+                    });
+                    echo count($dogs);
+                    ?>
+                </div>
+                <div class="stat-label">Dogs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">
+                    <?php 
+                    $cats = array_filter($pets, function($pet) { 
+                        return strtolower($pet['species']) == 'cat'; 
+                    });
+                    echo count($cats);
+                    ?>
+                </div>
+                <div class="stat-label">Cats</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">
+                    <?php 
+                    $withMedical = array_filter($pets, function($pet) { 
+                        return !empty($pet['medical_notes']) || !empty($pet['previous_conditions']) || 
+                               !empty($pet['last_vet_visit']) || !empty($pet['rabies_vaccine_date']);
+                    });
+                    echo count($withMedical);
+                    ?>
+                </div>
+                <div class="stat-label">With Medical Info</div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <?php if (empty($pets)): ?>
             <div class="card-custom text-center">
                 <div class="empty-state">
@@ -468,10 +682,13 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                         <?php echo htmlspecialchars($pet['breed']); ?> • 
                                         <?php echo htmlspecialchars($pet['age']); ?> years old
                                     </p>
+                                    <small class="text-muted">
+                                        Registered: <?php echo date('M j, Y', strtotime($pet['date_registered'])); ?>
+                                    </small>
                                 </div>
                             </div>
                             <div class="text-end">
-                                <span class="badge bg-primary">ID: <?php echo htmlspecialchars($pet['pet_id']); ?></span>
+                                <span class="badge bg-primary">ID: PMQ-<?php echo str_pad($pet['pet_id'], 6, '0', STR_PAD_LEFT); ?></span>
                                 <?php 
                                 $hasMedicalHistory = !empty($pet['previous_conditions']) || !empty($pet['vaccination_history']) || 
                                                      !empty($pet['surgical_history']) || !empty($pet['medication_history']) ||
@@ -652,17 +869,27 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                 </div>
                             </div>
                             
+                            <!-- ✅ UPDATED: Enhanced Action Buttons -->
                             <div class="action-buttons">
-                                <a href="edit_pet.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-primary">
-                                    <i class="fa-solid fa-pen-to-square me-1"></i> Edit Pet & Medical Info
+                                <a href="edit_pet.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn-custom btn-outline-primary">
+                                    <i class="fa-solid fa-pen-to-square me-1"></i> Edit Profile
                                 </a>
-                                <button class="btn btn-outline-info" onclick="generatePetQR(<?php echo $pet['pet_id']; ?>, '<?php echo addslashes($pet['pet_name']); ?>')">
+                                <button class="btn-custom btn-outline-info" onclick="generatePetQR(<?php echo $pet['pet_id']; ?>, '<?php echo addslashes($pet['pet_name']); ?>')">
                                     <i class="fa-solid fa-qrcode me-1"></i> Generate QR
                                 </button>
-                                <a href="pet-medical-records.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn btn-outline-success">
+                                <a href="pet-medical-records.php?pet_id=<?php echo $pet['pet_id']; ?>" class="btn-custom btn-outline-success">
                                     <i class="fa-solid fa-eye me-1"></i> View Full Record
                                 </a>
+                                <button class="btn-custom btn-outline-danger" onclick="confirmDelete(<?php echo $pet['pet_id']; ?>, '<?php echo addslashes($pet['pet_name']); ?>')">
+                                    <i class="fa-solid fa-trash me-1"></i> Delete Pet
+                                </button>
                             </div>
+
+                            <!-- Delete Form (Hidden) -->
+                            <form id="deleteForm-<?php echo $pet['pet_id']; ?>" method="POST" style="display: none;">
+                                <input type="hidden" name="delete_pet" value="1">
+                                <input type="hidden" name="pet_id" value="<?php echo $pet['pet_id']; ?>">
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -693,10 +920,34 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deletePetName"></strong>?</p>
+                <p class="text-danger"><small>This action cannot be undone. All pet data, medical records, and profile pictures will be permanently deleted.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fa-solid fa-trash me-1"></i> Delete Pet
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+    let currentPetId = null;
+
     function generatePetQR(petId, petName) {
         const qrData = `PET MEDICAL RECORD\nPet ID: ${petId}\nPet Name: ${petName}\nOwner: <?php echo htmlspecialchars($user['name']); ?>\nGenerated: ${new Date().toLocaleDateString()}`;
         
@@ -750,6 +1001,31 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         document.body.removeChild(downloadLink);
         URL.revokeObjectURL(url);
     }
+
+    function confirmDelete(petId, petName) {
+        currentPetId = petId;
+        document.getElementById('deletePetName').textContent = petName;
+        
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (currentPetId) {
+            document.getElementById('deleteForm-' + currentPetId).submit();
+        }
+    });
+
+    // Auto-dismiss alerts after 5 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
+    });
 </script>
 </body>
 </html>
