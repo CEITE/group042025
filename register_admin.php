@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($insert_stmt->execute()) {
                 $success = true;
                 $_SESSION['success'] = "Administrator account created successfully! You can now login.";
-                header("Location: admin_login.php");
+                header("Location: login_admin.php");
                 exit();
             } else {
                 $errors[] = "System error: Unable to create account. Please try again.";
@@ -688,4 +688,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </body>
 
 </html>
+
 
