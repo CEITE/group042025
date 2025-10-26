@@ -16,26 +16,30 @@ $stmt->bind_param("i", $vet_id);
 $stmt->execute();
 $vet = $stmt->get_result()->fetch_assoc();
 
+if (!$vet) {
+    die("Vet not found!");
+}
+
 // Set default profile picture
 $profile_picture = !empty($vet['profile_picture']) ? $vet['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($vet['name']);
 
-// Fetch pending appointment requests
+// ✅ FIXED: Fetch pending appointment requests
 $pending_appointments_stmt = $conn->prepare("
     SELECT a.*, p.name as pet_name, p.species, p.breed, p.age, p.gender, 
-           u.name as owner_name, u.email as owner_email, u.user_id as owner_id
+           u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone
     FROM appointments a 
     LEFT JOIN pets p ON a.pet_id = p.pet_id 
     LEFT JOIN users u ON a.user_id = u.user_id
-    WHERE a.status = 'pending'
-    ORDER BY a.created_at DESC
+    WHERE a.status = 'pending' OR a.status = 'scheduled'
+    ORDER BY a.appointment_date ASC, a.appointment_time ASC
 ");
 $pending_appointments_stmt->execute();
 $pending_appointments = $pending_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Fetch confirmed appointments (today and upcoming)
+// ✅ FIXED: Fetch confirmed appointments (today and upcoming)
 $today = date('Y-m-d');
 $confirmed_appointments_stmt = $conn->prepare("
-    SELECT a.*, p.name as pet_name, p.species, p.breed, u.name as owner_name, u.email as owner_email
+    SELECT a.*, p.name as pet_name, p.species, p.breed, u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone
     FROM appointments a 
     LEFT JOIN pets p ON a.pet_id = p.pet_id 
     LEFT JOIN users u ON a.user_id = u.user_id
@@ -46,20 +50,20 @@ $confirmed_appointments_stmt->bind_param("s", $today);
 $confirmed_appointments_stmt->execute();
 $confirmed_appointments = $confirmed_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Fetch today's appointments
+// ✅ FIXED: Fetch today's appointments
 $today_appointments_stmt = $conn->prepare("
-    SELECT a.*, p.name as pet_name, p.species, u.name as owner_name
+    SELECT a.*, p.name as pet_name, p.species, u.name as owner_name, u.phone_number as owner_phone
     FROM appointments a 
     LEFT JOIN pets p ON a.pet_id = p.pet_id 
     LEFT JOIN users u ON a.user_id = u.user_id
-    WHERE a.appointment_date = ? AND a.status = 'confirmed'
+    WHERE a.appointment_date = ? AND (a.status = 'confirmed' OR a.status = 'scheduled')
     ORDER BY a.appointment_time ASC
 ");
 $today_appointments_stmt->bind_param("s", $today);
 $today_appointments_stmt->execute();
 $today_appointments = $today_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Fetch unread notifications for vet
+// ✅ FIXED: Fetch unread notifications for vet
 $notifications_stmt = $conn->prepare("
     SELECT * FROM vet_notifications 
     WHERE vet_id = ? AND is_read = 0 
@@ -73,8 +77,9 @@ $notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $pending_count = count($pending_appointments);
 $today_count = count($today_appointments);
 $confirmed_count = count($confirmed_appointments);
+$notification_count = count($notifications);
 
-// Handle appointment status update
+// ✅ FIXED: Handle appointment status update
 if (isset($_POST['update_status'])) {
     $appointment_id = $_POST['appointment_id'];
     $new_status = $_POST['status'];
@@ -104,28 +109,38 @@ if (isset($_POST['update_status'])) {
         if ($update_stmt->execute()) {
             // Create notification for user
             if ($new_status == 'confirmed') {
-                $message = "Great news! Your appointment for " . $appointment_info['pet_name'] . " on " . 
+                $message = "✅ Great news! Your appointment for " . $appointment_info['pet_name'] . " on " . 
                           date('M j, Y', strtotime($appointment_info['appointment_date'])) . " at " . 
-                          date('g:i A', strtotime($appointment_info['appointment_time'])) . " has been confirmed by the veterinarian!";
+                          date('g:i A', strtotime($appointment_info['appointment_time'])) . " has been confirmed!";
             } elseif ($new_status == 'cancelled') {
-                $message = "Your appointment for " . $appointment_info['pet_name'] . " has been cancelled. " . 
+                $message = "❌ Your appointment for " . $appointment_info['pet_name'] . " has been cancelled. " . 
                           (!empty($vet_notes) ? "Reason: " . $vet_notes : "Please contact the clinic for more information.");
+            } elseif ($new_status == 'completed') {
+                $message = "✅ Appointment completed for " . $appointment_info['pet_name'] . " on " . 
+                          date('M j, Y', strtotime($appointment_info['appointment_date'])) . ". Thank you for choosing our clinic!";
             }
             
             // Insert user notification
-            $user_notification_stmt = $conn->prepare("
-                INSERT INTO user_notifications (user_id, message, appointment_id, created_at) 
-                VALUES (?, ?, ?, NOW())
-            ");
-            $user_notification_stmt->bind_param("isi", $appointment_info['user_id'], $message, $appointment_id);
-            $user_notification_stmt->execute();
+            if (isset($message)) {
+                $user_notification_stmt = $conn->prepare("
+                    INSERT INTO user_notifications (user_id, message, appointment_id, created_at) 
+                    VALUES (?, ?, ?, NOW())
+                ");
+                $user_notification_stmt->bind_param("isi", $appointment_info['user_id'], $message, $appointment_id);
+                $user_notification_stmt->execute();
+            }
             
-            $_SESSION['success'] = "Appointment " . $new_status . " and user notified!";
+            $_SESSION['success'] = "Appointment " . $new_status . " and owner notified!";
+            
+            // Mark related vet notifications as read
+            $mark_read_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE appointment_id = ? AND vet_id = ?");
+            $mark_read_stmt->bind_param("ii", $appointment_id, $vet_id);
+            $mark_read_stmt->execute();
             
             header("Location: vet_dashboard.php");
             exit();
         } else {
-            $_SESSION['error'] = "Error updating appointment status.";
+            $_SESSION['error'] = "Error updating appointment status: " . $conn->error;
         }
     }
 }
@@ -149,6 +164,33 @@ if (isset($_GET['mark_read'])) {
     $mark_stmt->execute();
     header("Location: vet_dashboard.php");
     exit();
+}
+
+// ✅ FIXED: Create notifications for any pending appointments without notifications (Temporary fix)
+$check_pending_stmt = $conn->prepare("
+    SELECT a.appointment_id, p.name as pet_name, a.appointment_date, a.appointment_time, u.name as owner_name
+    FROM appointments a 
+    JOIN pets p ON a.pet_id = p.pet_id 
+    JOIN users u ON a.user_id = u.user_id
+    WHERE (a.status = 'pending' OR a.status = 'scheduled') 
+    AND a.appointment_id NOT IN (SELECT appointment_id FROM vet_notifications WHERE vet_id = ?)
+    AND a.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+");
+$check_pending_stmt->bind_param("i", $vet_id);
+$check_pending_stmt->execute();
+$missing_notifications = $check_pending_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+foreach ($missing_notifications as $appointment) {
+    $message = "📅 New appointment request from " . $appointment['owner_name'] . " for " . $appointment['pet_name'] . " on " . 
+               date('M j, Y', strtotime($appointment['appointment_date'])) . " at " . 
+               date('g:i A', strtotime($appointment['appointment_time']));
+    
+    $insert_stmt = $conn->prepare("
+        INSERT INTO vet_notifications (vet_id, message, appointment_id, created_at) 
+        VALUES (?, ?, ?, NOW())
+    ");
+    $insert_stmt->bind_param("isi", $vet_id, $message, $appointment['appointment_id']);
+    $insert_stmt->execute();
 }
 ?>
 
@@ -488,16 +530,16 @@ if (isset($_GET['mark_read'])) {
                 <div class="dropdown">
                     <a href="#" class="btn btn-outline-primary position-relative" data-bs-toggle="dropdown">
                         <i class="fas fa-bell"></i>
-                        <?php if (count($notifications) > 0): ?>
+                        <?php if ($notification_count > 0): ?>
                             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                <?php echo count($notifications); ?>
+                                <?php echo $notification_count; ?>
                             </span>
                         <?php endif; ?>
                     </a>
                     <div class="dropdown-menu dropdown-menu-end" style="width: 350px;">
                         <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
                             <h6 class="mb-0">Notifications</h6>
-                            <?php if (count($notifications) > 0): ?>
+                            <?php if ($notification_count > 0): ?>
                                 <a href="vet_dashboard.php?mark_all_read=1" class="btn btn-sm btn-outline-primary">Mark All Read</a>
                             <?php endif; ?>
                         </div>
@@ -552,25 +594,32 @@ if (isset($_GET['mark_read'])) {
 
         <!-- Stats Cards -->
         <div class="row mb-4">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, #667eea, #764ba2);">
                     <div class="stats-number"><?php echo $today_count; ?></div>
                     <div class="stats-label">Today's Appointments</div>
-                    <i class="fas fa-calendar-day fa-2x mt-2"></i>
+                    <i class="fas fa-calendar-day"></i>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
                     <div class="stats-number"><?php echo $pending_count; ?></div>
                     <div class="stats-label">Pending Requests</div>
-                    <i class="fas fa-clock fa-2x mt-2"></i>
+                    <i class="fas fa-clock"></i>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
-                    <div class="stats-number"><?php echo count($notifications); ?></div>
-                    <div class="stats-label">New Notifications</div>
-                    <i class="fas fa-bell fa-2x mt-2"></i>
+                    <div class="stats-number"><?php echo $confirmed_count; ?></div>
+                    <div class="stats-label">Confirmed</div>
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                    <div class="stats-number"><?php echo $notification_count; ?></div>
+                    <div class="stats-label">Notifications</div>
+                    <i class="fas fa-bell"></i>
                 </div>
             </div>
         </div>
@@ -622,11 +671,10 @@ if (isset($_GET['mark_read'])) {
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
-                                                <small class="text-muted">Pet Information</small>
+                                                <small class="text-muted">Contact Information</small>
                                                 <div class="fw-semibold">
-                                                    <?php echo htmlspecialchars($appointment['species']); ?> • 
-                                                    <?php echo htmlspecialchars($appointment['breed']); ?> • 
-                                                    <?php echo htmlspecialchars($appointment['age']); ?> years
+                                                    📞 <?php echo htmlspecialchars($appointment['owner_phone']); ?><br>
+                                                    📧 <?php echo htmlspecialchars($appointment['owner_email']); ?>
                                                 </div>
                                             </div>
                                         </div>
@@ -714,6 +762,7 @@ if (isset($_GET['mark_read'])) {
                                                                 <select class="form-select" name="status" required>
                                                                     <option value="confirmed">Confirm Appointment</option>
                                                                     <option value="cancelled">Cancel Appointment</option>
+                                                                    <option value="completed">Mark as Completed</option>
                                                                 </select>
                                                             </div>
                                                             <div class="mb-3">
@@ -785,7 +834,8 @@ if (isset($_GET['mark_read'])) {
                                             <div class="col-md-6">
                                                 <small class="text-muted">Contact</small>
                                                 <div class="fw-semibold">
-                                                    <?php echo htmlspecialchars($appointment['owner_email']); ?>
+                                                    📞 <?php echo htmlspecialchars($appointment['owner_phone']); ?><br>
+                                                    📧 <?php echo htmlspecialchars($appointment['owner_email']); ?>
                                                 </div>
                                             </div>
                                         </div>
@@ -812,9 +862,14 @@ if (isset($_GET['mark_read'])) {
                                                     data-bs-target="#rescheduleModal<?php echo $appointment['appointment_id']; ?>">
                                                 <i class="fas fa-calendar-alt me-1"></i> Reschedule
                                             </button>
+                                            
+                                            <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" 
+                                                    data-bs-target="#notesModal<?php echo $appointment['appointment_id']; ?>">
+                                                <i class="fas fa-notes-medical me-1"></i> Add Notes
+                                            </button>
                                         </div>
                                         
-                                        <!-- Reschedule Modal (Placeholder) -->
+                                        <!-- Reschedule Modal -->
                                         <div class="modal fade" id="rescheduleModal<?php echo $appointment['appointment_id']; ?>" tabindex="-1">
                                             <div class="modal-dialog">
                                                 <div class="modal-content">
@@ -823,15 +878,47 @@ if (isset($_GET['mark_read'])) {
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                     </div>
                                                     <div class="modal-body">
-                                                        <p>Rescheduling functionality would be implemented here.</p>
                                                         <div class="alert alert-info">
                                                             <i class="fas fa-info-circle me-2"></i>
-                                                            This feature is coming soon!
+                                                            To reschedule this appointment, please contact the owner directly or use the full appointments management page.
+                                                        </div>
+                                                        <div class="text-center">
+                                                            <a href="vet_appointments.php" class="btn btn-primary">
+                                                                <i class="fas fa-external-link-alt me-2"></i>Go to Appointments
+                                                            </a>
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                                                     </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Notes Modal -->
+                                        <div class="modal fade" id="notesModal<?php echo $appointment['appointment_id']; ?>" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Add Medical Notes</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form method="POST" action="vet_dashboard.php">
+                                                        <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
+                                                        <input type="hidden" name="status" value="confirmed">
+                                                        <div class="modal-body">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Medical Notes & Observations</label>
+                                                                <textarea class="form-control" name="vet_notes" rows="6" 
+                                                                          placeholder="Enter medical notes, observations, treatment details, or follow-up instructions..."><?php echo htmlspecialchars($appointment['vet_notes'] ?? ''); ?></textarea>
+                                                                <div class="form-text">These notes will be saved with the appointment record.</div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                            <button type="submit" name="update_status" class="btn btn-primary">Save Notes</button>
+                                                        </div>
+                                                    </form>
                                                 </div>
                                             </div>
                                         </div>
@@ -900,7 +987,7 @@ if (isset($_GET['mark_read'])) {
                     <div class="row text-center">
                         <div class="col-6 mb-3">
                             <div class="p-2 border rounded">
-                                <h4 class="mb-0 text-primary"><?php echo $pending_count; ?></h4>
+                                <h4 class="mb-0 text-warning"><?php echo $pending_count; ?></h4>
                                 <small>Pending</small>
                             </div>
                         </div>
@@ -918,7 +1005,7 @@ if (isset($_GET['mark_read'])) {
                         </div>
                         <div class="col-6">
                             <div class="p-2 border rounded">
-                                <h4 class="mb-0 text-warning"><?php echo count($notifications); ?></h4>
+                                <h4 class="mb-0 text-primary"><?php echo $notification_count; ?></h4>
                                 <small>Alerts</small>
                             </div>
                         </div>
@@ -993,5 +1080,3 @@ if (isset($_GET['mark_read'])) {
 </script>
 </body>
 </html>
-
-
