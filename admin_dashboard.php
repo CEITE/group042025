@@ -45,6 +45,15 @@ if ($stats_result) {
     $stats = $stats_result->fetch_assoc();
 }
 
+// Handle search functionality
+$search_term = '';
+$where_condition = '';
+if (isset($_GET['search']) && !empty($_GET['search'])) {
+    $search_term = trim($_GET['search']);
+    $search_param = "%$search_term%";
+    $where_condition = "WHERE (name LIKE ? OR email LIKE ?)";
+}
+
 // Get recent veterinarians
 $recent_vets_query = "
     SELECT user_id, name, email, profile_picture, created_at, last_login 
@@ -61,14 +70,28 @@ if ($recent_vets_result) {
     }
 }
 
-// Get all veterinarians for the table
-$vets_query = "
-    SELECT user_id, name, email, profile_picture, created_at, last_login 
-    FROM users 
-    WHERE role = 'vet' 
-    ORDER BY created_at DESC
-";
-$vets_result = $conn->query($vets_query);
+// Get all veterinarians for the table with search
+if ($where_condition) {
+    $vets_query = "
+        SELECT user_id, name, email, profile_picture, created_at, last_login 
+        FROM users 
+        WHERE role = 'vet' AND (name LIKE ? OR email LIKE ?)
+        ORDER BY created_at DESC
+    ";
+    $stmt = $conn->prepare($vets_query);
+    $stmt->bind_param("ss", $search_param, $search_param);
+    $stmt->execute();
+    $vets_result = $stmt->get_result();
+} else {
+    $vets_query = "
+        SELECT user_id, name, email, profile_picture, created_at, last_login 
+        FROM users 
+        WHERE role = 'vet' 
+        ORDER BY created_at DESC
+    ";
+    $vets_result = $conn->query($vets_query);
+}
+
 $all_vets = [];
 if ($vets_result) {
     while ($row = $vets_result->fetch_assoc()) {
@@ -109,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        header("Location: admin_dashboard.php");
+        header("Location: admin_dashboard.php" . ($search_term ? "?search=" . urlencode($search_term) : ""));
         exit();
     }
 }
@@ -382,20 +405,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         /* Enhanced Table */
         .table {
             margin: 0;
+            font-size: 0.9rem;
         }
 
         .table th {
             border-top: none;
             font-weight: 700;
             color: var(--ink);
-            padding: 1.2rem 0.75rem;
+            padding: 1rem 0.75rem;
             background: #f8fafc;
+            font-size: 0.85rem;
         }
 
         .table td {
-            padding: 1rem 0.75rem;
+            padding: 0.75rem;
             vertical-align: middle;
             border-color: #f1f5f9;
+            font-size: 0.85rem;
         }
 
         .table tbody tr {
@@ -409,8 +435,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid #e2e8f0;
@@ -419,25 +445,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .user-info {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .user-name {
             font-weight: 600;
             color: var(--ink);
             margin: 0;
+            font-size: 0.9rem;
         }
 
         .user-email {
             color: #64748b;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             margin: 0;
         }
 
         .status-badge {
-            padding: 0.4rem 0.8rem;
+            padding: 0.3rem 0.6rem;
             border-radius: 20px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -454,9 +481,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .btn-action {
-            padding: 0.4rem 0.8rem;
+            padding: 0.3rem 0.6rem;
             border-radius: 8px;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 600;
             border: none;
             transition: all 0.3s ease;
@@ -495,7 +522,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         /* Enhanced Section Titles */
         .section-title {
             font-weight: 800;
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             margin-bottom: 8px;
             background: linear-gradient(135deg, var(--ink), var(--lav));
             -webkit-background-clip: text;
@@ -519,6 +546,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-radius: 12px;
             border: 1px solid #e2e8f0;
             transition: var(--transition);
+            font-size: 0.9rem;
         }
 
         .toolbar .form-select:focus, .toolbar .form-control:focus {
@@ -532,9 +560,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: white;
             font-weight: 800;
             border-radius: 14px;
-            padding: 12px 20px;
+            padding: 10px 16px;
             transition: var(--transition);
             box-shadow: 0 4px 12px rgba(240, 98, 146, 0.3);
+            font-size: 0.9rem;
         }
 
         .btn-brand:hover {
@@ -546,8 +575,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         /* Stats Grid Enhancement */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        /* Search Section */
+        .search-section {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        .search-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .search-results {
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        /* Compact Table */
+        .compact-table .table td, 
+        .compact-table .table th {
+            padding: 0.6rem 0.5rem;
         }
 
         /* Loading Animation */
@@ -608,6 +664,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .stats-grid {
                 grid-template-columns: 1fr;
             }
+
+            .table-responsive {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Tabs */
+        .page-tabs {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-tab {
+            background: transparent;
+            border: none;
+            padding: 10px 6px;
+            font-weight: 700;
+            color: var(--muted);
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .btn-tab.active {
+            color: var(--ink);
+        }
+
+        .btn-tab.active::after {
+            content: "";
+            position: absolute;
+            inset: auto 0 -8px 0;
+            margin: auto;
+            width: 58%;
+            height: 3px;
+            background: var(--brand);
+            border-radius: 99px;
+        }
+
+        .btn-tab:hover {
+            color: var(--ink);
+            transform: translateY(-2px);
         }
     </style>
 </head>
@@ -809,77 +906,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
                 </div>
-
-                <div class="card-soft p-4 fade-in" style="animation-delay: 0.5s">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <div class="small text-uppercase text-600 subtle">System Load</div>
-                            <div class="muted">Current Performance</div>
-                        </div>
-                        <div class="meter-wrap">
-                            <div class="meter" id="systemLoad" style="--p:65">
-                                <div class="hole"><span>65%</span></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Main Content Area -->
             <div class="row g-4">
-                <!-- Recent Veterinarians -->
-                <div class="col-12 col-lg-8">
-                    <div class="card-soft p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <div class="section-title">Recent Veterinarians</div>
-                            <a href="#" class="text-decoration-none fw-bold" style="color: var(--brand);">View All</a>
+                <!-- Veterinarians Section -->
+                <div class="col-12">
+                    <!-- Search Section -->
+                    <div class="search-section">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="section-title">Veterinarian Management</div>
+                            <div class="search-results">
+                                <?php if ($search_term): ?>
+                                    Showing <?php echo count($all_vets); ?> results for "<?php echo htmlspecialchars($search_term); ?>"
+                                <?php else: ?>
+                                    Total Veterinarians: <?php echo count($all_vets); ?>
+                                <?php endif; ?>
+                            </div>
                         </div>
-
-                        <div class="row g-4">
-                            <?php if (!empty($recent_vets)): ?>
-                                <?php foreach ($recent_vets as $vet): ?>
-                                    <div class="col-12 col-md-6">
-                                        <div class="card-soft p-3">
-                                            <div class="d-flex align-items-center">
-                                                <img src="<?php echo $vet['profile_picture'] ? htmlspecialchars($vet['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($vet['name']) . '&background=f06292&color=fff'; ?>" 
-                                                     alt="<?php echo htmlspecialchars($vet['name']); ?>" 
-                                                     class="user-avatar me-3">
-                                                <div class="flex-grow-1">
-                                                    <h6 class="mb-1"><?php echo htmlspecialchars($vet['name']); ?></h6>
-                                                    <small class="text-muted"><?php echo htmlspecialchars($vet['email']); ?></small>
-                                                </div>
-                                                <small class="text-muted">
-                                                    <?php echo date('M j, Y', strtotime($vet['created_at'])); ?>
-                                                </small>
-                                            </div>
-                                            <div class="mt-3 d-flex gap-2">
-                                                <button class="btn btn-action btn-edit flex-grow-1">
-                                                    <i class="fas fa-edit me-1"></i>Edit
-                                                </button>
-                                                <button class="btn btn-action btn-deactivate">
-                                                    <i class="fas fa-pause"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <div class="col-12">
-                                    <p class="text-muted text-center py-4">No veterinarians found.</p>
+                        
+                        <form method="GET" action="admin_dashboard.php" class="row g-3 align-items-end">
+                            <div class="col-md-8">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-transparent border-end-0">
+                                        <i class="fa-solid fa-magnifying-glass"></i>
+                                    </span>
+                                    <input type="text" class="form-control border-start-0" name="search" 
+                                           placeholder="Search veterinarians by name or email..." 
+                                           value="<?php echo htmlspecialchars($search_term); ?>">
                                 </div>
-                            <?php endif; ?>
-                        </div>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" name="status">
+                                    <option value="">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-brand w-100">Search</button>
+                                <?php if ($search_term): ?>
+                                    <a href="admin_dashboard.php" class="btn btn-outline-secondary w-100 mt-2">Clear</a>
+                                <?php endif; ?>
+                            </div>
+                        </form>
                     </div>
 
-                    <!-- All Veterinarians Table -->
-                    <div class="card-soft p-4 mt-4">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <div class="section-title">All Veterinarians</div>
-                            <div class="subtle">(<?php echo count($all_vets); ?> total)</div>
-                        </div>
-                        <div class="table-responsive">
+                    <!-- All Veterinarians Table - Compact Version -->
+                    <div class="card-soft p-4 compact-table">
+                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
                             <table class="table table-hover">
-                                <thead>
+                                <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 1;">
                                     <tr>
                                         <th>Veterinarian</th>
                                         <th>Email</th>
@@ -904,10 +981,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                     </div>
                                                 </td>
                                                 <td><?php echo htmlspecialchars($vet['email']); ?></td>
-                                                <td><?php echo date('M j, Y g:i A', strtotime($vet['created_at'])); ?></td>
+                                                <td><?php echo date('M j, Y', strtotime($vet['created_at'])); ?></td>
                                                 <td>
                                                     <?php if ($vet['last_login']): ?>
-                                                        <?php echo date('M j, Y g:i A', strtotime($vet['last_login'])); ?>
+                                                        <?php echo date('M j, Y', strtotime($vet['last_login'])); ?>
                                                     <?php else: ?>
                                                         <span class="text-muted">Never</span>
                                                     <?php endif; ?>
@@ -917,13 +994,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 </td>
                                                 <td>
                                                     <div class="btn-group">
-                                                        <button class="btn btn-action btn-edit me-1">
+                                                        <button class="btn btn-action btn-edit me-1" title="Edit">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
-                                                        <button class="btn btn-action btn-deactivate me-1">
+                                                        <button class="btn btn-action btn-deactivate me-1" title="Deactivate">
                                                             <i class="fas fa-pause"></i>
                                                         </button>
-                                                        <button class="btn btn-action btn-delete">
+                                                        <button class="btn btn-action btn-delete" title="Delete">
                                                             <i class="fas fa-trash"></i>
                                                         </button>
                                                     </div>
@@ -934,59 +1011,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <tr>
                                             <td colspan="6" class="text-center py-4 text-muted">
                                                 <i class="fas fa-user-md fa-2x mb-3 d-block"></i>
-                                                No veterinarians found in the system.
+                                                <?php if ($search_term): ?>
+                                                    No veterinarians found matching "<?php echo htmlspecialchars($search_term); ?>"
+                                                <?php else: ?>
+                                                    No veterinarians found in the system.
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quick Stats & Actions -->
-                <div class="col-12 col-lg-4">
-                    <div class="card-soft p-4 mb-4">
-                        <div class="section-title mb-3">Quick Actions</div>
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary d-flex align-items-center justify-content-between p-3">
-                                <span>Manage Veterinarians</span>
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                            <button class="btn btn-outline-success d-flex align-items-center justify-content-between p-3">
-                                <span>View Reports</span>
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                            <button class="btn btn-outline-warning d-flex align-items-center justify-content-between p-3">
-                                <span>System Settings</span>
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                            <button class="btn btn-outline-info d-flex align-items-center justify-content-between p-3">
-                                <span>Send Announcement</span>
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="card-soft p-4">
-                        <div class="section-title mb-3">System Overview</div>
-                        <div class="d-flex flex-column gap-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">Database Size</span>
-                                <span class="fw-bold">2.4 GB</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">Active Sessions</span>
-                                <span class="fw-bold">24</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">Server Uptime</span>
-                                <span class="fw-bold">99.8%</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">Pending Tasks</span>
-                                <span class="fw-bold text-warning">7</span>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -996,14 +1030,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Set system load meter
-        function setSystemLoad(p) {
-            const el = document.getElementById('systemLoad');
-            el.style.setProperty('--p', p);
-            el.querySelector('.hole span').textContent = p + '%';
-        }
-        setSystemLoad(65);
-
         // Add loading animation to cards
         document.querySelectorAll('.card-soft').forEach((card, index) => {
             card.style.animationDelay = `${index * 0.1}s`;
@@ -1046,6 +1072,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 this.classList.add('active');
             });
         });
+
+        // Real-time search functionality
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    if (this.value.length >= 2 || this.value.length === 0) {
+                        this.form.submit();
+                    }
+                }, 500);
+            });
+        }
     </script>
 </body>
 </html>
