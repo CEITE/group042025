@@ -471,9 +471,9 @@ if (isset($_GET['mark_read'])) {
         <a href="vet_settings.php">
             <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
         </a>
-        <a href="logout.php" class="nav-link">
-    <i class="fa-solid fa-right-from-bracket me-2"></i> Logout
-                </a>
+        <a href="logout.php" class="logout">
+            <i class="fa-solid fa-right-from-bracket me-2"></i> Logout
+        </a>
     </div>
 
     <div class="main-content">
@@ -993,4 +993,5 @@ if (isset($_GET['mark_read'])) {
 </script>
 </body>
 </html>
+
 
