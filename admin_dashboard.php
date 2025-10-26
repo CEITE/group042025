@@ -27,77 +27,51 @@ $admin_result = $admin_stmt->get_result();
 $admin = $admin_result->fetch_assoc();
 $admin_stmt->close();
 
-// Get statistics
-$stats = [];
-$stats_query = "
-    SELECT 
-        (SELECT COUNT(*) FROM users WHERE role = 'vet') as total_vets,
-        (SELECT COUNT(*) FROM users WHERE role = 'owner') as total_owners,
-        (SELECT COUNT(*) FROM pets) as total_pets,
-        (SELECT COUNT(*) FROM appointments WHERE status = 'scheduled') as upcoming_appointments,
-        (SELECT COUNT(*) FROM appointments WHERE DATE(created_at) = CURDATE()) as today_appointments,
-        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND DATE(created_at) = CURDATE()) as new_vets_today,
-        (SELECT COUNT(*) FROM appointments WHERE status = 'completed' AND DATE(created_at) = CURDATE()) as completed_today
-";
-
-$stats_result = $conn->query($stats_query);
-if ($stats_result) {
-    $stats = $stats_result->fetch_assoc();
-}
-
-// Handle search functionality
+// Handle search and filter functionality
 $search_term = '';
-$where_condition = '';
+$status_filter = '';
+$where_conditions = ["role = 'vet'"];
+$params = [];
+$types = '';
+
 if (isset($_GET['search']) && !empty($_GET['search'])) {
     $search_term = trim($_GET['search']);
-    $search_param = "%$search_term%";
-    $where_condition = "WHERE (name LIKE ? OR email LIKE ?)";
+    $where_conditions[] = "(name LIKE ? OR email LIKE ?)";
+    $params[] = "%$search_term%";
+    $params[] = "%$search_term%";
+    $types .= 'ss';
 }
 
-// Get recent veterinarians
-$recent_vets_query = "
-    SELECT user_id, name, email, profile_picture, created_at, last_login 
+if (isset($_GET['status']) && !empty($_GET['status'])) {
+    $status_filter = $_GET['status'];
+    $where_conditions[] = "status = ?";
+    $params[] = $status_filter;
+    $types .= 's';
+}
+
+// Build the query
+$where_clause = implode(' AND ', $where_conditions);
+$vets_query = "
+    SELECT user_id, name, email, profile_picture, created_at, last_login, status, phone, specialization
     FROM users 
-    WHERE role = 'vet' 
-    ORDER BY created_at DESC 
-    LIMIT 5
+    WHERE $where_clause
+    ORDER BY created_at DESC
 ";
-$recent_vets_result = $conn->query($recent_vets_query);
-$recent_vets = [];
-if ($recent_vets_result) {
-    while ($row = $recent_vets_result->fetch_assoc()) {
-        $recent_vets[] = $row;
-    }
-}
 
-// Get all veterinarians for the table with search
-if ($where_condition) {
-    $vets_query = "
-        SELECT user_id, name, email, profile_picture, created_at, last_login 
-        FROM users 
-        WHERE role = 'vet' AND (name LIKE ? OR email LIKE ?)
-        ORDER BY created_at DESC
-    ";
-    $stmt = $conn->prepare($vets_query);
-    $stmt->bind_param("ss", $search_param, $search_param);
-    $stmt->execute();
-    $vets_result = $stmt->get_result();
-} else {
-    $vets_query = "
-        SELECT user_id, name, email, profile_picture, created_at, last_login 
-        FROM users 
-        WHERE role = 'vet' 
-        ORDER BY created_at DESC
-    ";
-    $vets_result = $conn->query($vets_query);
+// Get all veterinarians
+$stmt = $conn->prepare($vets_query);
+if ($params) {
+    $stmt->bind_param($types, ...$params);
 }
-
+$stmt->execute();
+$vets_result = $stmt->get_result();
 $all_vets = [];
 if ($vets_result) {
     while ($row = $vets_result->fetch_assoc()) {
         $all_vets[] = $row;
     }
 }
+$stmt->close();
 
 // Handle actions (activate/deactivate/delete)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -108,12 +82,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($action) {
             case 'activate':
                 $update_query = "UPDATE users SET status = 'active' WHERE user_id = ? AND role = 'vet'";
+                $success_message = "Veterinarian activated successfully!";
                 break;
             case 'deactivate':
                 $update_query = "UPDATE users SET status = 'inactive' WHERE user_id = ? AND role = 'vet'";
+                $success_message = "Veterinarian deactivated successfully!";
                 break;
             case 'delete':
                 $update_query = "DELETE FROM users WHERE user_id = ? AND role = 'vet'";
+                $success_message = "Veterinarian deleted successfully!";
                 break;
             default:
                 $update_query = null;
@@ -124,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmt) {
                 $stmt->bind_param("i", $vet_id);
                 if ($stmt->execute()) {
-                    $_SESSION['success'] = "Veterinarian updated successfully!";
+                    $_SESSION['success'] = $success_message;
                 } else {
                     $_SESSION['error'] = "Error updating veterinarian: " . $stmt->error;
                 }
@@ -132,10 +109,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        header("Location: admin_dashboard.php" . ($search_term ? "?search=" . urlencode($search_term) : ""));
+        // Redirect back with search parameters
+        $redirect_url = "veterinarian.php";
+        $query_params = [];
+        if ($search_term) $query_params[] = "search=" . urlencode($search_term);
+        if ($status_filter) $query_params[] = "status=" . urlencode($status_filter);
+        if ($query_params) $redirect_url .= "?" . implode('&', $query_params);
+        
+        header("Location: $redirect_url");
         exit();
     }
 }
+
+// Get statistics for veterinarians
+$stats_query = "
+    SELECT 
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'active') as active_vets,
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'inactive') as inactive_vets,
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'pending') as pending_vets,
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND last_login IS NULL) as never_logged_in,
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND DATE(created_at) = CURDATE()) as new_today
+";
+$stats_result = $conn->query($stats_query);
+$vet_stats = $stats_result->fetch_assoc();
 ?>
 
 <!DOCTYPE html>
@@ -143,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - VetCareQR</title>
+    <title>Veterinarians Management - VetCareQR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -214,6 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-weight: 600;
             transition: var(--transition);
             margin-bottom: 4px;
+            text-decoration: none;
         }
 
         .sidebar .nav-link.active,
@@ -239,6 +236,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .sidebar .nav-link:hover .icon {
             background: rgba(255,255,255,.3);
             transform: scale(1.1);
+        }
+
+        /* Stats in sidebar */
+        .sidebar-stats {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-value {
+            font-weight: 700;
+            font-size: 1.1rem;
         }
 
         /* Enhanced Topbar */
@@ -372,36 +394,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* Enhanced Progress Meter */
-        .meter-wrap {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .meter {
-            --p: 70;
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: conic-gradient(var(--brand) calc(var(--p)*1%), #e8eef6 0);
-            display: grid;
-            place-items: center;
-            position: relative;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        .meter .hole {
-            width: 64px;
-            height: 64px;
-            background: #fff;
-            border-radius: 50%;
-            display: grid;
-            place-items: center;
-            font-weight: 800;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-        }
-
         /* Enhanced Table */
         .table {
             margin: 0;
@@ -435,8 +427,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .user-avatar {
-            width: 36px;
-            height: 36px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid #e2e8f0;
@@ -445,7 +437,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .user-info {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .user-name {
@@ -461,10 +453,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin: 0;
         }
 
+        .user-specialization {
+            font-size: 0.75rem;
+            color: var(--brand);
+            font-weight: 600;
+        }
+
         .status-badge {
-            padding: 0.3rem 0.6rem;
+            padding: 0.4rem 0.8rem;
             border-radius: 20px;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -480,10 +478,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: var(--danger);
         }
 
+        .status-pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
         .btn-action {
-            padding: 0.3rem 0.6rem;
+            padding: 0.4rem 0.8rem;
             border-radius: 8px;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             font-weight: 600;
             border: none;
             transition: all 0.3s ease;
@@ -496,6 +499,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .btn-edit:hover {
             background: var(--info);
+            color: white;
+        }
+
+        .btn-activate {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .btn-activate:hover {
+            background: var(--success);
             color: white;
         }
 
@@ -519,10 +532,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: white;
         }
 
+        .btn-view {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8b5cf6;
+        }
+
+        .btn-view:hover {
+            background: #8b5cf6;
+            color: white;
+        }
+
         /* Enhanced Section Titles */
         .section-title {
             font-weight: 800;
-            font-size: 1.1rem;
+            font-size: 1.25rem;
             margin-bottom: 8px;
             background: linear-gradient(135deg, var(--ink), var(--lav));
             -webkit-background-clip: text;
@@ -560,23 +583,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: white;
             font-weight: 800;
             border-radius: 14px;
-            padding: 10px 16px;
+            padding: 12px 20px;
             transition: var(--transition);
             box-shadow: 0 4px 12px rgba(240, 98, 146, 0.3);
-            font-size: 0.9rem;
         }
 
         .btn-brand:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 20px rgba(240, 98, 146, 0.4);
             background: linear-gradient(135deg, var(--lav), var(--brand));
-        }
-
-        /* Stats Grid Enhancement */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 16px;
         }
 
         /* Search Section */
@@ -588,22 +603,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-shadow: var(--shadow);
         }
 
-        .search-header {
-            display: flex;
-            justify-content: between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
         .search-results {
             font-size: 0.9rem;
             color: var(--muted);
         }
 
-        /* Compact Table */
-        .compact-table .table td, 
-        .compact-table .table th {
-            padding: 0.6rem 0.5rem;
+        /* Stats Grid Enhancement */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
         }
 
         /* Loading Animation */
@@ -637,7 +646,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             justify-content: center;
             font-size: 0.7rem;
             font-weight: 800;
-            animation: pulse 2s infinite;
         }
 
         /* Responsive Improvements */
@@ -664,47 +672,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .stats-grid {
                 grid-template-columns: 1fr;
             }
-
-            .table-responsive {
-                font-size: 0.8rem;
-            }
         }
 
-        /* Tabs */
-        .page-tabs {
-            display: flex;
-            align-items: center;
-            gap: 16px;
+        /* Veterinarian Card */
+        .vet-card {
+            border-left: 4px solid var(--brand);
         }
 
-        .btn-tab {
-            background: transparent;
-            border: none;
-            padding: 10px 6px;
-            font-weight: 700;
-            color: var(--muted);
-            transition: var(--transition);
-            position: relative;
-        }
-
-        .btn-tab.active {
-            color: var(--ink);
-        }
-
-        .btn-tab.active::after {
-            content: "";
-            position: absolute;
-            inset: auto 0 -8px 0;
-            margin: auto;
-            width: 58%;
-            height: 3px;
-            background: var(--brand);
-            border-radius: 99px;
-        }
-
-        .btn-tab:hover {
-            color: var(--ink);
-            transform: translateY(-2px);
+        .specialization-tag {
+            background: rgba(240, 98, 146, 0.1);
+            color: var(--brand);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -712,40 +693,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="app-shell">
         <!-- Sidebar -->
         <aside class="sidebar p-4">
-            <div class="d-flex align-items-center mb-5">
+            <div class="d-flex align-items-center mb-4">
                 <div class="icon me-3"><i class="fa-solid fa-user-shield"></i></div>
                 <div class="brand h4 mb-0">VetCareQR</div>
             </div>
+            
             <nav class="nav flex-column gap-2">
-                <a class="nav-link d-flex align-items-center active" href="admin_dashboard.php">
+                <a class="nav-link d-flex align-items-center" href="admin_dashboard.php">
                     <span class="icon"><i class="fa-solid fa-gauge-high"></i></span>
                     <span>Dashboard</span>
                 </a>
-                <a class="nav-link d-flex align-items-center" href="#">
+                <a class="nav-link d-flex align-items-center active" href="veterinarian.php">
                     <span class="icon"><i class="fa-solid fa-user-doctor"></i></span>
                     <span>Veterinarians</span>
                 </a>
-                <a class="nav-link d-flex align-items-center" href="#">
-                    <span class="icon"><i class="fa-solid fa-calendar-check"></i></span>
-                    <span>Appointments</span>
-                </a>
-                <a class="nav-link d-flex align-items-center" href="#">
+                <a class="nav-link d-flex align-items-center" href="pet_owners.php">
                     <span class="icon"><i class="fa-solid fa-users"></i></span>
                     <span>Pet Owners</span>
                 </a>
-                <a class="nav-link d-flex align-items-center" href="#">
+                <a class="nav-link d-flex align-items-center" href="pets.php">
                     <span class="icon"><i class="fa-solid fa-paw"></i></span>
                     <span>Pets</span>
                 </a>
-                <a class="nav-link d-flex align-items-center" href="#">
+                <a class="nav-link d-flex align-items-center" href="appointments.php">
+                    <span class="icon"><i class="fa-solid fa-calendar-check"></i></span>
+                    <span>Appointments</span>
+                </a>
+                <a class="nav-link d-flex align-items-center" href="medical_records.php">
+                    <span class="icon"><i class="fa-solid fa-stethoscope"></i></span>
+                    <span>Medical Records</span>
+                </a>
+                <a class="nav-link d-flex align-items-center" href="analytics.php">
                     <span class="icon"><i class="fa-solid fa-chart-line"></i></span>
                     <span>Analytics</span>
                 </a>
-                <a class="nav-link d-flex align-items-center" href="#">
+                <a class="nav-link d-flex align-items-center" href="settings.php">
                     <span class="icon"><i class="fa-solid fa-gear"></i></span>
                     <span>Settings</span>
                 </a>
             </nav>
+
+            <!-- Veterinarian Statistics in Sidebar -->
+            <div class="sidebar-stats">
+                <h6 class="text-white mb-3">Veterinarian Stats</h6>
+                <div class="stat-item">
+                    <span>Active</span>
+                    <span class="stat-value"><?php echo $vet_stats['active_vets']; ?></span>
+                </div>
+                <div class="stat-item">
+                    <span>Inactive</span>
+                    <span class="stat-value"><?php echo $vet_stats['inactive_vets']; ?></span>
+                </div>
+                <div class="stat-item">
+                    <span>Pending</span>
+                    <span class="stat-value"><?php echo $vet_stats['pending_vets']; ?></span>
+                </div>
+                <div class="stat-item">
+                    <span>New Today</span>
+                    <span class="stat-value"><?php echo $vet_stats['new_today']; ?></span>
+                </div>
+            </div>
 
             <div class="mt-auto pt-4">
                 <div class="admin-profile d-flex align-items-center p-3 rounded-3" style="background: rgba(255,255,255,0.1);">
@@ -765,8 +772,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <!-- Topbar -->
             <div class="topbar">
                 <div class="d-flex align-items-center">
-                    <h1 class="h4 mb-0 fw-bold">Admin Dashboard</h1>
-                    <span class="badge bg-light text-dark ms-3">Veterinarian Management</span>
+                    <h1 class="h4 mb-0 fw-bold">Veterinarians Management</h1>
+                    <span class="badge bg-light text-dark ms-3">Total: <?php echo count($all_vets); ?></span>
                 </div>
 
                 <div class="search ms-auto">
@@ -774,7 +781,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <span class="input-group-text bg-transparent border-0 text-muted">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </span>
-                        <input class="form-control search-input" placeholder="Search veterinarians, appointments, pets..." />
+                        <input class="form-control search-input" placeholder="Search veterinarians..." />
                     </div>
                 </div>
 
@@ -820,31 +827,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php unset($_SESSION['error']); ?>
             <?php endif; ?>
 
-            <!-- Tabs & Toolbar -->
-            <div class="card-soft p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
-                <div class="page-tabs">
-                    <button class="btn-tab active">Overview</button>
-                    <button class="btn-tab">Veterinarians</button>
-                    <button class="btn-tab">Appointments</button>
-                    <button class="btn-tab">Reports</button>
-                </div>
-                <div class="toolbar">
-                    <div class="input-group" style="width: 180px">
-                        <span class="input-group-text bg-transparent border-end-0"><i class="fa-solid fa-calendar"></i></span>
-                        <input type="date" class="form-control border-start-0" id="datePicker" value="<?php echo date('Y-m-d'); ?>" />
-                    </div>
-                    <select class="form-select" style="width: 200px">
-                        <option>All Veterinarians</option>
-                        <option>Dr. Aman Sharma</option>
-                        <option>Dr. Maria Santos</option>
-                        <option>Dr. James Wilson</option>
-                    </select>
-                    <button class="btn-brand" id="addVeterinarian">
-                        <i class="fa-solid fa-user-plus me-2"></i>Add Veterinarian
-                    </button>
-                </div>
-            </div>
-
             <!-- Statistics Cards -->
             <div class="stats-grid">
                 <div class="card-soft fade-in" style="animation-delay: 0.1s">
@@ -853,10 +835,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <i class="fa-solid fa-user-doctor"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <small>Total Veterinarians</small>
+                            <small>Active Veterinarians</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value"><?php echo $stats['total_vets'] ?? '0'; ?></div>
-                                <span class="badge-dot" style="color:#10b981">+<?php echo $stats['new_vets_today'] ?? '0'; ?> today</span>
+                                <div class="stat-value"><?php echo $vet_stats['active_vets']; ?></div>
+                                <span class="badge-dot" style="color:#10b981">Available</span>
                             </div>
                         </div>
                     </div>
@@ -865,13 +847,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="card-soft fade-in" style="animation-delay: 0.2s">
                     <div class="kpi">
                         <div class="bubble" style="background:#e8faf3;color:#0d9f6e">
-                            <i class="fa-solid fa-calendar-check"></i>
+                            <i class="fa-solid fa-user-clock"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <small>Today's Appointments</small>
+                            <small>Pending Approval</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value"><?php echo $stats['today_appointments'] ?? '0'; ?></div>
-                                <span class="badge-dot" style="color:#f59e0b"><?php echo $stats['upcoming_appointments'] ?? '0'; ?> upcoming</span>
+                                <div class="stat-value"><?php echo $vet_stats['pending_vets']; ?></div>
+                                <span class="badge-dot" style="color:#f59e0b">Needs review</span>
                             </div>
                         </div>
                     </div>
@@ -880,13 +862,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="card-soft fade-in" style="animation-delay: 0.3s">
                     <div class="kpi">
                         <div class="bubble" style="background:#fff0f5;color:#c2417a">
-                            <i class="fa-solid fa-paw"></i>
+                            <i class="fa-solid fa-user-plus"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <small>Registered Pets</small>
+                            <small>New Today</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value"><?php echo $stats['total_pets'] ?? '0'; ?></div>
-                                <span class="badge-dot" style="color:#8b5cf6">Active</span>
+                                <div class="stat-value"><?php echo $vet_stats['new_today']; ?></div>
+                                <span class="badge-dot" style="color:#8b5cf6">Recent</span>
                             </div>
                         </div>
                     </div>
@@ -895,132 +877,215 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="card-soft fade-in" style="animation-delay: 0.4s">
                     <div class="kpi">
                         <div class="bubble" style="background:#fff7e6;color:#b45309">
-                            <i class="fa-solid fa-users"></i>
+                            <i class="fa-solid fa-user-slash"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <small>Pet Owners</small>
+                            <small>Inactive</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value"><?php echo $stats['total_owners'] ?? '0'; ?></div>
-                                <span class="badge-dot" style="color:#ef4444">Registered</span>
+                                <div class="stat-value"><?php echo $vet_stats['inactive_vets']; ?></div>
+                                <span class="badge-dot" style="color:#ef4444">Suspended</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Main Content Area -->
-            <div class="row g-4">
-                <!-- Veterinarians Section -->
-                <div class="col-12">
-                    <!-- Search Section -->
-                    <div class="search-section">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div class="section-title">Veterinarian Management</div>
-                            <div class="search-results">
-                                <?php if ($search_term): ?>
-                                    Showing <?php echo count($all_vets); ?> results for "<?php echo htmlspecialchars($search_term); ?>"
-                                <?php else: ?>
-                                    Total Veterinarians: <?php echo count($all_vets); ?>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        
-                        <form method="GET" action="admin_dashboard.php" class="row g-3 align-items-end">
-                            <div class="col-md-8">
-                                <div class="input-group">
-                                    <span class="input-group-text bg-transparent border-end-0">
-                                        <i class="fa-solid fa-magnifying-glass"></i>
-                                    </span>
-                                    <input type="text" class="form-control border-start-0" name="search" 
-                                           placeholder="Search veterinarians by name or email..." 
-                                           value="<?php echo htmlspecialchars($search_term); ?>">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <select class="form-select" name="status">
-                                    <option value="">All Status</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-brand w-100">Search</button>
-                                <?php if ($search_term): ?>
-                                    <a href="admin_dashboard.php" class="btn btn-outline-secondary w-100 mt-2">Clear</a>
-                                <?php endif; ?>
-                            </div>
-                        </form>
+            <!-- Search Section -->
+            <div class="search-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="section-title">Manage Veterinarians</div>
+                    <div class="search-results">
+                        <?php if ($search_term || $status_filter): ?>
+                            Showing <?php echo count($all_vets); ?> results
+                            <?php if ($search_term): ?> for "<?php echo htmlspecialchars($search_term); ?>"<?php endif; ?>
+                            <?php if ($status_filter): ?> with status "<?php echo htmlspecialchars($status_filter); ?>"<?php endif; ?>
+                        <?php else: ?>
+                            Total Veterinarians: <?php echo count($all_vets); ?>
+                        <?php endif; ?>
                     </div>
+                </div>
+                
+                <form method="GET" action="veterinarian.php" class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent border-end-0">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </span>
+                            <input type="text" class="form-control border-start-0" name="search" 
+                                   placeholder="Search veterinarians by name or email..." 
+                                   value="<?php echo htmlspecialchars($search_term); ?>">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" name="status">
+                            <option value="">All Status</option>
+                            <option value="active" <?php echo ($status_filter === 'active') ? 'selected' : ''; ?>>Active</option>
+                            <option value="inactive" <?php echo ($status_filter === 'inactive') ? 'selected' : ''; ?>>Inactive</option>
+                            <option value="pending" <?php echo ($status_filter === 'pending') ? 'selected' : ''; ?>>Pending</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-brand w-100">Search</button>
+                        <?php if ($search_term || $status_filter): ?>
+                            <a href="veterinarian.php" class="btn btn-outline-secondary w-100 mt-2">Clear</a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
 
-                    <!-- All Veterinarians Table - Compact Version -->
-                    <div class="card-soft p-4 compact-table">
-                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-                            <table class="table table-hover">
-                                <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 1;">
+            <!-- Veterinarians Table -->
+            <div class="card-soft p-4 fade-in">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Veterinarian</th>
+                                <th>Contact Information</th>
+                                <th>Specialization</th>
+                                <th>Registration Date</th>
+                                <th>Last Login</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($all_vets)): ?>
+                                <?php foreach ($all_vets as $vet): ?>
                                     <tr>
-                                        <th>Veterinarian</th>
-                                        <th>Email</th>
-                                        <th>Registration Date</th>
-                                        <th>Last Login</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (!empty($all_vets)): ?>
-                                        <?php foreach ($all_vets as $vet): ?>
-                                            <tr>
-                                                <td>
-                                                    <div class="user-info">
-                                                        <img src="<?php echo $vet['profile_picture'] ? htmlspecialchars($vet['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($vet['name']) . '&background=f06292&color=fff'; ?>" 
-                                                             alt="<?php echo htmlspecialchars($vet['name']); ?>" 
-                                                             class="user-avatar">
-                                                        <div>
-                                                            <div class="user-name"><?php echo htmlspecialchars($vet['name']); ?></div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td><?php echo htmlspecialchars($vet['email']); ?></td>
-                                                <td><?php echo date('M j, Y', strtotime($vet['created_at'])); ?></td>
-                                                <td>
-                                                    <?php if ($vet['last_login']): ?>
-                                                        <?php echo date('M j, Y', strtotime($vet['last_login'])); ?>
-                                                    <?php else: ?>
-                                                        <span class="text-muted">Never</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <span class="status-badge status-active">Active</span>
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group">
-                                                        <button class="btn btn-action btn-edit me-1" title="Edit">
-                                                            <i class="fas fa-edit"></i>
-                                                        </button>
-                                                        <button class="btn btn-action btn-deactivate me-1" title="Deactivate">
+                                        <td>
+                                            <div class="user-info">
+                                                <img src="<?php echo $vet['profile_picture'] ? htmlspecialchars($vet['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($vet['name']) . '&background=f06292&color=fff'; ?>" 
+                                                     alt="<?php echo htmlspecialchars($vet['name']); ?>" 
+                                                     class="user-avatar">
+                                                <div>
+                                                    <div class="user-name">Dr. <?php echo htmlspecialchars($vet['name']); ?></div>
+                                                    <div class="user-email">ID: VET<?php echo str_pad($vet['user_id'], 4, '0', STR_PAD_LEFT); ?></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="user-email"><?php echo htmlspecialchars($vet['email']); ?></div>
+                                            <small class="text-muted"><?php echo $vet['phone'] ? htmlspecialchars($vet['phone']) : 'N/A'; ?></small>
+                                        </td>
+                                        <td>
+                                            <span class="specialization-tag"><?php echo $vet['specialization'] ? htmlspecialchars($vet['specialization']) : 'General Practice'; ?></span>
+                                        </td>
+                                        <td><?php echo date('M j, Y', strtotime($vet['created_at'])); ?></td>
+                                        <td>
+                                            <?php if ($vet['last_login']): ?>
+                                                <?php echo date('M j, Y g:i A', strtotime($vet['last_login'])); ?>
+                                            <?php else: ?>
+                                                <span class="text-muted">Never logged in</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php 
+                                            $status_class = 'status-active';
+                                            $status_text = 'Active';
+                                            if ($vet['status'] === 'inactive') {
+                                                $status_class = 'status-inactive';
+                                                $status_text = 'Inactive';
+                                            } elseif ($vet['status'] === 'pending') {
+                                                $status_class = 'status-pending';
+                                                $status_text = 'Pending';
+                                            }
+                                            ?>
+                                            <span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <button class="btn btn-action btn-view me-1" title="View Profile">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-action btn-edit me-1" title="Edit Profile">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <?php if ($vet['status'] === 'active'): ?>
+                                                    <form method="POST" style="display: inline;">
+                                                        <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
+                                                        <input type="hidden" name="action" value="deactivate">
+                                                        <button type="submit" class="btn btn-action btn-deactivate me-1" title="Deactivate">
                                                             <i class="fas fa-pause"></i>
                                                         </button>
-                                                        <button class="btn btn-action btn-delete" title="Delete">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <tr>
-                                            <td colspan="6" class="text-center py-4 text-muted">
-                                                <i class="fas fa-user-md fa-2x mb-3 d-block"></i>
-                                                <?php if ($search_term): ?>
-                                                    No veterinarians found matching "<?php echo htmlspecialchars($search_term); ?>"
+                                                    </form>
                                                 <?php else: ?>
-                                                    No veterinarians found in the system.
+                                                    <form method="POST" style="display: inline;">
+                                                        <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
+                                                        <input type="hidden" name="action" value="activate">
+                                                        <button type="submit" class="btn btn-action btn-activate me-1" title="Activate">
+                                                            <i class="fas fa-play"></i>
+                                                        </button>
+                                                    </form>
                                                 <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
+                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this veterinarian? This action cannot be undone.');">
+                                                    <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <button type="submit" class="btn btn-action btn-delete" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">
+                                        <i class="fas fa-user-md fa-2x mb-3 d-block"></i>
+                                        <?php if ($search_term): ?>
+                                            No veterinarians found matching "<?php echo htmlspecialchars($search_term); ?>"
+                                        <?php else: ?>
+                                            No veterinarians found in the system.
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card-soft p-4">
+                        <div class="section-title mb-3">Quick Actions</div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary d-flex align-items-center justify-content-between p-3">
+                                <span>Add New Veterinarian</span>
+                                <i class="fa-solid fa-user-plus"></i>
+                            </button>
+                            <button class="btn btn-outline-success d-flex align-items-center justify-content-between p-3">
+                                <span>Export Veterinarians List</span>
+                                <i class="fa-solid fa-download"></i>
+                            </button>
+                            <button class="btn btn-outline-warning d-flex align-items-center justify-content-between p-3">
+                                <span>Send Bulk Email</span>
+                                <i class="fa-solid fa-envelope"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-soft p-4">
+                        <div class="section-title mb-3">System Overview</div>
+                        <div class="d-flex flex-column gap-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">Total Veterinarians</span>
+                                <span class="fw-bold"><?php echo count($all_vets); ?></span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">Active Sessions</span>
+                                <span class="fw-bold"><?php echo $vet_stats['active_vets']; ?></span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">Pending Approvals</span>
+                                <span class="fw-bold text-warning"><?php echo $vet_stats['pending_vets']; ?></span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">New Registrations Today</span>
+                                <span class="fw-bold text-success"><?php echo $vet_stats['new_today']; ?></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1049,27 +1114,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
 
         // Add loading state to buttons
-        document.querySelectorAll('button').forEach(button => {
+        document.querySelectorAll('button[type="submit"]').forEach(button => {
             button.addEventListener('click', function() {
-                if (this.type !== 'submit' && !this.classList.contains('dropdown-toggle')) {
-                    const originalText = this.innerHTML;
-                    this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
-                    this.disabled = true;
+                const originalText = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+                this.disabled = true;
 
-                    // Reset after 2 seconds (for demo purposes)
-                    setTimeout(() => {
-                        this.innerHTML = originalText;
-                        this.disabled = false;
-                    }, 2000);
-                }
-            });
-        });
-
-        // Tab functionality
-        document.querySelectorAll('.btn-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.btn-tab').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
+                // Reset after 2 seconds (for demo purposes)
+                setTimeout(() => {
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                }, 2000);
             });
         });
 
@@ -1086,6 +1141,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }, 500);
             });
         }
+
+        // Add new veterinarian modal (example functionality)
+        document.getElementById('addVeterinarian')?.addEventListener('click', function() {
+            alert('Add Veterinarian modal would open here. This would include a form to add new veterinarian details.');
+        });
     </script>
 </body>
 </html>
