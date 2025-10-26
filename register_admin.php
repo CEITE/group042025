@@ -433,7 +433,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <div class="mt-4">
                             <small style="opacity: 0.9;">Already have an account? </small>
-                            <a href="admin_login.php" class="btn btn-outline-light btn-sm mt-2">
+                            <a href="login_admin.php" class="btn btn-outline-light btn-sm mt-2">
                                 <i class="fas fa-sign-in-alt me-1"></i> Login to Admin Panel
                             </a>
                         </div>
@@ -686,4 +686,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
 </body>
+
 </html>
