@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_pet'])) {
             // Convert species to lowercase to match ENUM('dog', 'cat')
             $species_lower = strtolower($species);
             
-            // ✅ UPDATE statement with profile_picture
+            // ✅ CORRECTED UPDATE statement - Fixed column names to match database
             $stmt = $conn->prepare("
                 UPDATE pets SET
                     name = ?, species = ?, breed = ?, age = ?, color = ?, weight = ?, 
@@ -125,7 +125,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_pet'])) {
                 WHERE pet_id = ? AND user_id = ?
             ");
 
-            $bind_result = $stmt->bind_param("sssisdssssssssisssssisssii", 
+            // ✅ CORRECTED bind_param parameters
+            $bind_result = $stmt->bind_param("sssisdssssssssisssssissii", 
                 $petName, 
                 $species_lower,
                 $breed, 
@@ -169,10 +170,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_pet'])) {
             
         } catch (Exception $e) {
             $_SESSION['error'] = "Database error: " . $e->getMessage();
+            error_log("Edit Pet Error: " . $e->getMessage());
         }
     }
     
-    // Refresh pet data after update
+    // Refresh pet data after update attempt
     $stmt = $conn->prepare("SELECT * FROM pets WHERE pet_id = ? AND user_id = ?");
     $stmt->bind_param("ii", $pet_id, $user_id);
     $stmt->execute();
@@ -419,6 +421,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_pet'])) {
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            text-decoration: none;
         }
         
         .btn-primary {
@@ -529,9 +532,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_pet'])) {
         </div>
 
         <?php if (isset($_SESSION['error'])): ?>
-            <div class="alert alert-danger">
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <i class="fa-solid fa-exclamation-circle me-2"></i>
                 <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <?php endif; ?>
 
@@ -897,6 +901,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_pet'])) {
         const submitBtn = this.querySelector('button[type="submit"]');
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Updating...';
         submitBtn.disabled = true;
+    });
+
+    // Auto-dismiss alerts after 5 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
     });
 </script>
 </body>
