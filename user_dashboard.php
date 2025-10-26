@@ -126,7 +126,55 @@ if ($currentPetId !== null) {
     $pets[$currentPetId]['records'] = $petRecords;
 }
 
-// ✅ 5. Dashboard statistics
+// ✅ 5. Fetch user's appointments
+$appointments_stmt = $conn->prepare("
+    SELECT a.*, p.name as pet_name, p.species
+    FROM appointments a 
+    LEFT JOIN pets p ON a.pet_id = p.pet_id 
+    WHERE a.user_id = ? 
+    ORDER BY 
+        CASE 
+            WHEN a.status = 'pending' THEN 1
+            WHEN a.status = 'scheduled' THEN 2
+            WHEN a.status = 'confirmed' THEN 3
+            WHEN a.status = 'completed' THEN 4
+            ELSE 5
+        END,
+        a.appointment_date ASC,
+        a.appointment_time ASC
+");
+$appointments_stmt->bind_param("i", $user_id);
+$appointments_stmt->execute();
+$user_appointments = $appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// Count appointments by status
+$appointment_stats = [
+    'pending' => 0,
+    'scheduled' => 0,
+    'confirmed' => 0,
+    'completed' => 0,
+    'cancelled' => 0,
+    'total' => count($user_appointments)
+];
+
+foreach ($user_appointments as $appt) {
+    if (isset($appointment_stats[$appt['status']])) {
+        $appointment_stats[$appt['status']]++;
+    }
+}
+
+// ✅ 6. Fetch user notifications
+$notifications_stmt = $conn->prepare("
+    SELECT * FROM user_notifications 
+    WHERE user_id = ? AND is_read = 0 
+    ORDER BY created_at DESC 
+    LIMIT 10
+");
+$notifications_stmt->bind_param("i", $user_id);
+$notifications_stmt->execute();
+$notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// ✅ 7. Dashboard statistics
 $totalPets = count($pets);
 $vaccinatedPets = 0;
 $upcomingReminders = 0;
@@ -205,6 +253,44 @@ foreach ($pets as $pet) {
     
     if ($hasVaccination) {
         $vaccinatedPets++;
+    }
+}
+
+// Handle mark notification as read
+if (isset($_GET['mark_read'])) {
+    $notification_id = $_GET['mark_read'];
+    $mark_stmt = $conn->prepare("UPDATE user_notifications SET is_read = 1 WHERE notification_id = ? AND user_id = ?");
+    $mark_stmt->bind_param("ii", $notification_id, $user_id);
+    $mark_stmt->execute();
+    header("Location: user_dashboard.php");
+    exit();
+}
+
+// Handle mark all notifications as read
+if (isset($_GET['mark_all_read'])) {
+    $mark_all_stmt = $conn->prepare("UPDATE user_notifications SET is_read = 1 WHERE user_id = ?");
+    $mark_all_stmt->bind_param("i", $user_id);
+    if ($mark_all_stmt->execute()) {
+        $_SESSION['success'] = "All notifications marked as read!";
+        header("Location: user_dashboard.php");
+        exit();
+    }
+}
+
+// Handle cancel appointment
+if (isset($_POST['cancel_appointment'])) {
+    $appointment_id = $_POST['appointment_id'];
+    $cancel_reason = $_POST['cancel_reason'] ?? 'Cancelled by user';
+    
+    $cancel_stmt = $conn->prepare("UPDATE appointments SET status = 'cancelled', vet_notes = ?, updated_at = NOW() WHERE appointment_id = ? AND user_id = ?");
+    $cancel_stmt->bind_param("sii", $cancel_reason, $appointment_id, $user_id);
+    
+    if ($cancel_stmt->execute()) {
+        $_SESSION['success'] = "Appointment cancelled successfully!";
+        header("Location: user_dashboard.php");
+        exit();
+    } else {
+        $_SESSION['error'] = "Error cancelling appointment.";
     }
 }
 ?>
@@ -509,19 +595,6 @@ foreach ($pets as $pet) {
             font-size: 0.75rem;
         }
         
-        .form-section {
-            margin-bottom: 2rem;
-        }
-        
-        .form-section-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: var(--blue);
-            border-bottom: 2px solid var(--secondary-pink);
-            padding-bottom: 0.5rem;
-        }
-        
         .empty-state {
             text-align: center;
             padding: 3rem 2rem;
@@ -600,6 +673,42 @@ foreach ($pets as $pet) {
             box-shadow: var(--shadow);
         }
         
+        /* Appointment Status Badges */
+        .badge-pending { background: linear-gradient(135deg, #f39c12, #e67e22); }
+        .badge-scheduled { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .badge-confirmed { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .badge-completed { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
+        .badge-cancelled { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        
+        .appointment-card {
+            border-left: 4px solid;
+            transition: all 0.3s;
+        }
+        
+        .appointment-pending { border-left-color: #f39c12; background: #fef9e7; }
+        .appointment-scheduled { border-left-color: #3498db; background: #ebf5fb; }
+        .appointment-confirmed { border-left-color: #2ecc71; background: #eafaf1; }
+        .appointment-completed { border-left-color: #95a5a6; background: #f8f9fa; }
+        .appointment-cancelled { border-left-color: #e74c3c; background: #fdedec; }
+        
+        .notification-item {
+            border-left: 4px solid var(--primary-pink);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: white;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .notification-item.unread {
+            background: var(--light-pink);
+            border-left-color: var(--dark-pink);
+        }
+        
+        .notification-item:hover {
+            transform: translateX(5px);
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -652,6 +761,9 @@ foreach ($pets as $pet) {
         <a href="user_pet_profile.php">
             <div class="icon"><i class="fa-solid fa-dog"></i></div> My Pets
         </a>
+        <a href="user_appointments.php">
+            <div class="icon"><i class="fa-solid fa-calendar-days"></i></div> My Appointments
+        </a>
         <a href="qr_code.php">
             <div class="icon"><i class="fa-solid fa-qrcode"></i></div> QR Codes
         </a>
@@ -674,6 +786,48 @@ foreach ($pets as $pet) {
                 <small class="text-muted">Here's your pet health overview</small>
             </div>
             <div class="d-flex align-items-center gap-3">
+                <!-- Notification Bell -->
+                <div class="dropdown">
+                    <a href="#" class="btn btn-outline-primary position-relative" data-bs-toggle="dropdown">
+                        <i class="fas fa-bell"></i>
+                        <?php if (count($notifications) > 0): ?>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                <?php echo count($notifications); ?>
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end" style="width: 350px;">
+                        <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                            <h6 class="mb-0">Notifications</h6>
+                            <?php if (count($notifications) > 0): ?>
+                                <a href="user_dashboard.php?mark_all_read=1" class="btn btn-sm btn-outline-primary">Mark All Read</a>
+                            <?php endif; ?>
+                        </div>
+                        <div class="notification-list" style="max-height: 300px; overflow-y: auto;">
+                            <?php if (empty($notifications)): ?>
+                                <div class="p-3 text-center text-muted">
+                                    <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                                    <p class="mb-0">No new notifications</p>
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($notifications as $notification): ?>
+                                    <div class="notification-item unread">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <p class="mb-1 small"><?php echo htmlspecialchars($notification['message']); ?></p>
+                                                <small class="text-muted"><?php echo date('M j, g:i A', strtotime($notification['created_at'])); ?></small>
+                                            </div>
+                                            <a href="user_dashboard.php?mark_read=<?php echo $notification['notification_id']; ?>" class="btn btn-sm btn-outline-secondary ms-2">
+                                                <i class="fas fa-check"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="input-group" style="width:300px">
                     <input type="text" placeholder="Search pet, vaccine, vet..." class="form-control">
                     <button class="btn btn-outline-secondary" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
@@ -704,34 +858,168 @@ foreach ($pets as $pet) {
 
         <!-- Stats Cards -->
         <div class="row stats-row mb-4">
-            <div class="col-xl-3 col-md-6 mb-3">
+            <div class="col-xl-2 col-md-4 mb-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, var(--blue-light), #e3f2fd);">
                     <i class="fa-solid fa-paw text-primary"></i>
                     <h6>Registered Pets</h6>
                     <h4 id="totalPets"><?php echo $totalPets; ?></h4>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6 mb-3">
+            <div class="col-xl-2 col-md-4 mb-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, var(--green-light), #e8f5e8);">
                     <i class="fa-solid fa-syringe text-success"></i>
                     <h6>Vaccinated Pets</h6>
                     <h4 id="vaccinatedPets"><?php echo $vaccinatedPets; ?></h4>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6 mb-3">
+            <div class="col-xl-2 col-md-4 mb-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, var(--orange-light), #fff3e0);">
                     <i class="fa-solid fa-calendar-check text-warning"></i>
                     <h6>Upcoming Reminders</h6>
                     <h4 id="upcomingVaccines"><?php echo $upcomingReminders; ?></h4>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6 mb-3">
+            <div class="col-xl-2 col-md-4 mb-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, var(--light-pink), #fce4ec);">
                     <i class="fa-solid fa-stethoscope text-danger"></i>
                     <h6>Recent Visits</h6>
                     <h4 id="recentVisits"><?php echo $recentVisits; ?></h4>
                 </div>
             </div>
+            <div class="col-xl-2 col-md-4 mb-3">
+                <div class="stats-card" style="background: linear-gradient(135deg, #e8f6f3, #d0ece7);">
+                    <i class="fa-solid fa-calendar-day text-info"></i>
+                    <h6>Total Appointments</h6>
+                    <h4 id="totalAppointments"><?php echo $appointment_stats['total']; ?></h4>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 mb-3">
+                <div class="stats-card" style="background: linear-gradient(135deg, #fdebd0, #fad7a0);">
+                    <i class="fa-solid fa-clock text-warning"></i>
+                    <h6>Pending</h6>
+                    <h4 id="pendingAppointments"><?php echo $appointment_stats['pending']; ?></h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Appointments Section -->
+        <div class="card-custom">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0"><i class="fa-solid fa-calendar me-2"></i>Recent Appointments</h4>
+                <div>
+                    <a href="user_appointment.php" class="btn btn-primary me-2">
+                        <i class="fa-solid fa-plus me-1"></i> New Appointment
+                    </a>
+                    <a href="user_appointments.php" class="btn btn-outline-primary">
+                        <i class="fa-solid fa-list me-1"></i> View All
+                    </a>
+                </div>
+            </div>
+            
+            <?php if (empty($user_appointments)): ?>
+                <div class="empty-state">
+                    <i class="fa-solid fa-calendar-plus fa-2x mb-3"></i>
+                    <h5>No Appointments Yet</h5>
+                    <p class="text-muted">You haven't booked any appointments yet.</p>
+                    <a href="user_appointment.php" class="btn btn-primary">
+                        <i class="fa-solid fa-plus me-1"></i> Book Your First Appointment
+                    </a>
+                </div>
+            <?php else: ?>
+                <div class="row">
+                    <?php 
+                    $display_count = 0;
+                    foreach ($user_appointments as $appt): 
+                        if ($display_count >= 6) break;
+                        $display_count++;
+                    ?>
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card appointment-card appointment-<?php echo $appt['status']; ?> h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="mb-0"><?php echo htmlspecialchars($appt['pet_name']); ?></h6>
+                                            <small class="text-muted"><?php echo htmlspecialchars($appt['service_type']); ?></small>
+                                        </div>
+                                        <span class="badge badge-<?php echo $appt['status']; ?>">
+                                            <?php echo ucfirst($appt['status']); ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <small class="text-muted">Date & Time</small>
+                                        <div class="fw-semibold">
+                                            <?php echo date('M j, Y', strtotime($appt['appointment_date'])); ?><br>
+                                            <small><?php echo date('g:i A', strtotime($appt['appointment_time'])); ?></small>
+                                        </div>
+                                    </div>
+                                    
+                                    <?php if (!empty($appt['reason'])): ?>
+                                        <div class="mb-2">
+                                            <small class="text-muted">Reason</small>
+                                            <div class="small"><?php echo htmlspecialchars($appt['reason']); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($appt['vet_notes'])): ?>
+                                        <div class="mb-2">
+                                            <small class="text-muted">Vet Notes</small>
+                                            <div class="small text-success"><?php echo htmlspecialchars($appt['vet_notes']); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="mt-3">
+                                        <?php if ($appt['status'] == 'pending'): ?>
+                                            <form method="POST" action="user_dashboard.php" class="d-inline">
+                                                <input type="hidden" name="appointment_id" value="<?php echo $appt['appointment_id']; ?>">
+                                                <input type="hidden" name="cancel_reason" value="Cancelled by user">
+                                                <button type="submit" name="cancel_appointment" class="btn btn-sm btn-outline-danger" 
+                                                        onclick="return confirm('Are you sure you want to cancel this appointment?')">
+                                                    <i class="fas fa-times me-1"></i> Cancel
+                                                </button>
+                                            </form>
+                                        <?php elseif ($appt['status'] == 'scheduled'): ?>
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-sm btn-outline-success">
+                                                    <i class="fas fa-check me-1"></i> Confirm
+                                                </button>
+                                                <form method="POST" action="user_dashboard.php" class="d-inline">
+                                                    <input type="hidden" name="appointment_id" value="<?php echo $appt['appointment_id']; ?>">
+                                                    <input type="hidden" name="cancel_reason" value="Cancelled by user">
+                                                    <button type="submit" name="cancel_appointment" class="btn btn-sm btn-outline-danger" 
+                                                            onclick="return confirm('Are you sure you want to cancel this appointment?')">
+                                                        <i class="fas fa-times me-1"></i> Cancel
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        <?php elseif ($appt['status'] == 'confirmed'): ?>
+                                            <small class="text-success"><i class="fas fa-check-circle me-1"></i>Confirmed</small>
+                                        <?php elseif ($appt['status'] == 'completed'): ?>
+                                            <small class="text-secondary"><i class="fas fa-flag-checkered me-1"></i>Completed</small>
+                                        <?php elseif ($appt['status'] == 'cancelled'): ?>
+                                            <small class="text-danger"><i class="fas fa-ban me-1"></i>Cancelled</small>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            Created: <?php echo date('M j, g:i A', strtotime($appt['created_at'])); ?>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                
+                <?php if ($appointment_stats['total'] > 6): ?>
+                    <div class="text-center mt-4">
+                        <a href="user_appointments.php" class="btn btn-outline-primary">
+                            <i class="fas fa-list me-1"></i> View All <?php echo $appointment_stats['total']; ?> Appointments
+                        </a>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
         </div>
 
         <!-- Health Monitoring Visualizations -->
@@ -980,6 +1268,35 @@ foreach ($pets as $pet) {
     </div>
 </div>
 
+<!-- Cancel Appointment Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cancel Appointment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="user_dashboard.php" id="cancelForm">
+                <div class="modal-body">
+                    <input type="hidden" name="appointment_id" id="cancelAppointmentId">
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Cancellation</label>
+                        <textarea class="form-control" name="cancel_reason" rows="3" placeholder="Please provide a reason for cancellation..." required></textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Are you sure you want to cancel this appointment? This action cannot be undone.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Appointment</button>
+                    <button type="submit" name="cancel_appointment" class="btn btn-danger">Cancel Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Bootstrap & jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -1031,6 +1348,14 @@ foreach ($pets as $pet) {
         
         // Initialize health monitoring charts
         initializeHealthCharts();
+        
+        // Setup cancel appointment modals
+        document.querySelectorAll('[data-appointment-id]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const appointmentId = this.getAttribute('data-appointment-id');
+                document.getElementById('cancelAppointmentId').value = appointmentId;
+            });
+        });
         
         // Auto-close alerts after 5 seconds
         setTimeout(() => {
@@ -1392,6 +1717,13 @@ foreach ($pets as $pet) {
         URL.revokeObjectURL(url);
     }
 
+    // Function to show cancel appointment modal
+    function showCancelModal(appointmentId) {
+        document.getElementById('cancelAppointmentId').value = appointmentId;
+        const cancelModal = new bootstrap.Modal(document.getElementById('cancelModal'));
+        cancelModal.show();
+    }
+
     // Search functionality
     document.addEventListener('keydown', function(e) {
         // Ctrl+K for search focus (common shortcut)
@@ -1402,52 +1734,6 @@ foreach ($pets as $pet) {
         }
     });
 
-    // Pet card interactions
-    document.querySelectorAll('.pet-card').forEach(card => {
-        card.addEventListener('click', function(e) {
-            // Don't trigger if clicking on buttons or links
-            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button') || e.target.closest('a')) {
-                return;
-            }
-            
-            // Expand/collapse medical records
-            const recordsTable = this.querySelector('.table-responsive');
-            if (recordsTable) {
-                recordsTable.style.display = recordsTable.style.display === 'none' ? 'block' : 'none';
-            }
-        });
-    });
-
-    // Health status tooltips
-    document.querySelectorAll('.health-status').forEach(status => {
-        status.setAttribute('title', 'Click for details');
-        status.style.cursor = 'help';
-        
-        status.addEventListener('click', function() {
-            const petCard = this.closest('.pet-card');
-            const petName = petCard.querySelector('h5').textContent;
-            const statusText = this.querySelector('small').textContent;
-            
-            alert(`Health Status for ${petName}: ${statusText}\n\nThis status is based on vaccination records and recent vet visits.`);
-        });
-    });
-
-    // Responsive sidebar toggle for mobile
-    function toggleSidebar() {
-        const sidebar = document.querySelector('.sidebar');
-        sidebar.style.display = sidebar.style.display === 'none' ? 'flex' : 'none';
-    }
-
-    // Add mobile menu button if needed
-    if (window.innerWidth <= 768) {
-        const topbar = document.querySelector('.topbar');
-        const menuButton = document.createElement('button');
-        menuButton.className = 'btn btn-primary d-md-none';
-        menuButton.innerHTML = '<i class="fas fa-bars"></i>';
-        menuButton.onclick = toggleSidebar;
-        topbar.insertBefore(menuButton, topbar.firstChild);
-    }
-
     // Auto-refresh data every 5 minutes
     setInterval(() => {
         console.log('Auto-refreshing dashboard data...');
@@ -1455,7 +1741,7 @@ foreach ($pets as $pet) {
         // location.reload(); // Simple refresh for demo
     }, 300000); // 5 minutes
 
-    console.log('PetMedQR Dashboard with Health Monitoring initialized successfully!');
+    console.log('PetMedQR Dashboard with Appointment Management initialized successfully!');
 </script>
 </body>
 </html>
@@ -1471,5 +1757,3 @@ function getRandomColor($seed, $opacity = 1) {
     return $colors[$index];
 }
 ?>
-
-
