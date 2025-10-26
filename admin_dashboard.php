@@ -27,7 +27,24 @@ $admin_result = $admin_stmt->get_result();
 $admin = $admin_result->fetch_assoc();
 $admin_stmt->close();
 
-// Handle search and filter functionality
+// Get statistics
+$stats = [];
+$stats_query = "
+    SELECT 
+        (SELECT COUNT(*) FROM users WHERE role = 'vet') as total_vets,
+        (SELECT COUNT(*) FROM users WHERE role = 'owner') as total_owners,
+        (SELECT COUNT(*) FROM pets) as total_pets,
+        (SELECT COUNT(*) FROM appointments WHERE status = 'scheduled') as upcoming_appointments,
+        (SELECT COUNT(*) FROM appointments WHERE DATE(created_at) = CURDATE()) as today_appointments,
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND DATE(created_at) = CURDATE()) as new_vets_today
+";
+
+$stats_result = $conn->query($stats_query);
+if ($stats_result) {
+    $stats = $stats_result->fetch_assoc();
+}
+
+// Handle search functionality
 $search_term = '';
 $status_filter = '';
 $where_conditions = ["role = 'vet'"];
@@ -52,7 +69,7 @@ if (isset($_GET['status']) && !empty($_GET['status'])) {
 // Build the query
 $where_clause = implode(' AND ', $where_conditions);
 $vets_query = "
-    SELECT user_id, name, email, profile_picture, created_at, last_login, status, phone, specialization
+    SELECT user_id, name, email, profile_picture, created_at, last_login, status, phone_number, specialization
     FROM users 
     WHERE $where_clause
     ORDER BY created_at DESC
@@ -110,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // Redirect back with search parameters
-        $redirect_url = "veterinarian.php";
+        $redirect_url = "admin_dashboard.php";
         $query_params = [];
         if ($search_term) $query_params[] = "search=" . urlencode($search_term);
         if ($status_filter) $query_params[] = "status=" . urlencode($status_filter);
@@ -121,8 +138,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get statistics for veterinarians
-$stats_query = "
+// Get recent veterinarians (for the sidebar/cards)
+$recent_vets_query = "
+    SELECT user_id, name, email, profile_picture, created_at, last_login, status
+    FROM users 
+    WHERE role = 'vet' 
+    ORDER BY created_at DESC 
+    LIMIT 5
+";
+$recent_vets_result = $conn->query($recent_vets_query);
+$recent_vets = [];
+if ($recent_vets_result) {
+    while ($row = $recent_vets_result->fetch_assoc()) {
+        $recent_vets[] = $row;
+    }
+}
+
+// Get veterinarian statistics
+$vet_stats_query = "
     SELECT 
         (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'active') as active_vets,
         (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'inactive') as inactive_vets,
@@ -130,8 +163,8 @@ $stats_query = "
         (SELECT COUNT(*) FROM users WHERE role = 'vet' AND last_login IS NULL) as never_logged_in,
         (SELECT COUNT(*) FROM users WHERE role = 'vet' AND DATE(created_at) = CURDATE()) as new_today
 ";
-$stats_result = $conn->query($stats_query);
-$vet_stats = $stats_result->fetch_assoc();
+$vet_stats_result = $conn->query($vet_stats_query);
+$vet_stats = $vet_stats_result->fetch_assoc();
 ?>
 
 <!DOCTYPE html>
@@ -139,7 +172,7 @@ $vet_stats = $stats_result->fetch_assoc();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Veterinarians Management - VetCareQR</title>
+    <title>Admin Dashboard - VetCareQR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -699,11 +732,11 @@ $vet_stats = $stats_result->fetch_assoc();
             </div>
             
             <nav class="nav flex-column gap-2">
-                <a class="nav-link d-flex align-items-center" href="admin_dashboard.php">
+                <a class="nav-link d-flex align-items-center active" href="admin_dashboard.php">
                     <span class="icon"><i class="fa-solid fa-gauge-high"></i></span>
                     <span>Dashboard</span>
                 </a>
-                <a class="nav-link d-flex align-items-center active" href="veterinarian.php">
+                <a class="nav-link d-flex align-items-center" href="veterinarian.php">
                     <span class="icon"><i class="fa-solid fa-user-doctor"></i></span>
                     <span>Veterinarians</span>
                 </a>
@@ -772,8 +805,8 @@ $vet_stats = $stats_result->fetch_assoc();
             <!-- Topbar -->
             <div class="topbar">
                 <div class="d-flex align-items-center">
-                    <h1 class="h4 mb-0 fw-bold">Veterinarians Management</h1>
-                    <span class="badge bg-light text-dark ms-3">Total: <?php echo count($all_vets); ?></span>
+                    <h1 class="h4 mb-0 fw-bold">Admin Dashboard</h1>
+                    <span class="badge bg-light text-dark ms-3">Veterinarian Management</span>
                 </div>
 
                 <div class="search ms-auto">
@@ -835,10 +868,10 @@ $vet_stats = $stats_result->fetch_assoc();
                             <i class="fa-solid fa-user-doctor"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <small>Active Veterinarians</small>
+                            <small>Total Veterinarians</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value"><?php echo $vet_stats['active_vets']; ?></div>
-                                <span class="badge-dot" style="color:#10b981">Available</span>
+                                <div class="stat-value"><?php echo $stats['total_vets'] ?? '0'; ?></div>
+                                <span class="badge-dot" style="color:#10b981">+<?php echo $stats['new_vets_today'] ?? '0'; ?> today</span>
                             </div>
                         </div>
                     </div>
@@ -847,13 +880,13 @@ $vet_stats = $stats_result->fetch_assoc();
                 <div class="card-soft fade-in" style="animation-delay: 0.2s">
                     <div class="kpi">
                         <div class="bubble" style="background:#e8faf3;color:#0d9f6e">
-                            <i class="fa-solid fa-user-clock"></i>
+                            <i class="fa-solid fa-calendar-check"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <small>Pending Approval</small>
+                            <small>Today's Appointments</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value"><?php echo $vet_stats['pending_vets']; ?></div>
-                                <span class="badge-dot" style="color:#f59e0b">Needs review</span>
+                                <div class="stat-value"><?php echo $stats['today_appointments'] ?? '0'; ?></div>
+                                <span class="badge-dot" style="color:#f59e0b"><?php echo $stats['upcoming_appointments'] ?? '0'; ?> upcoming</span>
                             </div>
                         </div>
                     </div>
@@ -862,13 +895,13 @@ $vet_stats = $stats_result->fetch_assoc();
                 <div class="card-soft fade-in" style="animation-delay: 0.3s">
                     <div class="kpi">
                         <div class="bubble" style="background:#fff0f5;color:#c2417a">
-                            <i class="fa-solid fa-user-plus"></i>
+                            <i class="fa-solid fa-paw"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <small>New Today</small>
+                            <small>Registered Pets</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value"><?php echo $vet_stats['new_today']; ?></div>
-                                <span class="badge-dot" style="color:#8b5cf6">Recent</span>
+                                <div class="stat-value"><?php echo $stats['total_pets'] ?? '0'; ?></div>
+                                <span class="badge-dot" style="color:#8b5cf6">Active</span>
                             </div>
                         </div>
                     </div>
@@ -877,13 +910,13 @@ $vet_stats = $stats_result->fetch_assoc();
                 <div class="card-soft fade-in" style="animation-delay: 0.4s">
                     <div class="kpi">
                         <div class="bubble" style="background:#fff7e6;color:#b45309">
-                            <i class="fa-solid fa-user-slash"></i>
+                            <i class="fa-solid fa-users"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <small>Inactive</small>
+                            <small>Pet Owners</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value"><?php echo $vet_stats['inactive_vets']; ?></div>
-                                <span class="badge-dot" style="color:#ef4444">Suspended</span>
+                                <div class="stat-value"><?php echo $stats['total_owners'] ?? '0'; ?></div>
+                                <span class="badge-dot" style="color:#ef4444">Registered</span>
                             </div>
                         </div>
                     </div>
@@ -893,7 +926,7 @@ $vet_stats = $stats_result->fetch_assoc();
             <!-- Search Section -->
             <div class="search-section">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div class="section-title">Manage Veterinarians</div>
+                    <div class="section-title">Veterinarian Management</div>
                     <div class="search-results">
                         <?php if ($search_term || $status_filter): ?>
                             Showing <?php echo count($all_vets); ?> results
@@ -905,7 +938,7 @@ $vet_stats = $stats_result->fetch_assoc();
                     </div>
                 </div>
                 
-                <form method="GET" action="veterinarian.php" class="row g-3 align-items-end">
+                <form method="GET" action="admin_dashboard.php" class="row g-3 align-items-end">
                     <div class="col-md-6">
                         <div class="input-group">
                             <span class="input-group-text bg-transparent border-end-0">
@@ -927,7 +960,7 @@ $vet_stats = $stats_result->fetch_assoc();
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-brand w-100">Search</button>
                         <?php if ($search_term || $status_filter): ?>
-                            <a href="veterinarian.php" class="btn btn-outline-secondary w-100 mt-2">Clear</a>
+                            <a href="admin_dashboard.php" class="btn btn-outline-secondary w-100 mt-2">Clear</a>
                         <?php endif; ?>
                     </div>
                 </form>
@@ -965,7 +998,7 @@ $vet_stats = $stats_result->fetch_assoc();
                                         </td>
                                         <td>
                                             <div class="user-email"><?php echo htmlspecialchars($vet['email']); ?></div>
-                                            <small class="text-muted"><?php echo $vet['phone'] ? htmlspecialchars($vet['phone']) : 'N/A'; ?></small>
+                                            <small class="text-muted"><?php echo $vet['phone_number'] ? htmlspecialchars($vet['phone_number']) : 'N/A'; ?></small>
                                         </td>
                                         <td>
                                             <span class="specialization-tag"><?php echo $vet['specialization'] ? htmlspecialchars($vet['specialization']) : 'General Practice'; ?></span>
@@ -1044,52 +1077,6 @@ $vet_stats = $stats_result->fetch_assoc();
                     </table>
                 </div>
             </div>
-
-            <!-- Quick Actions -->
-            <div class="row g-4">
-                <div class="col-md-6">
-                    <div class="card-soft p-4">
-                        <div class="section-title mb-3">Quick Actions</div>
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary d-flex align-items-center justify-content-between p-3">
-                                <span>Add New Veterinarian</span>
-                                <i class="fa-solid fa-user-plus"></i>
-                            </button>
-                            <button class="btn btn-outline-success d-flex align-items-center justify-content-between p-3">
-                                <span>Export Veterinarians List</span>
-                                <i class="fa-solid fa-download"></i>
-                            </button>
-                            <button class="btn btn-outline-warning d-flex align-items-center justify-content-between p-3">
-                                <span>Send Bulk Email</span>
-                                <i class="fa-solid fa-envelope"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card-soft p-4">
-                        <div class="section-title mb-3">System Overview</div>
-                        <div class="d-flex flex-column gap-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">Total Veterinarians</span>
-                                <span class="fw-bold"><?php echo count($all_vets); ?></span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">Active Sessions</span>
-                                <span class="fw-bold"><?php echo $vet_stats['active_vets']; ?></span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">Pending Approvals</span>
-                                <span class="fw-bold text-warning"><?php echo $vet_stats['pending_vets']; ?></span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">New Registrations Today</span>
-                                <span class="fw-bold text-success"><?php echo $vet_stats['new_today']; ?></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </main>
     </div>
 
@@ -1141,11 +1128,6 @@ $vet_stats = $stats_result->fetch_assoc();
                 }, 500);
             });
         }
-
-        // Add new veterinarian modal (example functionality)
-        document.getElementById('addVeterinarian')?.addEventListener('click', function() {
-            alert('Add Veterinarian modal would open here. This would include a form to add new veterinarian details.');
-        });
     </script>
 </body>
 </html>
