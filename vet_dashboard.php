@@ -14,119 +14,147 @@ $vet_id = $_SESSION['user_id'];
 $stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $vet_id);
 $stmt->execute();
-$vet = $stmt->get_result()->fetch_assoc();
+$result = $stmt->get_result();
+$vet = $result->fetch_assoc();
+
+if (!$vet) {
+    $_SESSION['error'] = "Vet information not found.";
+    header("Location: login.php");
+    exit();
+}
 
 // Set default profile picture
 $profile_picture = !empty($vet['profile_picture']) ? $vet['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($vet['name']);
 
-// Fetch pending appointment requests (NEW - only pending appointments)
-$pending_appointments_stmt = $conn->prepare("
-    SELECT a.*, p.name as pet_name, p.species, p.breed, u.name as owner_name, u.email as owner_email
-    FROM appointments a 
-    LEFT JOIN pets p ON a.pet_id = p.pet_id 
-    LEFT JOIN users u ON a.user_id = u.user_id
-    WHERE a.status = 'pending'
-    ORDER BY a.created_at DESC
-");
-$pending_appointments_stmt->execute();
-$pending_appointments = $pending_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+// Initialize variables to prevent undefined variable errors
+$pending_appointments = [];
+$scheduled_appointments = [];
+$notifications = [];
+$today_count = 0;
+$pending_count = 0;
 
-// Fetch scheduled appointments (approved by vet)
-$scheduled_appointments_stmt = $conn->prepare("
-    SELECT a.*, p.name as pet_name, p.species, p.breed, u.name as owner_name, u.email as owner_email
-    FROM appointments a 
-    LEFT JOIN pets p ON a.pet_id = p.pet_id 
-    LEFT JOIN users u ON a.user_id = u.user_id
-    WHERE a.status IN ('scheduled', 'confirmed')
-    ORDER BY a.appointment_date ASC, a.appointment_time ASC
-");
-$scheduled_appointments_stmt->execute();
-$scheduled_appointments = $scheduled_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+try {
+    // Fetch pending appointment requests
+    $pending_appointments_stmt = $conn->prepare("
+        SELECT a.*, p.name as pet_name, p.species, p.breed, u.name as owner_name, u.email as owner_email
+        FROM appointments a 
+        LEFT JOIN pets p ON a.pet_id = p.pet_id 
+        LEFT JOIN users u ON a.user_id = u.user_id
+        WHERE a.status = 'pending'
+        ORDER BY a.created_at DESC
+    ");
+    $pending_appointments_stmt->execute();
+    $pending_appointments = $pending_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Fetch unread notifications
-$notifications_stmt = $conn->prepare("
-    SELECT * FROM vet_notifications 
-    WHERE is_read = 0 
-    ORDER BY created_at DESC
-");
-$notifications_stmt->execute();
-$notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    // Fetch scheduled appointments (approved by vet)
+    $scheduled_appointments_stmt = $conn->prepare("
+        SELECT a.*, p.name as pet_name, p.species, p.breed, u.name as owner_name, u.email as owner_email
+        FROM appointments a 
+        LEFT JOIN pets p ON a.pet_id = p.pet_id 
+        LEFT JOIN users u ON a.user_id = u.user_id
+        WHERE a.status IN ('scheduled', 'confirmed')
+        ORDER BY a.appointment_date ASC, a.appointment_time ASC
+    ");
+    $scheduled_appointments_stmt->execute();
+    $scheduled_appointments = $scheduled_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Count today's appointments
-$today = date('Y-m-d');
-$today_appointments_stmt = $conn->prepare("
-    SELECT COUNT(*) as count FROM appointments 
-    WHERE appointment_date = ? AND status IN ('scheduled', 'confirmed')
-");
-$today_appointments_stmt->bind_param("s", $today);
-$today_appointments_stmt->execute();
-$today_count = $today_appointments_stmt->get_result()->fetch_assoc()['count'];
+    // Fetch unread notifications
+    $notifications_stmt = $conn->prepare("
+        SELECT * FROM vet_notifications 
+        WHERE vet_id = ? AND is_read = 0 
+        ORDER BY created_at DESC
+    ");
+    $notifications_stmt->bind_param("i", $vet_id);
+    $notifications_stmt->execute();
+    $notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Count pending appointments (NEW - count only pending)
-$pending_stmt = $conn->prepare("
-    SELECT COUNT(*) as count FROM appointments 
-    WHERE status = 'pending'
-");
-$pending_stmt->execute();
-$pending_count = $pending_stmt->get_result()->fetch_assoc()['count'];
+    // Count today's appointments
+    $today = date('Y-m-d');
+    $today_appointments_stmt = $conn->prepare("
+        SELECT COUNT(*) as count FROM appointments 
+        WHERE appointment_date = ? AND status IN ('scheduled', 'confirmed')
+    ");
+    $today_appointments_stmt->bind_param("s", $today);
+    $today_appointments_stmt->execute();
+    $today_result = $today_appointments_stmt->get_result()->fetch_assoc();
+    $today_count = $today_result ? $today_result['count'] : 0;
+
+    // Count pending appointments
+    $pending_stmt = $conn->prepare("
+        SELECT COUNT(*) as count FROM appointments 
+        WHERE status = 'pending'
+    ");
+    $pending_stmt->execute();
+    $pending_result = $pending_stmt->get_result()->fetch_assoc();
+    $pending_count = $pending_result ? $pending_result['count'] : 0;
+
+} catch (Exception $e) {
+    error_log("Database error: " . $e->getMessage());
+    $_SESSION['error'] = "Error loading dashboard data.";
+}
 
 // Handle appointment status update
-if (isset($_POST['update_status'])) {
-    $appointment_id = $_POST['appointment_id'];
-    $new_status = $_POST['status'];
-    $vet_notes = $_POST['vet_notes'] ?? '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
+    $appointment_id = filter_input(INPUT_POST, 'appointment_id', FILTER_VALIDATE_INT);
+    $new_status = filter_input(INPUT_POST, 'status', FILTER_SANITIZE_STRING);
+    $vet_notes = filter_input(INPUT_POST, 'vet_notes', FILTER_SANITIZE_STRING) ?? '';
     
-    $update_stmt = $conn->prepare("
-        UPDATE appointments 
-        SET status = ?, vet_notes = ?, updated_at = NOW() 
-        WHERE appointment_id = ?
-    ");
-    $update_stmt->bind_param("ssi", $new_status, $vet_notes, $appointment_id);
-    
-    if ($update_stmt->execute()) {
-        // Create notification for user when appointment is approved/rejected
-        if ($new_status == 'scheduled' || $new_status == 'cancelled') {
-            $appointment_info_stmt = $conn->prepare("
-                SELECT u.user_id, a.appointment_date, a.appointment_time 
-                FROM appointments a 
-                JOIN users u ON a.user_id = u.user_id 
-                WHERE a.appointment_id = ?
-            ");
-            $appointment_info_stmt->bind_param("i", $appointment_id);
-            $appointment_info_stmt->execute();
-            $appointment_info = $appointment_info_stmt->get_result()->fetch_assoc();
-            
-            if ($appointment_info) {
-                $message = $new_status == 'scheduled' 
-                    ? "Your appointment on " . date('M j, Y', strtotime($appointment_info['appointment_date'])) . " at " . date('g:i A', strtotime($appointment_info['appointment_time'])) . " has been approved!"
-                    : "Your appointment request has been cancelled by the vet.";
-                
-                $user_notification_stmt = $conn->prepare("
-                    INSERT INTO user_notifications (user_id, message, appointment_id, created_at) 
-                    VALUES (?, ?, ?, NOW())
+    if ($appointment_id && $new_status) {
+        $update_stmt = $conn->prepare("
+            UPDATE appointments 
+            SET status = ?, vet_notes = ?, updated_at = NOW() 
+            WHERE appointment_id = ?
+        ");
+        $update_stmt->bind_param("ssi", $new_status, $vet_notes, $appointment_id);
+        
+        if ($update_stmt->execute()) {
+            // Create notification for user when appointment is approved/rejected
+            if ($new_status == 'scheduled' || $new_status == 'cancelled') {
+                $appointment_info_stmt = $conn->prepare("
+                    SELECT u.user_id, a.appointment_date, a.appointment_time 
+                    FROM appointments a 
+                    JOIN users u ON a.user_id = u.user_id 
+                    WHERE a.appointment_id = ?
                 ");
-                $user_notification_stmt->bind_param("isi", $appointment_info['user_id'], $message, $appointment_id);
-                $user_notification_stmt->execute();
+                $appointment_info_stmt->bind_param("i", $appointment_id);
+                $appointment_info_stmt->execute();
+                $appointment_info = $appointment_info_stmt->get_result()->fetch_assoc();
+                
+                if ($appointment_info) {
+                    $message = $new_status == 'scheduled' 
+                        ? "Your appointment on " . date('M j, Y', strtotime($appointment_info['appointment_date'])) . " at " . date('g:i A', strtotime($appointment_info['appointment_time'])) . " has been approved!"
+                        : "Your appointment request has been cancelled by the vet.";
+                    
+                    $user_notification_stmt = $conn->prepare("
+                        INSERT INTO user_notifications (user_id, message, appointment_id, created_at) 
+                        VALUES (?, ?, ?, NOW())
+                    ");
+                    $user_notification_stmt->bind_param("isi", $appointment_info['user_id'], $message, $appointment_id);
+                    $user_notification_stmt->execute();
+                }
             }
+            
+            $_SESSION['success'] = "Appointment status updated successfully!";
+            
+            // Mark related notifications as read
+            $mark_read_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE appointment_id = ?");
+            $mark_read_stmt->bind_param("i", $appointment_id);
+            $mark_read_stmt->execute();
+            
+            header("Location: vet_dashboard.php");
+            exit();
+        } else {
+            $_SESSION['error'] = "Error updating appointment status.";
         }
-        
-        $_SESSION['success'] = "Appointment status updated successfully!";
-        
-        // Mark related notifications as read
-        $mark_read_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE appointment_id = ?");
-        $mark_read_stmt->bind_param("i", $appointment_id);
-        $mark_read_stmt->execute();
-        
-        header("Location: vet_dashboard.php");
-        exit();
     } else {
-        $_SESSION['error'] = "Error updating appointment status.";
+        $_SESSION['error'] = "Invalid appointment data.";
     }
 }
 
 // Handle mark all notifications as read
 if (isset($_GET['mark_all_read'])) {
-    $mark_all_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1");
+    $mark_all_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE vet_id = ?");
+    $mark_all_stmt->bind_param("i", $vet_id);
     if ($mark_all_stmt->execute()) {
         $_SESSION['success'] = "All notifications marked as read!";
         header("Location: vet_dashboard.php");
@@ -136,12 +164,15 @@ if (isset($_GET['mark_all_read'])) {
 
 // Handle mark single notification as read
 if (isset($_GET['mark_read'])) {
-    $notification_id = $_GET['mark_read'];
-    $mark_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE notification_id = ?");
-    $mark_stmt->bind_param("i", $notification_id);
-    $mark_stmt->execute();
-    header("Location: vet_dashboard.php");
-    exit();
+    $notification_id = filter_input(INPUT_GET, 'mark_read', FILTER_VALIDATE_INT);
+    if ($notification_id) {
+        $mark_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE notification_id = ? AND vet_id = ?");
+        $mark_stmt->bind_param("ii", $notification_id, $vet_id);
+        if ($mark_stmt->execute()) {
+            header("Location: vet_dashboard.php");
+            exit();
+        }
+    }
 }
 ?>
 
@@ -154,7 +185,6 @@ if (isset($_GET['mark_read'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Your existing CSS styles remain the same */
         :root {
             --primary-pink: #e91e63;
             --secondary-pink: #f8bbd9;
@@ -171,31 +201,216 @@ if (isset($_GET['mark_read'])) {
             --shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
         
-        /* ... (keep all your existing CSS styles) ... */
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(135deg, var(--primary-pink), var(--dark-pink));
+            color: white;
+            padding: 0;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+        }
+        
+        .brand {
+            padding: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .profile {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .profile-picture-container {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            overflow: hidden;
+            margin: 0 auto 15px;
+            border: 3px solid rgba(255,255,255,0.2);
+        }
+        
+        .profile-picture-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .sidebar a {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+        
+        .sidebar a:hover, .sidebar a.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: white;
+        }
+        
+        .sidebar a.logout {
+            margin-top: auto;
+            color: var(--accent-pink);
+        }
+        
+        .icon {
+            width: 24px;
+            margin-right: 12px;
+            text-align: center;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .topbar {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-custom {
+            background: white;
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+        
+        .stats-today::before { background: var(--blue); }
+        .stats-pending::before { background: var(--orange); }
+        .stats-notifications::before { background: var(--primary-pink); }
+        
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stats-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .appointment-card {
+            border-left: 4px solid var(--blue);
+            transition: transform 0.2s;
+        }
+        
+        .appointment-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .appointment-card.pending {
+            border-left: 4px solid var(--orange);
+        }
+        
+        .pet-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--light-pink);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--primary-pink);
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
         
         .status-pending {
             background-color: var(--orange-light);
             color: var(--orange);
         }
         
-        .badge-new {
-            background: #dc3545;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            margin-left: 10px;
+        .status-scheduled {
+            background-color: var(--blue-light);
+            color: var(--blue);
         }
         
-        .appointment-card.pending {
-            border-left: 4px solid var(--orange);
-            background: var(--orange-light);
+        .status-confirmed {
+            background-color: var(--green-light);
+            color: var(--green);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        .notification-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .notification-item.unread {
+            background-color: #f8f9fa;
+        }
+        
+        .alert-custom {
+            border-radius: var(--radius);
+            border: none;
+            margin: 20px 30px 0;
         }
         
         .action-buttons {
             display: flex;
             gap: 10px;
             margin-top: 15px;
+            flex-wrap: wrap;
         }
         
         .btn-approve {
@@ -209,11 +424,30 @@ if (isset($_GET['mark_read'])) {
             color: white;
             border: none;
         }
+        
+        @media (max-width: 768px) {
+            .wrapper {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .action-buttons .btn {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
 <div class="wrapper">
-    <!-- Sidebar (unchanged) -->
+    <!-- Sidebar -->
     <div class="sidebar">
         <div class="brand"><i class="fa-solid fa-paw"></i> VetCareQR</div>
         <div class="profile">
@@ -248,7 +482,7 @@ if (isset($_GET['mark_read'])) {
     </div>
 
     <div class="main-content">
-        <!-- Topbar (unchanged) -->
+        <!-- Topbar -->
         <div class="topbar">
             <div>
                 <h5 class="mb-0">Veterinary Dashboard</h5>
@@ -322,7 +556,7 @@ if (isset($_GET['mark_read'])) {
         <?php endif; ?>
 
         <!-- Stats Cards -->
-        <div class="row mb-4">
+        <div class="row mb-4" style="margin: 20px 15px 0;">
             <div class="col-md-4">
                 <div class="stats-card stats-today">
                     <div class="stats-number"><?php echo $today_count; ?></div>
@@ -346,7 +580,7 @@ if (isset($_GET['mark_read'])) {
             </div>
         </div>
 
-        <div class="row">
+        <div class="row" style="margin: 0 15px;">
             <!-- Pending Appointment Requests -->
             <div class="col-lg-8 mb-4">
                 <div class="card-custom">
