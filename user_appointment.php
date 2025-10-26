@@ -14,21 +14,54 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Function to create vet notification
+// ✅ FIXED: Ensure vet_notifications table exists
+$create_table_sql = "
+CREATE TABLE IF NOT EXISTS vet_notifications (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    vet_id INT NOT NULL,
+    message TEXT NOT NULL,
+    appointment_id INT,
+    is_read TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX vet_id_index (vet_id),
+    INDEX is_read_index (is_read)
+)";
+
+if (!$conn->query($create_table_sql)) {
+    error_log("Warning: Could not create vet_notifications table: " . $conn->error);
+}
+
+// ✅ FIXED: Function to create vet notification for ALL vets
 function createVetNotification($conn, $message, $appointment_id = null) {
     try {
-        $stmt = $conn->prepare("INSERT INTO vet_notifications (message, appointment_id, is_read, created_at) VALUES (?, ?, 0, NOW())");
-        if ($appointment_id) {
-            $stmt->bind_param("si", $message, $appointment_id);
-        } else {
-            // Handle case where appointment_id might be null
-            $null = null;
-            $stmt->bind_param("si", $message, $null);
+        // Get all vets
+        $vets_stmt = $conn->prepare("SELECT user_id, name FROM users WHERE role = 'vet'");
+        $vets_stmt->execute();
+        $vets = $vets_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        $success_count = 0;
+        foreach ($vets as $vet) {
+            $stmt = $conn->prepare("INSERT INTO vet_notifications (vet_id, message, appointment_id, is_read, created_at) VALUES (?, ?, ?, 0, NOW())");
+            if ($appointment_id) {
+                $stmt->bind_param("isi", $vet['user_id'], $message, $appointment_id);
+            } else {
+                $null = null;
+                $stmt->bind_param("isi", $vet['user_id'], $message, $null);
+            }
+            if ($stmt->execute()) {
+                $success_count++;
+                error_log("✅ Notification created for vet: " . $vet['name'] . " (ID: " . $vet['user_id'] . ")");
+            } else {
+                error_log("❌ Failed to create notification for vet: " . $vet['name'] . " - " . $conn->error);
+            }
         }
-        return $stmt->execute();
+        
+        error_log("📊 Total notifications created: " . $success_count . " out of " . count($vets) . " vets");
+        return $success_count;
+        
     } catch (Exception $e) {
-        error_log("Notification error: " . $e->getMessage());
-        return false;
+        error_log("🚨 Notification error: " . $e->getMessage());
+        return 0;
     }
 }
 
@@ -108,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pet_id'])) {
                     }
                 }
                 
-                // Insert appointment - FIXED PARAMETER COUNT
+                // Insert appointment
                 $insert_stmt = $conn->prepare("
                     INSERT INTO appointments (
                         pet_id, pet_name, pet_type, user_id, appointment_date, 
@@ -117,7 +150,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pet_id'])) {
                 ");
                 
                 if ($insert_stmt) {
-                    // FIXED: 10 parameters for 10 placeholders
                     $insert_stmt->bind_param(
                         "issssssss", 
                         $pet_id, $pet_name, $pet_type, $user_id, $appointment_date, 
@@ -127,12 +159,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pet_id'])) {
                     if ($insert_stmt->execute()) {
                         $appointment_id = $insert_stmt->insert_id;
                         
-                        // Create notification for vet
+                        // ✅ FIXED: Create notification for ALL vets with better debugging
                         $user_name = $user['name'];
-                        $notification_message = "📅 New appointment booked by $user_name for $pet_name ($pet_type) on $appointment_date at $appointment_time - Service: $service_type";
-                        createVetNotification($conn, $notification_message, $appointment_id);
+                        $formatted_date = date('M j, Y', strtotime($appointment_date));
+                        $formatted_time = date('g:i A', strtotime($appointment_time));
                         
-                        $_SESSION['success'] = "Appointment booked successfully! The veterinary team has been notified.";
+                        $notification_message = "📅 New appointment booked by $user_name for $pet_name ($pet_type) on $formatted_date at $formatted_time - Service: $service_type";
+                        
+                        // Debug: Check how many vets exist
+                        $vet_check = $conn->query("SELECT COUNT(*) as vet_count FROM users WHERE role = 'vet'");
+                        $vet_count = $vet_check->fetch_assoc()['vet_count'];
+                        error_log("🔍 Found $vet_count vets in the system");
+                        
+                        // Create notifications for all vets
+                        $notifications_created = createVetNotification($conn, $notification_message, $appointment_id);
+                        
+                        if ($notifications_created > 0) {
+                            $_SESSION['success'] = "Appointment booked successfully! Notified $notifications_created veterinarians.";
+                        } else {
+                            $_SESSION['success'] = "Appointment booked successfully! (No veterinarians were notified - please check system configuration)";
+                        }
+                        
                         header("Location: user_appointment.php");
                         exit();
                     } else {
@@ -145,6 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pet_id'])) {
         }
     } catch (Exception $e) {
         $_SESSION['error'] = "Error: " . $e->getMessage();
+        error_log("🚨 Appointment booking error: " . $e->getMessage());
     }
 }
 
@@ -172,9 +220,9 @@ if (isset($_GET['cancel_id'])) {
                 // Notify vet about cancellation
                 $user_name = $user['name'];
                 $cancel_message = "❌ Appointment cancelled by $user_name for " . $appointment_details['pet_name'] . " on " . $appointment_details['appointment_date'] . " at " . $appointment_details['appointment_time'];
-                createVetNotification($conn, $cancel_message, $cancel_id);
+                $cancellation_notifications = createVetNotification($conn, $cancel_message, $cancel_id);
                 
-                $_SESSION['success'] = "Appointment cancelled successfully! The veterinary team has been notified.";
+                $_SESSION['success'] = "Appointment cancelled successfully! Notified $cancellation_notifications veterinarians.";
                 header("Location: user_appointment.php");
                 exit();
             } else {
@@ -186,6 +234,20 @@ if (isset($_GET['cancel_id'])) {
     } catch (Exception $e) {
         $_SESSION['error'] = "Error: " . $e->getMessage();
     }
+}
+
+// ✅ DEBUG: Check current state (optional - remove in production)
+error_log("=== USER APPOINTMENT DEBUG ===");
+error_log("User ID: $user_id");
+error_log("Pets count: " . count($pets));
+error_log("Appointments count: " . count($appointments));
+
+// Check if there are any vets in the system
+$vet_check = $conn->query("SELECT user_id, name FROM users WHERE role = 'vet'");
+$vets = $vet_check->fetch_all(MYSQLI_ASSOC);
+error_log("Vets in system: " . count($vets));
+foreach ($vets as $vet) {
+    error_log(" - Vet: " . $vet['name'] . " (ID: " . $vet['user_id'] . ")");
 }
 ?>
 
@@ -432,6 +494,15 @@ if (isset($_GET['cancel_id'])) {
             color: var(--dark-pink);
         }
         
+        .notification-debug {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -520,6 +591,15 @@ if (isset($_GET['cancel_id'])) {
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             <?php unset($_SESSION['error']); ?>
+        <?php endif; ?>
+
+        <!-- Debug Information (Remove in production) -->
+        <?php if (count($vets) === 0): ?>
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>System Notice:</strong> No veterinarians are currently registered in the system. 
+                Notifications will not be sent until vets are added.
+            </div>
         <?php endif; ?>
 
         <div class="row">
