@@ -175,34 +175,6 @@
     font-size: 1.25rem;
   }
 
-  /* Stats Section */
-  .stats-section {
-    background: white;
-    padding: 80px 0;
-  }
-  .stat-card {
-    text-align: center;
-    padding: 2rem;
-    border-radius: 16px;
-    background: var(--pink);
-    transition: all 0.3s ease;
-    border: 1px solid rgba(191, 59, 120, 0.1);
-  }
-  .stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 35px rgba(191, 59, 120, 0.15);
-  }
-  .stat-number {
-    font-size: 3rem;
-    font-weight: 800;
-    color: var(--pink-dark);
-    margin-bottom: 0.5rem;
-  }
-  .stat-label {
-    color: var(--pink-darker);
-    font-weight: 600;
-  }
-
   /* SVG MAP WRAP (right side) */
   .map-container {
     position: relative;
@@ -602,38 +574,6 @@
             <div class="legend-color" style="background:var(--low)"></div>
             <span>Low</span>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Stats Section -->
-<section class="stats-section">
-  <div class="container">
-    <div class="row g-4">
-      <div class="col-md-3 col-6" data-aos="fade-up">
-        <div class="stat-card">
-          <div class="stat-number">2,500+</div>
-          <div class="stat-label">Pets Registered</div>
-        </div>
-      </div>
-      <div class="col-md-3 col-6" data-aos="fade-up" data-aos-delay="100">
-        <div class="stat-card">
-          <div class="stat-number">95%</div>
-          <div class="stat-label">Vaccination Rate</div>
-        </div>
-      </div>
-      <div class="col-md-3 col-6" data-aos="fade-up" data-aos-delay="200">
-        <div class="stat-card">
-          <div class="stat-number">70%</div>
-          <div class="stat-label">Time Saved</div>
-        </div>
-      </div>
-      <div class="col-md-3 col-6" data-aos="fade-up" data-aos-delay="300">
-        <div class="stat-card">
-          <div class="stat-number">99.9%</div>
-          <div class="stat-label">Uptime</div>
         </div>
       </div>
     </div>
