@@ -559,7 +559,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <div class="text-center mt-5 pt-4 border-top">
                             <p class="mb-3">Already have an administrator account?</p>
-                            <a href="admin_login.php" class="btn btn-outline-primary">
+                            <a href="login_admin.php" class="btn btn-outline-primary">
                                 <i class="fas fa-sign-in-alt me-1"></i> Login to Admin Panel
                             </a>
                         </div>
@@ -688,3 +688,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </body>
 
 </html>
+
