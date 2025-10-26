@@ -47,6 +47,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     $is_spayed_neutered = isset($_POST['is_spayed_neutered']) ? 1 : 0;
     $spay_neuter_date = !empty($_POST['spay_neuter_date']) ? $_POST['spay_neuter_date'] : null;
     
+    // Profile picture handling
+    $profilePicture = null;
+    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/pet_profile_pictures/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        
+        $fileExtension = pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION);
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        
+        if (in_array(strtolower($fileExtension), $allowedExtensions)) {
+            // Generate unique filename
+            $profilePicture = 'pet_' . uniqid() . '_' . time() . '.' . $fileExtension;
+            $uploadPath = $uploadDir . $profilePicture;
+            
+            // Move uploaded file
+            if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $uploadPath)) {
+                // File uploaded successfully
+            } else {
+                $_SESSION['error'] = "❌ Failed to upload profile picture.";
+                $profilePicture = null;
+            }
+        } else {
+            $_SESSION['error'] = "❌ Invalid file type. Please upload JPG, JPEG, PNG, GIF, or WebP images only.";
+        }
+    }
+
     // Validate required fields
     if (empty($petName) || empty($species)) {
         $_SESSION['error'] = "❌ Pet name and species are required fields.";
@@ -58,48 +86,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             // Convert species to lowercase to match ENUM('dog', 'cat')
             $species_lower = strtolower($species);
             
-            // ✅ FIXED: INSERT statement - REMOVED date_registered since it has default value
-// ✅ FIXED: 24 columns = 24 question marks
-$stmt = $conn->prepare("
-    INSERT INTO pets (
-        user_id, name, species, breed, age, color, weight, 
-        birth_date, gender, medical_notes, vet_contact, 
-        previous_conditions, vaccination_history, surgical_history, 
-        medication_history, has_existing_records, records_location,
-        last_vet_visit, next_vet_visit, rabies_vaccine_date,
-        dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
-        qr_code
-    ) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-");
+            // ✅ UPDATED: INSERT statement - ADDED profile_picture column
+            $stmt = $conn->prepare("
+                INSERT INTO pets (
+                    user_id, name, species, breed, age, color, weight, 
+                    birth_date, gender, medical_notes, vet_contact, 
+                    previous_conditions, vaccination_history, surgical_history, 
+                    medication_history, has_existing_records, records_location,
+                    last_vet_visit, next_vet_visit, rabies_vaccine_date,
+                    dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
+                    qr_code, profile_picture
+                ) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
 
-// ✅ FIXED: 24 parameters in bind_param
-$bind_result = $stmt->bind_param("isssisdssssssssisssssiss", 
-    $user_id, 
-    $petName, 
-    $species_lower,
-    $breed, 
-    $age, 
-    $color, 
-    $weight, 
-    $birthDate, 
-    $gender, 
-    $medicalNotes, 
-    $vetContact,
-    $previousConditions,
-    $vaccinationHistory,
-    $surgicalHistory,
-    $medicationHistory,
-    $hasExistingRecords,
-    $recordsLocation,
-    $last_vet_visit,
-    $next_vet_visit,
-    $rabies_vaccine_date,
-    $dhpp_vaccine_date,
-    $is_spayed_neutered,
-    $spay_neuter_date,
-    $qrCodeFilename
-);
+            // ✅ UPDATED: 25 parameters in bind_param (added profile_picture)
+            $bind_result = $stmt->bind_param("isssisdssssssssisssssisss", 
+                $user_id, 
+                $petName, 
+                $species_lower,
+                $breed, 
+                $age, 
+                $color, 
+                $weight, 
+                $birthDate, 
+                $gender, 
+                $medicalNotes, 
+                $vetContact,
+                $previousConditions,
+                $vaccinationHistory,
+                $surgicalHistory,
+                $medicationHistory,
+                $hasExistingRecords,
+                $recordsLocation,
+                $last_vet_visit,
+                $next_vet_visit,
+                $rabies_vaccine_date,
+                $dhpp_vaccine_date,
+                $is_spayed_neutered,
+                $spay_neuter_date,
+                $qrCodeFilename,
+                $profilePicture
+            );
             
             if (!$bind_result) {
                 throw new Exception("Bind failed: " . $stmt->error);
@@ -667,6 +695,20 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             pointer-events: none;
         }
 
+        /* Profile picture preview styles */
+        .profile-picture-preview {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            object-fit: cover;
+        }
+        
+        .profile-preview-container {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
         /* Debug info styles */
         .debug-info {
             background: #f8f9fa;
@@ -713,6 +755,10 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         <li>
                             <i class="fas fa-shield-alt"></i>
                             <span>Emergency Contact Info</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-camera"></i>
+                            <span>Profile Picture Upload</span>
                         </li>
                     </ul>
                 </div>
@@ -787,7 +833,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                 </div>
                 
                 <?php if (!$showSuccess): ?>
-                <form id="petRegistrationForm" method="POST" novalidate>
+                <form id="petRegistrationForm" method="POST" enctype="multipart/form-data" novalidate>
                     <input type="hidden" name="register_pet" value="1">
                     
                     <!-- Step 1: Basic Information -->
@@ -795,6 +841,20 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         <div class="form-header">
                             <h1><i class="fas fa-paw me-2"></i>Basic Information</h1>
                             <p>Let's start with the essential details about your pet</p>
+                        </div>
+                        
+                        <!-- Profile Picture Upload -->
+                        <div class="form-group">
+                            <label for="profile_picture" class="form-label">
+                                <i class="fas fa-camera"></i>Profile Picture
+                            </label>
+                            <div class="profile-preview-container">
+                                <img id="profilePicturePreview" src="" alt="Profile Picture Preview" 
+                                     class="profile-picture-preview" style="display: none;">
+                            </div>
+                            <input type="file" class="form-control" id="profile_picture" name="profile_picture" 
+                                   accept="image/*" onchange="previewProfilePicture(this)">
+                            <div class="form-text">Upload a clear photo of your pet (JPG, JPEG, PNG, GIF, WebP - max 5MB)</div>
                         </div>
                         
                         <div class="form-grid">
@@ -1083,6 +1143,17 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         <div class="card mb-4">
                             <div class="card-body">
                                 <h6 class="card-title mb-3">Pet Information Summary</h6>
+                                
+                                <!-- Profile Picture in Review -->
+                                <div class="text-center mb-4">
+                                    <img id="reviewProfilePicture" src="" alt="Profile Picture" 
+                                         class="profile-picture-preview" style="display: none;">
+                                    <div id="noProfilePicture" class="text-muted">
+                                        <i class="fas fa-camera fa-2x mb-2"></i><br>
+                                        No profile picture uploaded
+                                    </div>
+                                </div>
+                                
                                 <div class="row">
                                     <div class="col-md-6">
                                         <p><strong>Name:</strong> <span id="reviewName">-</span></p>
@@ -1253,6 +1324,24 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         }
         
         function updateReviewSection() {
+            // Profile picture preview in review
+            const profilePictureInput = document.getElementById('profile_picture');
+            const reviewProfilePicture = document.getElementById('reviewProfilePicture');
+            const noProfilePicture = document.getElementById('noProfilePicture');
+            
+            if (profilePictureInput.files && profilePictureInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    reviewProfilePicture.src = e.target.result;
+                    reviewProfilePicture.style.display = 'block';
+                    noProfilePicture.style.display = 'none';
+                }
+                reader.readAsDataURL(profilePictureInput.files[0]);
+            } else {
+                reviewProfilePicture.style.display = 'none';
+                noProfilePicture.style.display = 'block';
+            }
+            
             // Basic information
             document.getElementById('reviewName').textContent = document.getElementById('petName').value || 'Not specified';
             document.getElementById('reviewSpecies').textContent = document.getElementById('species').value || 'Not specified';
@@ -1280,6 +1369,32 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             document.getElementById('reviewHasExistingRecords').textContent = document.getElementById('hasExistingRecords').checked ? 'Yes' : 'No';
             document.getElementById('reviewRecordsLocation').textContent = document.getElementById('recordsLocation').value || 'Not specified';
             document.getElementById('reviewVetContact').textContent = document.getElementById('vetContact').value || 'Not specified';
+        }
+        
+        // Profile picture preview function
+        function previewProfilePicture(input) {
+            const preview = document.getElementById('profilePicturePreview');
+            const file = input.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                
+                reader.readAsDataURL(file);
+                
+                // Validate file size (5MB limit)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('❌ File size too large. Please choose an image smaller than 5MB.');
+                    input.value = '';
+                    preview.style.display = 'none';
+                }
+            } else {
+                preview.style.display = 'none';
+            }
         }
         
         // Toggle spay/neuter date
@@ -1384,8 +1499,3 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
-
-
-
-
-
