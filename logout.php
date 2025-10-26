@@ -1,6 +1,9 @@
 <?php
 session_start();
 
+// Store user role before destroying session
+$user_role = $_SESSION['role'] ?? '';
+
 // Destroy all session data
 $_SESSION = array();
 
@@ -21,9 +24,24 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Pragma: no-cache");
 header("Expires: 0");
 
-// Start new session for success message and redirect to login
+// Start new session for success message
 session_start();
 $_SESSION['success'] = "You have been successfully logged out.";
-header("Location: login.php");
+
+// Redirect based on user role with parameters
+switch ($user_role) {
+    case 'vet':
+        header("Location: login.php?role=vet");
+        break;
+    case 'lgu':
+        header("Location: login.php?role=lgu");
+        break;
+    case 'admin':
+        header("Location: login.php?role=admin");
+        break;
+    default:
+        header("Location: login.php");
+        break;
+}
 exit();
 ?>
