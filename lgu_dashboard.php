@@ -515,9 +515,9 @@ $recent_records_display = array_slice($recent_records, 0, 5);
                         <i class="fas fa-user-cog"></i> Profile Settings
                     </a>
                     <div class="mt-4 pt-3 border-top border-white border-opacity-25">
-                        <<a href="logout.php" class="nav-link">
+                     <a href="logout.php" class="nav-link">
                         <i class="fa-solid fa-right-from-bracket me-2"></i> Logout
-                          </a>
+                    </a>
                     </div>
                 </nav>
             </div>
@@ -554,7 +554,7 @@ $recent_records_display = array_slice($recent_records, 0, 5);
                                     <li><a class="dropdown-item" href="#profile" data-bs-toggle="modal" data-bs-target="#profileModal"><i class="fas fa-cog me-2"></i>Settings</a></li>
                                     <li><a class="dropdown-item" href="#profile"><i class="fas fa-user me-2"></i>Profile</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                                   <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -1360,4 +1360,5 @@ $recent_records_display = array_slice($recent_records, 0, 5);
     </script>
 </body>
 </html>
+
 
