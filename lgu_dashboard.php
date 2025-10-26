@@ -515,9 +515,9 @@ $recent_records_display = array_slice($recent_records, 0, 5);
                         <i class="fas fa-user-cog"></i> Profile Settings
                     </a>
                     <div class="mt-4 pt-3 border-top border-white border-opacity-25">
-                        <a class="nav-link" href="logout.php">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </a>
+                        <<a href="logout.php" class="nav-link">
+                        <i class="fa-solid fa-right-from-bracket me-2"></i> Logout
+                          </a>
                     </div>
                 </nav>
             </div>
@@ -1360,3 +1360,4 @@ $recent_records_display = array_slice($recent_records, 0, 5);
     </script>
 </body>
 </html>
+
