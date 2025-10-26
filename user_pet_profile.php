@@ -16,7 +16,7 @@ $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 
-// ✅ Fetch user's pets with medical history from pets table
+// ✅ Fetch user's pets with medical history from pets table (INCLUDING profile_picture)
 $query = "
 SELECT 
     p.pet_id,
@@ -44,7 +44,8 @@ SELECT
     p.rabies_vaccine_date,
     p.dhpp_vaccine_date,
     p.is_spayed_neutered,
-    p.spay_neuter_date
+    p.spay_neuter_date,
+    p.profile_picture  -- ✅ ADDED: Profile picture field
 FROM pets p
 WHERE p.user_id = ?
 ORDER BY p.date_registered DESC
@@ -223,6 +224,17 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             background: white;
             border: 4px solid white;
             box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        
+        .pet-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .pet-avatar i {
+            font-size: 2rem;
         }
         
         .pet-details-grid {
@@ -312,6 +324,38 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             margin-top: 1rem;
         }
         
+        .profile-picture-section {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .profile-picture-large {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid white;
+            box-shadow: var(--shadow);
+        }
+        
+        .no-profile-picture {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--pink-light), var(--blue-light));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            border: 4px solid white;
+            box-shadow: var(--shadow);
+        }
+        
+        .no-profile-picture i {
+            font-size: 3rem;
+            color: #6c757d;
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -334,6 +378,12 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             
             .medical-dates-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .pet-card-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
             }
         }
     </style>
@@ -399,8 +449,17 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     <div class="pet-card">
                         <div class="pet-card-header">
                             <div class="d-flex align-items-center">
+                                <!-- ✅ UPDATED: Pet Avatar with Profile Picture -->
                                 <div class="pet-avatar me-3" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bbdefb' : '#f8bbd0'; ?>">
-                                    <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
+                                    <?php if (!empty($pet['profile_picture'])): ?>
+                                        <img src="uploads/pet_profile_pictures/<?php echo htmlspecialchars($pet['profile_picture']); ?>" 
+                                             alt="<?php echo htmlspecialchars($pet['pet_name']); ?>" 
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>" 
+                                           style="display: none;"></i>
+                                    <?php else: ?>
+                                        <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
+                                    <?php endif; ?>
                                 </div>
                                 <div>
                                     <h4 class="mb-1"><?php echo htmlspecialchars($pet['pet_name']); ?></h4>
@@ -425,6 +484,26 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                         </div>
                         
                         <div class="pet-card-body">
+                            <!-- ✅ NEW: Large Profile Picture Section -->
+                            <div class="profile-picture-section">
+                                <?php if (!empty($pet['profile_picture'])): ?>
+                                    <img src="uploads/pet_profile_pictures/<?php echo htmlspecialchars($pet['profile_picture']); ?>" 
+                                         alt="<?php echo htmlspecialchars($pet['pet_name']); ?>" 
+                                         class="profile-picture-large"
+                                         onerror="this.style.display='none'; document.getElementById('no-picture-<?php echo $pet['pet_id']; ?>').style.display='flex';">
+                                    <div id="no-picture-<?php echo $pet['pet_id']; ?>" class="no-profile-picture" style="display: none;">
+                                        <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="no-profile-picture">
+                                        <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
+                                    </div>
+                                    <p class="text-muted mt-2">
+                                        <small>No profile picture uploaded</small>
+                                    </p>
+                                <?php endif; ?>
+                            </div>
+                            
                             <div class="pet-details-grid">
                                 <div class="detail-item">
                                     <i class="fa-solid fa-venus-mars"></i>
@@ -674,7 +753,3 @@ $pets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 </script>
 </body>
 </html>
-
-
-
-
