@@ -72,10 +72,10 @@ if (isset($_GET['specialization']) && !empty($_GET['specialization'])) {
     $types .= 's';
 }
 
-// Build the query
+// Build the query - ONLY USE COLUMNS THAT EXIST IN YOUR DATABASE
 $where_clause = implode(' AND ', $where_conditions);
 $vets_query = "
-    SELECT user_id, name, email, profile_picture, created_at, last_login, status, phone_number, specialization, license_number
+    SELECT user_id, name, email, profile_picture, created_at, last_login, status, phone_number, specialization
     FROM users 
     WHERE $where_clause
     ORDER BY created_at DESC
@@ -1007,7 +1007,7 @@ if ($recent_appointments_result) {
                                         <th>Veterinarian</th>
                                         <th>Contact Information</th>
                                         <th>Specialization</th>
-                                        <th>Experience</th>
+                                        <th>Registration Date</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -1034,13 +1034,7 @@ if ($recent_appointments_result) {
                                                 <td>
                                                     <span class="specialization-tag"><?php echo $vet['specialization'] ? htmlspecialchars($vet['specialization']) : 'General Practice'; ?></span>
                                                 </td>
-                                                <td>
-                                                    <?php if ($vet['experience_years']): ?>
-                                                        <span class="experience-badge"><?php echo $vet['experience_years']; ?> years</span>
-                                                    <?php else: ?>
-                                                        <span class="text-muted">N/A</span>
-                                                    <?php endif; ?>
-                                                </td>
+                                                <td><?php echo date('M j, Y', strtotime($vet['created_at'])); ?></td>
                                                 <td>
                                                     <?php 
                                                     $status_class = 'status-active';
@@ -1226,4 +1220,3 @@ if ($recent_appointments_result) {
     </script>
 </body>
 </html>
-
