@@ -11,251 +11,217 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 
 // ✅ 2. Fetch logged-in user info with profile picture
-$stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
-
-// Set default profile picture if none exists
-$profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($user['name']);
+try {
+    $stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    
+    if (!$user) {
+        throw new Exception("User not found");
+    }
+    
+    // Set default profile picture if none exists
+    $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($user['name']);
+    
+} catch (Exception $e) {
+    die("Error fetching user data: " . $e->getMessage());
+}
 
 // ✅ 3. Fetch user's pets & medical records
-$query = "
-SELECT 
-    u.user_id,
-    u.name AS owner_name,
-    p.pet_id,
-    p.name AS pet_name,
-    p.species,
-    p.breed,
-    p.age,
-    p.color,
-    p.weight,
-    p.birth_date,
-    p.gender,
-    p.medical_notes,
-    p.vet_contact,
-    p.date_registered,
-    p.qr_code,
-    p.qr_code_data,
-    m.record_id,
-    m.weight_date,
-    m.weight AS record_weight,
-    m.reminder_description,
-    m.reminder_due_date,
-    m.service_date,
-    m.service_type,
-    m.service_description,
-    m.veterinarian,
-    m.notes
-FROM users u
-LEFT JOIN pets p ON u.user_id = p.user_id
-LEFT JOIN pet_medical_records m ON p.pet_id = m.pet_id
-WHERE u.user_id = ?
-ORDER BY p.pet_id, m.service_date DESC;
-";
-
-$stmt = $conn->prepare($query);
-if (!$stmt) {
-    die("❌ SQL ERROR: " . $conn->error);
-}
-
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
-
-// ✅ 4. Process data for frontend display
 $pets = [];
-$currentPetId = null;
-$petRecords = [];
-
-while ($row = $result->fetch_assoc()) {
-    // Skip if no pet exists for this user
-    if (empty($row['pet_id'])) {
-        continue;
-    }
-    
-    if ($currentPetId !== $row['pet_id']) {
-        if ($currentPetId !== null) {
-            $pets[$currentPetId]['records'] = $petRecords;
-        }
-        $currentPetId = $row['pet_id'];
-        $petRecords = [];
-        
-        $pets[$currentPetId] = [
-            'pet_id' => $row['pet_id'],
-            'pet_name' => $row['pet_name'],
-            'species' => $row['species'] ?? 'Unknown',
-            'breed' => $row['breed'] ?? 'Unknown',
-            'age' => $row['age'] ?? '0',
-            'color' => $row['color'] ?? '',
-            'weight' => $row['weight'] ?? null,
-            'birth_date' => $row['birth_date'] ?? null,
-            'gender' => $row['gender'] ?? '',
-            'medical_notes' => $row['medical_notes'] ?? '',
-            'vet_contact' => $row['vet_contact'] ?? '',
-            'date_registered' => $row['date_registered'] ?? date('Y-m-d'),
-            'qr_code' => $row['qr_code'] ?? '',
-            'qr_code_data' => $row['qr_code_data'] ?? ''
-        ];
-    }
-    
-    // Only add medical records if they exist
-    if (!empty($row['record_id'])) {
-        $serviceDate = ($row['service_date'] !== '0000-00-00' && !empty($row['service_date'])) ? $row['service_date'] : null;
-        $weightDate = ($row['weight_date'] !== '0000-00-00' && !empty($row['weight_date'])) ? $row['weight_date'] : null;
-        
-        // Only add record if there's valid data
-        if ($serviceDate || $weightDate || !empty($row['service_type']) || !empty($row['reminder_description'])) {
-            $petRecords[] = [
-                'weight_date' => $weightDate,
-                'weight' => $row['record_weight'] ?? null,
-                'reminder_description' => $row['reminder_description'] ?? null,
-                'reminder_due_date' => $row['reminder_due_date'] ?? null,
-                'service_date' => $serviceDate,
-                'service_type' => $row['service_type'] ?? null,
-                'service_description' => $row['service_description'] ?? null,
-                'veterinarian' => $row['veterinarian'] ?? null,
-                'notes' => $row['notes'] ?? null
-            ];
-        }
-    }
-}
-
-if ($currentPetId !== null) {
-    $pets[$currentPetId]['records'] = $petRecords;
-}
-
-// ✅ 5. Fetch user's appointments
-$appointments_stmt = $conn->prepare("
-    SELECT a.*, p.name as pet_name, p.species
-    FROM appointments a 
-    LEFT JOIN pets p ON a.pet_id = p.pet_id 
-    WHERE a.user_id = ? 
-    ORDER BY 
-        CASE 
-            WHEN a.status = 'pending' THEN 1
-            WHEN a.status = 'scheduled' THEN 2
-            WHEN a.status = 'confirmed' THEN 3
-            WHEN a.status = 'completed' THEN 4
-            ELSE 5
-        END,
-        a.appointment_date ASC,
-        a.appointment_time ASC
-");
-$appointments_stmt->bind_param("i", $user_id);
-$appointments_stmt->execute();
-$user_appointments = $appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
-// Count appointments by status
-$appointment_stats = [
-    'pending' => 0,
-    'scheduled' => 0,
-    'confirmed' => 0,
-    'completed' => 0,
-    'cancelled' => 0,
-    'total' => count($user_appointments)
-];
-
-foreach ($user_appointments as $appt) {
-    if (isset($appointment_stats[$appt['status']])) {
-        $appointment_stats[$appt['status']]++;
-    }
-}
-
-// ✅ 6. Fetch user notifications
-$notifications_stmt = $conn->prepare("
-    SELECT * FROM user_notifications 
-    WHERE user_id = ? AND is_read = 0 
-    ORDER BY created_at DESC 
-    LIMIT 10
-");
-$notifications_stmt->bind_param("i", $user_id);
-$notifications_stmt->execute();
-$notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
-// ✅ 7. Dashboard statistics
-$totalPets = count($pets);
+$totalPets = 0;
 $vaccinatedPets = 0;
 $upcomingReminders = 0;
 $recentVisits = 0;
-$thirtyDaysAgo = date('Y-m-d', strtotime('-30 days'));
 
-// Health monitoring data
-$weightHistory = [];
-$serviceFrequency = [];
-$healthScores = [];
+try {
+    $query = "
+    SELECT 
+        p.pet_id,
+        p.name AS pet_name,
+        p.species,
+        p.breed,
+        p.age,
+        p.color,
+        p.weight,
+        p.birth_date,
+        p.gender,
+        p.medical_notes,
+        p.vet_contact,
+        p.date_registered,
+        p.qr_code,
+        p.qr_code_data,
+        m.record_id,
+        m.service_date,
+        m.service_type,
+        m.service_description,
+        m.veterinarian,
+        m.reminder_due_date,
+        m.reminder_description
+    FROM pets p
+    LEFT JOIN pet_medical_records m ON p.pet_id = m.pet_id
+    WHERE p.user_id = ?
+    ORDER BY p.pet_id, m.service_date DESC
+    ";
 
-foreach ($pets as $pet) {
-    $hasVaccination = false;
-    $petWeightHistory = [];
-    $serviceCount = 0;
+    $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        throw new Exception("SQL ERROR: " . $conn->error);
+    }
+
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    // Process pets data
+    $currentPetId = null;
+    $petRecords = [];
     
-    foreach ($pet['records'] as $record) {
-        // Check if service type indicates vaccination
-        if (!empty($record['service_type']) && stripos($record['service_type'], 'vaccin') !== false) {
-            $hasVaccination = true;
-        }
+    while ($row = $result->fetch_assoc()) {
+        if (empty($row['pet_id'])) continue;
         
-        // Check for upcoming reminders
-        if (!empty($record['reminder_due_date']) && $record['reminder_due_date'] >= date('Y-m-d')) {
-            $upcomingReminders++;
-        }
-        
-        // Check for recent visits
-        if (!empty($record['service_date']) && $record['service_date'] >= $thirtyDaysAgo) {
-            $recentVisits++;
-        }
-        
-        // Collect weight history
-        if (!empty($record['weight_date']) && !empty($record['weight'])) {
-            $petWeightHistory[] = [
-                'date' => $record['weight_date'],
-                'weight' => floatval($record['weight'])
+        if ($currentPetId !== $row['pet_id']) {
+            if ($currentPetId !== null) {
+                $pets[$currentPetId]['records'] = $petRecords;
+            }
+            $currentPetId = $row['pet_id'];
+            $petRecords = [];
+            
+            $pets[$currentPetId] = [
+                'pet_id' => $row['pet_id'],
+                'pet_name' => $row['pet_name'],
+                'species' => $row['species'] ?? 'Unknown',
+                'breed' => $row['breed'] ?? 'Unknown',
+                'age' => $row['age'] ?? '0',
+                'color' => $row['color'] ?? '',
+                'weight' => $row['weight'] ?? null,
+                'birth_date' => $row['birth_date'] ?? null,
+                'gender' => $row['gender'] ?? '',
+                'medical_notes' => $row['medical_notes'] ?? '',
+                'vet_contact' => $row['vet_contact'] ?? '',
+                'date_registered' => $row['date_registered'] ?? date('Y-m-d'),
+                'qr_code' => $row['qr_code'] ?? '',
+                'qr_code_data' => $row['qr_code_data'] ?? ''
             ];
         }
         
-        // Count services
-        if (!empty($record['service_date'])) {
-            $serviceCount++;
+        // Only add medical records if they exist
+        if (!empty($row['record_id'])) {
+            $serviceDate = ($row['service_date'] !== '0000-00-00' && !empty($row['service_date'])) ? $row['service_date'] : null;
+            
+            if ($serviceDate || !empty($row['service_type']) || !empty($row['reminder_description'])) {
+                $petRecords[] = [
+                    'service_date' => $serviceDate,
+                    'service_type' => $row['service_type'] ?? null,
+                    'service_description' => $row['service_description'] ?? null,
+                    'veterinarian' => $row['veterinarian'] ?? null,
+                    'reminder_due_date' => $row['reminder_due_date'] ?? null,
+                    'reminder_description' => $row['reminder_description'] ?? null
+                ];
+            }
+        }
+    }
+
+    if ($currentPetId !== null) {
+        $pets[$currentPetId]['records'] = $petRecords;
+    }
+    
+    $totalPets = count($pets);
+    
+    // Calculate statistics
+    $thirtyDaysAgo = date('Y-m-d', strtotime('-30 days'));
+    foreach ($pets as $pet) {
+        foreach ($pet['records'] as $record) {
+            // Check for vaccinations
+            if (!empty($record['service_type']) && stripos($record['service_type'], 'vaccin') !== false) {
+                $vaccinatedPets++;
+                break; // Count each pet only once for vaccination
+            }
+            
+            // Check for upcoming reminders
+            if (!empty($record['reminder_due_date']) && $record['reminder_due_date'] >= date('Y-m-d')) {
+                $upcomingReminders++;
+            }
+            
+            // Check for recent visits
+            if (!empty($record['service_date']) && $record['service_date'] >= $thirtyDaysAgo) {
+                $recentVisits++;
+            }
         }
     }
     
-    // Store weight history for this pet
-    if (!empty($petWeightHistory)) {
-        $weightHistory[$pet['pet_id']] = [
-            'pet_name' => $pet['pet_name'],
-            'data' => $petWeightHistory
-        ];
-    }
-    
-    // Calculate service frequency
-    if ($pet['date_registered']) {
-        $registeredDays = max(1, (time() - strtotime($pet['date_registered'])) / (60 * 60 * 24));
-        $serviceFrequency[$pet['pet_id']] = [
-            'pet_name' => $pet['pet_name'],
-            'services_per_month' => round(($serviceCount / $registeredDays) * 30, 2)
-        ];
-    }
-    
-    // Calculate health score (simplified)
-    $healthScore = 70; // Base score
-    if ($hasVaccination) $healthScore += 20;
-    if ($serviceCount > 0) $healthScore += min(10, $serviceCount);
-    if (!empty($petWeightHistory)) $healthScore += 10;
-    
-    $healthScores[$pet['pet_id']] = [
-        'pet_name' => $pet['pet_name'],
-        'score' => min(100, $healthScore),
-        'vaccinated' => $hasVaccination,
-        'service_count' => $serviceCount
-    ];
-    
-    if ($hasVaccination) {
-        $vaccinatedPets++;
-    }
+} catch (Exception $e) {
+    error_log("Error fetching pets: " . $e->getMessage());
 }
 
+// ✅ 4. Fetch user's appointments
+$user_appointments = [];
+$appointment_stats = [
+    'pending' => 0,
+    'confirmed' => 0,
+    'completed' => 0,
+    'cancelled' => 0,
+    'total' => 0
+];
+
+try {
+    $appointments_stmt = $conn->prepare("
+        SELECT a.*, p.name as pet_name, p.species
+        FROM appointments a 
+        LEFT JOIN pets p ON a.pet_id = p.pet_id 
+        WHERE a.user_id = ? 
+        ORDER BY 
+            CASE 
+                WHEN a.status = 'pending' THEN 1
+                WHEN a.status = 'confirmed' THEN 2
+                WHEN a.status = 'completed' THEN 3
+                ELSE 4
+            END,
+            a.appointment_date ASC,
+            a.appointment_time ASC
+        LIMIT 10
+    ");
+    
+    if ($appointments_stmt) {
+        $appointments_stmt->bind_param("i", $user_id);
+        $appointments_stmt->execute();
+        $user_appointments = $appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        // Count appointments by status
+        foreach ($user_appointments as $appt) {
+            if (isset($appointment_stats[$appt['status']])) {
+                $appointment_stats[$appt['status']]++;
+            }
+        }
+        $appointment_stats['total'] = count($user_appointments);
+    }
+    
+} catch (Exception $e) {
+    error_log("Error fetching appointments: " . $e->getMessage());
+}
+
+// ✅ 5. Fetch user notifications
+$notifications = [];
+try {
+    // Check if user_notifications table exists
+    $table_check = $conn->query("SHOW TABLES LIKE 'user_notifications'");
+    if ($table_check && $table_check->num_rows > 0) {
+        $notifications_stmt = $conn->prepare("
+            SELECT * FROM user_notifications 
+            WHERE user_id = ? AND is_read = 0 
+            ORDER BY created_at DESC 
+            LIMIT 10
+        ");
+        $notifications_stmt->bind_param("i", $user_id);
+        $notifications_stmt->execute();
+        $notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
+} catch (Exception $e) {
+    error_log("Error fetching notifications: " . $e->getMessage());
+}
+
+// ✅ 6. Handle actions
 // Handle mark notification as read
 if (isset($_GET['mark_read'])) {
     $notification_id = $_GET['mark_read'];
@@ -300,9 +266,7 @@ if (isset($_POST['cancel_appointment'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VetCareQR - Pet Medical Records & QR Generator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>VetCareQR - User Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -313,11 +277,8 @@ if (isset($_POST['cancel_appointment'])) {
             --dark-pink: #ad1457;
             --accent-pink: #f48fb1;
             --blue: #4a6cf7;
-            --blue-light: #e8f0fe;
             --green: #2ecc71;
-            --green-light: #eafaf1;
             --orange: #f39c12;
-            --orange-light: #fef5e7;
             --radius: 16px;
             --shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
@@ -365,11 +326,6 @@ if (isset($_POST['cancel_appointment'])) {
             margin-bottom: .5rem;
             border: 3px solid var(--accent-pink);
             object-fit: cover;
-            transition: transform 0.3s;
-        }
-        
-        .sidebar .profile img:hover {
-            transform: scale(1.05);
         }
         
         .sidebar a {
@@ -410,7 +366,6 @@ if (isset($_POST['cancel_appointment'])) {
             border: none;
         }
 
-        /* Appointment Button Styles */
         .sidebar .appointment-btn {
             background: linear-gradient(135deg, var(--primary-pink), var(--dark-pink));
             color: white;
@@ -458,11 +413,6 @@ if (isset($_POST['cancel_appointment'])) {
             box-shadow: var(--shadow);
             margin-bottom: 1.5rem;
             border: none;
-            transition: transform 0.3s;
-        }
-        
-        .card-custom:hover {
-            transform: translateY(-2px);
         }
         
         .stats-card {
@@ -470,6 +420,7 @@ if (isset($_POST['cancel_appointment'])) {
             padding: 1.5rem 1rem;
             border-radius: 16px;
             height: 100%;
+            color: white;
             transition: transform 0.3s;
         }
         
@@ -481,6 +432,23 @@ if (isset($_POST['cancel_appointment'])) {
             font-size: 2rem;
             margin-bottom: 1rem;
         }
+        
+        /* Appointment Status Styles */
+        .badge-pending { background: linear-gradient(135deg, #f39c12, #e67e22); }
+        .badge-confirmed { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .badge-completed { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .badge-cancelled { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        
+        .appointment-card {
+            border-left: 4px solid;
+            transition: all 0.3s;
+            margin-bottom: 1rem;
+        }
+        
+        .appointment-pending { border-left-color: #f39c12; background: #fef9e7; }
+        .appointment-confirmed { border-left-color: #2ecc71; background: #eafaf1; }
+        .appointment-completed { border-left-color: #3498db; background: #ebf5fb; }
+        .appointment-cancelled { border-left-color: #e74c3c; background: #fdedec; }
         
         .pet-card {
             border-radius: 16px;
@@ -495,17 +463,6 @@ if (isset($_POST['cancel_appointment'])) {
             transform: translateY(-5px);
         }
         
-        .pet-card-header {
-            padding: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .pet-card-body {
-            padding: 1rem;
-        }
-        
         .pet-species-icon {
             width: 50px;
             height: 50px;
@@ -514,85 +471,6 @@ if (isset($_POST['cancel_appointment'])) {
             align-items: center;
             justify-content: center;
             font-size: 1.5rem;
-        }
-        
-        .health-status {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-        
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        
-        .status-good {
-            background-color: var(--green);
-        }
-        
-        .status-warning {
-            background-color: var(--orange);
-        }
-        
-        .status-bad {
-            background-color: #e74c3c;
-        }
-        
-        .medical-table {
-            font-size: 0.9rem;
-        }
-        
-        .medical-table th {
-            background-color: #f8f9fa;
-        }
-        
-        .qr-preview {
-            cursor: pointer;
-            transition: transform 0.3s;
-        }
-        
-        .qr-preview:hover {
-            transform: scale(1.05);
-        }
-        
-        .qr-data-preview {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 15px;
-            font-family: monospace;
-            font-size: 12px;
-            max-height: 200px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-        
-        .badge-service {
-            background: linear-gradient(to right, var(--blue), #4a6cf7);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-        }
-        
-        .badge-vaccine {
-            background: linear-gradient(to right, var(--green), #2ecc71);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-        }
-        
-        .badge-checkup {
-            background: linear-gradient(to right, var(--orange), #f39c12);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
         }
         
         .empty-state {
@@ -612,85 +490,6 @@ if (isset($_POST['cancel_appointment'])) {
             border: none;
         }
         
-        .profile-picture-container {
-            position: relative;
-            display: inline-block;
-        }
-        
-        .profile-picture-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s;
-            cursor: pointer;
-        }
-        
-        .profile-picture-container:hover .profile-picture-overlay {
-            opacity: 1;
-        }
-        
-        .profile-picture-overlay i {
-            color: white;
-            font-size: 1.5rem;
-        }
-        
-        .chart-container {
-            position: relative;
-            height: 300px;
-            margin-bottom: 1rem;
-        }
-        
-        .health-score {
-            font-size: 2rem;
-            font-weight: bold;
-            text-align: center;
-        }
-        
-        .score-excellent { color: var(--green); }
-        .score-good { color: #7e57c2; }
-        .score-fair { color: var(--orange); }
-        .score-poor { color: #e74c3c; }
-        
-        .visualization-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .viz-card {
-            background: white;
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: var(--shadow);
-        }
-        
-        /* Appointment Status Badges */
-        .badge-pending { background: linear-gradient(135deg, #f39c12, #e67e22); }
-        .badge-scheduled { background: linear-gradient(135deg, #3498db, #2980b9); }
-        .badge-confirmed { background: linear-gradient(135deg, #2ecc71, #27ae60); }
-        .badge-completed { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
-        .badge-cancelled { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-        
-        .appointment-card {
-            border-left: 4px solid;
-            transition: all 0.3s;
-        }
-        
-        .appointment-pending { border-left-color: #f39c12; background: #fef9e7; }
-        .appointment-scheduled { border-left-color: #3498db; background: #ebf5fb; }
-        .appointment-confirmed { border-left-color: #2ecc71; background: #eafaf1; }
-        .appointment-completed { border-left-color: #95a5a6; background: #f8f9fa; }
-        .appointment-cancelled { border-left-color: #e74c3c; background: #fdedec; }
-        
         .notification-item {
             border-left: 4px solid var(--primary-pink);
             padding: 1rem;
@@ -709,6 +508,24 @@ if (isset($_POST['cancel_appointment'])) {
             transform: translateX(5px);
         }
         
+        .health-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .status-good { background-color: var(--green); }
+        .status-warning { background-color: var(--orange); }
+        .status-bad { background-color: #e74c3c; }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -724,10 +541,6 @@ if (isset($_POST['cancel_appointment'])) {
                 gap: 1rem;
                 text-align: center;
             }
-            
-            .visualization-grid {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
@@ -742,9 +555,6 @@ if (isset($_POST['cancel_appointment'])) {
                      alt="User" 
                      id="sidebarProfilePicture"
                      onerror="this.src='https://i.pravatar.cc/100?u=<?php echo urlencode($user['name']); ?>'">
-                <div class="profile-picture-overlay" onclick="location.href='user_settings.php'">
-                    <i class="fas fa-camera"></i>
-                </div>
             </div>
             <h6 id="ownerNameSidebar"><?php echo htmlspecialchars($user['name']); ?></h6>
             <small class="text-muted"><?php echo htmlspecialchars($user['role']); ?></small>
@@ -782,7 +592,7 @@ if (isset($_POST['cancel_appointment'])) {
         <!-- Topbar -->
         <div class="topbar">
             <div>
-                <h5 class="mb-0">Good Morning, <span id="ownerName"><?php echo htmlspecialchars($user['name']); ?></span> 👋</h5>
+                <h5 class="mb-0">Welcome Back, <span id="ownerName"><?php echo htmlspecialchars($user['name']); ?></span>! 👋</h5>
                 <small class="text-muted">Here's your pet health overview</small>
             </div>
             <div class="d-flex align-items-center gap-3">
@@ -829,7 +639,7 @@ if (isset($_POST['cancel_appointment'])) {
                 </div>
                 
                 <div class="input-group" style="width:300px">
-                    <input type="text" placeholder="Search pet, vaccine, vet..." class="form-control">
+                    <input type="text" placeholder="Search pet, appointment, vet..." class="form-control">
                     <button class="btn btn-outline-secondary" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
                 </div>
                 <div class="text-end">
@@ -859,45 +669,45 @@ if (isset($_POST['cancel_appointment'])) {
         <!-- Stats Cards -->
         <div class="row stats-row mb-4">
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, var(--blue-light), #e3f2fd);">
-                    <i class="fa-solid fa-paw text-primary"></i>
+                <div class="stats-card" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <i class="fa-solid fa-paw"></i>
                     <h6>Registered Pets</h6>
-                    <h4 id="totalPets"><?php echo $totalPets; ?></h4>
+                    <h4><?php echo $totalPets; ?></h4>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, var(--green-light), #e8f5e8);">
-                    <i class="fa-solid fa-syringe text-success"></i>
+                <div class="stats-card" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                    <i class="fa-solid fa-syringe"></i>
                     <h6>Vaccinated Pets</h6>
-                    <h4 id="vaccinatedPets"><?php echo $vaccinatedPets; ?></h4>
+                    <h4><?php echo $vaccinatedPets; ?></h4>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, var(--orange-light), #fff3e0);">
-                    <i class="fa-solid fa-calendar-check text-warning"></i>
+                <div class="stats-card" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                    <i class="fa-solid fa-calendar-check"></i>
                     <h6>Upcoming Reminders</h6>
-                    <h4 id="upcomingVaccines"><?php echo $upcomingReminders; ?></h4>
+                    <h4><?php echo $upcomingReminders; ?></h4>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, var(--light-pink), #fce4ec);">
-                    <i class="fa-solid fa-stethoscope text-danger"></i>
+                <div class="stats-card" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                    <i class="fa-solid fa-stethoscope"></i>
                     <h6>Recent Visits</h6>
-                    <h4 id="recentVisits"><?php echo $recentVisits; ?></h4>
+                    <h4><?php echo $recentVisits; ?></h4>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, #e8f6f3, #d0ece7);">
-                    <i class="fa-solid fa-calendar-day text-info"></i>
+                <div class="stats-card" style="background: linear-gradient(135deg, #fa709a, #fee140);">
+                    <i class="fa-solid fa-calendar-day"></i>
                     <h6>Total Appointments</h6>
-                    <h4 id="totalAppointments"><?php echo $appointment_stats['total']; ?></h4>
+                    <h4><?php echo $appointment_stats['total']; ?></h4>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, #fdebd0, #fad7a0);">
-                    <i class="fa-solid fa-clock text-warning"></i>
+                <div class="stats-card" style="background: linear-gradient(135deg, #ff9a9e, #fecfef);">
+                    <i class="fa-solid fa-clock"></i>
                     <h6>Pending</h6>
-                    <h4 id="pendingAppointments"><?php echo $appointment_stats['pending']; ?></h4>
+                    <h4><?php echo $appointment_stats['pending']; ?></h4>
                 </div>
             </div>
         </div>
@@ -927,12 +737,7 @@ if (isset($_POST['cancel_appointment'])) {
                 </div>
             <?php else: ?>
                 <div class="row">
-                    <?php 
-                    $display_count = 0;
-                    foreach ($user_appointments as $appt): 
-                        if ($display_count >= 6) break;
-                        $display_count++;
-                    ?>
+                    <?php foreach ($user_appointments as $appt): ?>
                         <div class="col-md-6 col-lg-4 mb-3">
                             <div class="card appointment-card appointment-<?php echo $appt['status']; ?> h-100">
                                 <div class="card-body">
@@ -970,19 +775,10 @@ if (isset($_POST['cancel_appointment'])) {
                                     
                                     <div class="mt-3">
                                         <?php if ($appt['status'] == 'pending'): ?>
-                                            <form method="POST" action="user_dashboard.php" class="d-inline">
-                                                <input type="hidden" name="appointment_id" value="<?php echo $appt['appointment_id']; ?>">
-                                                <input type="hidden" name="cancel_reason" value="Cancelled by user">
-                                                <button type="submit" name="cancel_appointment" class="btn btn-sm btn-outline-danger" 
-                                                        onclick="return confirm('Are you sure you want to cancel this appointment?')">
-                                                    <i class="fas fa-times me-1"></i> Cancel
-                                                </button>
-                                            </form>
-                                        <?php elseif ($appt['status'] == 'scheduled'): ?>
-                                            <div class="d-flex gap-2">
-                                                <button class="btn btn-sm btn-outline-success">
-                                                    <i class="fas fa-check me-1"></i> Confirm
-                                                </button>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-warning">
+                                                    <i class="fas fa-clock me-1"></i>Waiting for vet confirmation
+                                                </small>
                                                 <form method="POST" action="user_dashboard.php" class="d-inline">
                                                     <input type="hidden" name="appointment_id" value="<?php echo $appt['appointment_id']; ?>">
                                                     <input type="hidden" name="cancel_reason" value="Cancelled by user">
@@ -993,11 +789,27 @@ if (isset($_POST['cancel_appointment'])) {
                                                 </form>
                                             </div>
                                         <?php elseif ($appt['status'] == 'confirmed'): ?>
-                                            <small class="text-success"><i class="fas fa-check-circle me-1"></i>Confirmed</small>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-success">
+                                                    <i class="fas fa-check-circle me-1"></i>Confirmed by Veterinarian
+                                                </small>
+                                                <form method="POST" action="user_dashboard.php" class="d-inline">
+                                                    <input type="hidden" name="appointment_id" value="<?php echo $appt['appointment_id']; ?>">
+                                                    <input type="hidden" name="cancel_reason" value="Cancelled by user">
+                                                    <button type="submit" name="cancel_appointment" class="btn btn-sm btn-outline-danger" 
+                                                            onclick="return confirm('Are you sure you want to cancel this appointment?')">
+                                                        <i class="fas fa-times me-1"></i> Cancel
+                                                    </button>
+                                                </form>
+                                            </div>
                                         <?php elseif ($appt['status'] == 'completed'): ?>
-                                            <small class="text-secondary"><i class="fas fa-flag-checkered me-1"></i>Completed</small>
+                                            <small class="text-success">
+                                                <i class="fas fa-flag-checkered me-1"></i>Appointment Completed
+                                            </small>
                                         <?php elseif ($appt['status'] == 'cancelled'): ?>
-                                            <small class="text-danger"><i class="fas fa-ban me-1"></i>Cancelled</small>
+                                            <small class="text-danger">
+                                                <i class="fas fa-ban me-1"></i>Appointment Cancelled
+                                            </small>
                                         <?php endif; ?>
                                     </div>
                                     
@@ -1022,95 +834,10 @@ if (isset($_POST['cancel_appointment'])) {
             <?php endif; ?>
         </div>
 
-        <!-- Health Monitoring Visualizations -->
-        <?php if (!empty($pets)): ?>
-        <div class="card-custom">
-            <h4 class="mb-4"><i class="fas fa-chart-line me-2"></i>Health Monitoring Dashboard</h4>
-            
-            <div class="visualization-grid">
-                <!-- Health Scores Chart -->
-                <div class="viz-card">
-                    <h6><i class="fas fa-heartbeat me-2"></i>Pet Health Scores</h6>
-                    <div class="chart-container">
-                        <canvas id="healthScoresChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Weight Trends -->
-                <div class="viz-card">
-                    <h6><i class="fas fa-weight me-2"></i>Weight Trends</h6>
-                    <div class="chart-container">
-                        <canvas id="weightTrendsChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Service Frequency -->
-                <div class="viz-card">
-                    <h6><i class="fas fa-calendar-alt me-2"></i>Vet Visit Frequency</h6>
-                    <div class="chart-container">
-                        <canvas id="serviceFrequencyChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Health Distribution -->
-                <div class="viz-card">
-                    <h6><i class="fas fa-chart-pie me-2"></i>Health Status Distribution</h6>
-                    <div class="chart-container">
-                        <canvas id="healthDistributionChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Individual Pet Health Cards -->
-            <div class="row mt-4">
-                <?php foreach ($healthScores as $petId => $healthData): ?>
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <h6 class="card-title"><?php echo htmlspecialchars($healthData['pet_name']); ?></h6>
-                                <?php
-                                $scoreClass = 'score-poor';
-                                if ($healthData['score'] >= 90) $scoreClass = 'score-excellent';
-                                elseif ($healthData['score'] >= 75) $scoreClass = 'score-good';
-                                elseif ($healthData['score'] >= 60) $scoreClass = 'score-fair';
-                                ?>
-                                <div class="health-score <?php echo $scoreClass; ?>">
-                                    <?php echo $healthData['score']; ?>%
-                                </div>
-                                <div class="mt-2">
-                                    <small class="text-muted">
-                                        <?php if ($healthData['vaccinated']): ?>
-                                            <i class="fas fa-check-circle text-success me-1"></i>Vaccinated
-                                        <?php else: ?>
-                                            <i class="fas fa-exclamation-triangle text-warning me-1"></i>Needs Vaccination
-                                        <?php endif; ?>
-                                    </small>
-                                    <br>
-                                    <small class="text-muted">
-                                        <i class="fas fa-stethoscope me-1"></i><?php echo $healthData['service_count']; ?> visits
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- Quick Add Pet Button -->
-        <div class="card-custom text-center">
-            <h5><i class="fa-solid fa-paw me-2"></i>Manage Your Pets</h5>
-            <p class="text-muted">Register your pets to track their medical records and generate QR codes</p>
-            <a href="register_pet.php" class="btn btn-primary">
-                <i class="fa-solid fa-plus-circle me-1"></i> Add New Pet
-            </a>
-        </div>
-
         <!-- Pets Section -->
         <div class="card-custom">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0"><i class="fa-solid fa-paw me-2"></i>Your Pets & Medical Records</h4>
+                <h4 class="mb-0"><i class="fa-solid fa-paw me-2"></i>Your Pets</h4>
                 <a href="register_pet.php" class="btn btn-sm btn-primary">
                     <i class="fa-solid fa-plus me-1"></i> Add Pet
                 </a>
@@ -1131,6 +858,8 @@ if (isset($_POST['cancel_appointment'])) {
                         <?php
                         $hasVaccination = false;
                         $hasRecentVisit = false;
+                        $thirtyDaysAgo = date('Y-m-d', strtotime('-30 days'));
+                        
                         foreach ($pet['records'] as $record) {
                             if (!empty($record['service_type']) && stripos($record['service_type'], 'vaccin') !== false) {
                                 $hasVaccination = true;
@@ -1148,7 +877,7 @@ if (isset($_POST['cancel_appointment'])) {
                             $statusClass = 'status-bad';
                         }
                         ?>
-                        <div class="col-md-6 col-lg-6 mb-3">
+                        <div class="col-md-6 col-lg-4 mb-3">
                             <div class="pet-card">
                                 <div class="pet-card-header" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#e8f4fd' : '#fde8f2'; ?>">
                                     <div>
@@ -1159,79 +888,52 @@ if (isset($_POST['cancel_appointment'])) {
                                         <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
                                     </div>
                                 </div>
-                                <div class="pet-card-body">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div id="qrcode-<?php echo $pet['pet_id']; ?>" class="me-3 qr-preview"></div>
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex justify-content-between">
-                                                <div>
-                                                    <strong>Age:</strong> <?php echo htmlspecialchars($pet['age']); ?> years<br>
-                                                    <strong>Gender:</strong> <?php echo htmlspecialchars($pet['gender']) ?: 'Not specified'; ?><br>
-                                                    <strong>Registered:</strong> <?php echo date('M j, Y', strtotime($pet['date_registered'])); ?>
-                                                </div>
-                                                <div class="text-end">
-                                                    <div class="health-status">
-                                                        <span class="status-dot <?php echo $statusClass; ?>"></span>
-                                                        <small><?php echo $healthStatus; ?></small>
-                                                    </div>
-                                                    <small class="text-muted">ID: <?php echo htmlspecialchars($pet['pet_id']); ?></small>
-                                                </div>
-                                            </div>
-                                        </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between mb-3">
                                         <div>
-                                            <button class="btn btn-sm btn-outline-primary" onclick="downloadQRCode(<?php echo $pet['pet_id']; ?>)">
-                                                <i class="fas fa-download"></i>
-                                            </button>
+                                            <strong>Age:</strong> <?php echo htmlspecialchars($pet['age']); ?> years<br>
+                                            <strong>Gender:</strong> <?php echo htmlspecialchars($pet['gender']) ?: 'Not specified'; ?><br>
+                                            <strong>Registered:</strong> <?php echo date('M j, Y', strtotime($pet['date_registered'])); ?>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="health-status">
+                                                <span class="status-dot <?php echo $statusClass; ?>"></span>
+                                                <small><?php echo $healthStatus; ?></small>
+                                            </div>
+                                            <small class="text-muted">ID: <?php echo htmlspecialchars($pet['pet_id']); ?></small>
                                         </div>
                                     </div>
                                     
-                                    <!-- QR Data Preview -->
-                                    <div id="qr-data-<?php echo $pet['pet_id']; ?>" class="qr-data-preview" style="display: none;"></div>
-                                    
                                     <?php if (!empty($pet['records'])): ?>
-                                        <div class="table-responsive">
-                                            <table class="table table-sm medical-table">
-                                                <thead class="table-light">
-                                                    <tr>
-                                                        <th>Date</th>
-                                                        <th>Service Type</th>
-                                                        <th>Description</th>
-                                                        <th>Veterinarian</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ($pet['records'] as $record): ?>
-                                                        <?php if (!empty($record['service_date']) && $record['service_date'] !== '0000-00-00'): ?>
-                                                            <tr>
-                                                                <td><?php echo date('M j, Y', strtotime($record['service_date'])); ?></td>
-                                                                <td>
-                                                                    <?php if (!empty($record['service_type'])): ?>
-                                                                        <?php 
-                                                                        $badgeClass = 'badge-service';
-                                                                        if (stripos($record['service_type'], 'vaccin') !== false) {
-                                                                            $badgeClass = 'badge-vaccine';
-                                                                        } elseif (stripos($record['service_type'], 'check') !== false) {
-                                                                            $badgeClass = 'badge-checkup';
-                                                                        }
-                                                                        ?>
-                                                                        <span class="<?php echo $badgeClass; ?>"><?php echo htmlspecialchars($record['service_type']); ?></span>
-                                                                    <?php else: ?>
-                                                                        -
-                                                                    <?php endif; ?>
-                                                                </td>
-                                                                <td><?php echo htmlspecialchars($record['service_description'] ?? '-'); ?></td>
-                                                                <td><?php echo htmlspecialchars($record['veterinarian'] ?? '-'); ?></td>
-                                                            </tr>
-                                                        <?php endif; ?>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
+                                        <div class="mt-3">
+                                            <h6>Recent Medical History</h6>
+                                            <div class="medical-history">
+                                                <?php 
+                                                $recentRecords = array_slice($pet['records'], 0, 3);
+                                                foreach ($recentRecords as $record): 
+                                                    if (!empty($record['service_date']) && $record['service_date'] !== '0000-00-00'):
+                                                ?>
+                                                    <div class="d-flex justify-content-between border-bottom py-1">
+                                                        <small><?php echo htmlspecialchars($record['service_type'] ?? 'Checkup'); ?></small>
+                                                        <small class="text-muted"><?php echo date('M j, Y', strtotime($record['service_date'])); ?></small>
+                                                    </div>
+                                                <?php 
+                                                    endif;
+                                                endforeach; 
+                                                ?>
+                                            </div>
                                         </div>
                                     <?php else: ?>
-                                        <div class="alert alert-info mb-0">
-                                            <i class="fas fa-info-circle me-1"></i> No medical records found for <?php echo htmlspecialchars($pet['pet_name']); ?>.
+                                        <div class="alert alert-info mb-0 mt-3">
+                                            <i class="fas fa-info-circle me-1"></i> No medical records found.
                                         </div>
                                     <?php endif; ?>
+                                    
+                                    <div class="mt-3">
+                                        <a href="user_pet_profile.php?id=<?php echo $pet['pet_id']; ?>" class="btn btn-sm btn-outline-primary w-100">
+                                            <i class="fas fa-eye me-1"></i> View Details
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1239,30 +941,32 @@ if (isset($_POST['cancel_appointment'])) {
                 </div>
             <?php endif; ?>
         </div>
-    </div>
-</div>
 
-<!-- QR Code Modal -->
-<div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="qrModalTitle">QR Code</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <div id="modalQrContainer" class="mb-3"></div>
-                <div id="modalQrData" class="qr-data-preview mb-3"></div>
-                <p class="text-muted">Scan this QR code to view medical records</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="downloadModalQr">
-                    <i class="fas fa-download me-1"></i> Download
-                </button>
-                <button type="button" class="btn btn-info" onclick="toggleQrData()">
-                    <i class="fas fa-eye me-1"></i> View Data
-                </button>
+        <!-- Quick Actions -->
+        <div class="card-custom text-center">
+            <h5><i class="fa-solid fa-bolt me-2"></i>Quick Actions</h5>
+            <p class="text-muted">Manage your pets and appointments quickly</p>
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <a href="user_appointment.php" class="btn btn-primary w-100">
+                        <i class="fas fa-calendar-plus me-1"></i> Book Appointment
+                    </a>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <a href="register_pet.php" class="btn btn-success w-100">
+                        <i class="fas fa-plus-circle me-1"></i> Add Pet
+                    </a>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <a href="user_appointments.php" class="btn btn-info w-100">
+                        <i class="fas fa-list me-1"></i> View Appointments
+                    </a>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <a href="qr_code.php" class="btn btn-warning w-100">
+                        <i class="fas fa-qrcode me-1"></i> QR Codes
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -1302,60 +1006,10 @@ if (isset($_POST['cancel_appointment'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Initialize the dashboard
     document.addEventListener('DOMContentLoaded', function() {
         // Set current date and time
         updateDateTime();
         setInterval(updateDateTime, 60000);
-        
-        // Generate QR codes for pets
-        <?php foreach ($pets as $pet): ?>
-            generateQRCode('qrcode-<?php echo $pet['pet_id']; ?>', {
-                petId: <?php echo $pet['pet_id']; ?>,
-                petName: '<?php echo addslashes($pet['pet_name']); ?>',
-                species: '<?php echo addslashes($pet['species']); ?>',
-                breed: '<?php echo addslashes($pet['breed']); ?>',
-                age: '<?php echo $pet['age']; ?>',
-                color: '<?php echo addslashes($pet['color']); ?>',
-                weight: '<?php echo $pet['weight']; ?>',
-                birthDate: '<?php echo $pet['birth_date']; ?>',
-                gender: '<?php echo addslashes($pet['gender']); ?>',
-                medicalNotes: '<?php echo addslashes($pet['medical_notes']); ?>',
-                vetContact: '<?php echo addslashes($pet['vet_contact']); ?>',
-                registered: '<?php echo $pet['date_registered']; ?>',
-                records: [
-                    <?php foreach ($pet['records'] as $record): ?>
-                        { 
-                            service_date: '<?php echo $record['service_date'] ?? ''; ?>', 
-                            service_type: '<?php echo addslashes($record['service_type'] ?? ''); ?>', 
-                            service_description: '<?php echo addslashes($record['service_description'] ?? ''); ?>', 
-                            veterinarian: '<?php echo addslashes($record['veterinarian'] ?? ''); ?>',
-                            notes: '<?php echo addslashes($record['notes'] ?? ''); ?>'
-                        },
-                    <?php endforeach; ?>
-                ]
-            });
-        <?php endforeach; ?>
-        
-        // Add click event to QR codes
-        document.querySelectorAll('[id^="qrcode-"]').forEach(qrContainer => {
-            qrContainer.style.cursor = 'pointer';
-            qrContainer.onclick = function() {
-                const petId = qrContainer.id.replace('qrcode-', '');
-                showQRModal(petId);
-            };
-        });
-        
-        // Initialize health monitoring charts
-        initializeHealthCharts();
-        
-        // Setup cancel appointment modals
-        document.querySelectorAll('[data-appointment-id]').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const appointmentId = this.getAttribute('data-appointment-id');
-                document.getElementById('cancelAppointmentId').value = appointmentId;
-            });
-        });
         
         // Auto-close alerts after 5 seconds
         setTimeout(() => {
@@ -1365,194 +1019,10 @@ if (isset($_POST['cancel_appointment'])) {
                 bsAlert.close();
             });
         }, 5000);
+        
+        console.log('User dashboard initialized successfully!');
     });
 
-    // Health Monitoring Charts
-    function initializeHealthCharts() {
-        // Health Scores Bar Chart
-        const healthScoresCtx = document.getElementById('healthScoresChart').getContext('2d');
-        const healthScoresChart = new Chart(healthScoresCtx, {
-            type: 'bar',
-            data: {
-                labels: [<?php echo implode(',', array_map(function($score) { return "'" . addslashes($score['pet_name']) . "'"; }, $healthScores)); ?>],
-                datasets: [{
-                    label: 'Health Score (%)',
-                    data: [<?php echo implode(',', array_column($healthScores, 'score')); ?>],
-                    backgroundColor: [
-                        <?php 
-                        foreach ($healthScores as $score) {
-                            if ($score['score'] >= 90) echo "'#2ecc71',";
-                            elseif ($score['score'] >= 75) echo "'#7e57c2',";
-                            elseif ($score['score'] >= 60) echo "'#f39c12',";
-                            else echo "'#e74c3c',";
-                        }
-                        ?>
-                    ],
-                    borderColor: '#333',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        title: {
-                            display: true,
-                            text: 'Health Score (%)'
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `Health Score: ${context.parsed.y}%`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        // Weight Trends Line Chart
-        <?php if (!empty($weightHistory)): ?>
-        const weightTrendsCtx = document.getElementById('weightTrendsChart').getContext('2d');
-        const weightTrendsChart = new Chart(weightTrendsCtx, {
-            type: 'line',
-            data: {
-                datasets: [
-                    <?php foreach ($weightHistory as $petId => $petData): ?>
-                    {
-                        label: '<?php echo addslashes($petData['pet_name']); ?>',
-                        data: [
-                            <?php foreach ($petData['data'] as $weightRecord): ?>
-                            {
-                                x: '<?php echo $weightRecord['date']; ?>',
-                                y: <?php echo $weightRecord['weight']; ?>
-                            },
-                            <?php endforeach; ?>
-                        ],
-                        borderColor: '<?php echo getRandomColor($petId); ?>',
-                        backgroundColor: '<?php echo getRandomColor($petId, 0.1); ?>',
-                        tension: 0.4,
-                        fill: false
-                    },
-                    <?php endforeach; ?>
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            unit: 'month'
-                        },
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Weight (kg)'
-                        }
-                    }
-                }
-            }
-        });
-        <?php endif; ?>
-
-        // Service Frequency Chart
-        const serviceFrequencyCtx = document.getElementById('serviceFrequencyChart').getContext('2d');
-        const serviceFrequencyChart = new Chart(serviceFrequencyCtx, {
-            type: 'bar',
-            data: {
-                labels: [<?php echo implode(',', array_map(function($freq) { return "'" . addslashes($freq['pet_name']) . "'"; }, $serviceFrequency)); ?>],
-                datasets: [{
-                    label: 'Visits per Month',
-                    data: [<?php echo implode(',', array_column($serviceFrequency, 'services_per_month')); ?>],
-                    backgroundColor: '#4a6cf7',
-                    borderColor: '#333',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Visits per Month'
-                        }
-                    }
-                }
-            }
-        });
-
-        // Health Distribution Pie Chart
-        const healthDistributionCtx = document.getElementById('healthDistributionChart').getContext('2d');
-        
-        // Calculate health status distribution
-        let excellent = 0, good = 0, fair = 0, poor = 0;
-        <?php foreach ($healthScores as $score): ?>
-            <?php if ($score['score'] >= 90): ?>excellent++;
-            <?php elseif ($score['score'] >= 75): ?>good++;
-            <?php elseif ($score['score'] >= 60): ?>fair++;
-            <?php else: ?>poor++;<?php endif; ?>
-        <?php endforeach; ?>
-
-        const healthDistributionChart = new Chart(healthDistributionCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Excellent (90-100%)', 'Good (75-89%)', 'Fair (60-74%)', 'Poor (<60%)'],
-                datasets: [{
-                    data: [excellent, good, fair, poor],
-                    backgroundColor: [
-                        '#2ecc71',
-                        '#7e57c2',
-                        '#f39c12',
-                        '#e74c3c'
-                    ],
-                    borderColor: '#fff',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-    }
-
-    // Helper function to generate random colors for charts
-    function getRandomColor(seed, opacity = 1) {
-        const colors = [
-            '#e91e63', '#4a6cf7', '#2ecc71', '#f39c12', 
-            '#9c27b0', '#2196f3', '#00bcd4', '#ff9800'
-        ];
-        const index = Math.abs(seed) % colors.length;
-        return opacity < 1 ? 
-            colors[index].replace(')', `, ${opacity})`).replace('rgb', 'rgba') : 
-            colors[index];
-    }
-
-    // Update date and time display
     function updateDateTime() {
         const now = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -1560,164 +1030,6 @@ if (isset($_POST['cancel_appointment'])) {
         document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US');
     }
 
-    // Function to generate QR code
-    function generateQRCode(containerId, petData) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        
-        // Format data for QR code
-        let qrData = `PET MEDICAL RECORD\n`;
-        qrData += `==================\n\n`;
-        qrData += `BASIC INFORMATION:\n`;
-        qrData += `------------------\n`;
-        qrData += `Name: ${petData.petName}\n`;
-        qrData += `Species: ${petData.species}\n`;
-        qrData += `Breed: ${petData.breed || 'Unknown'}\n`;
-        qrData += `Age: ${petData.age} years\n`;
-        qrData += `Color: ${petData.color || 'Not specified'}\n`;
-        qrData += `Weight: ${petData.weight ? petData.weight + ' kg' : 'Not specified'}\n`;
-        qrData += `Birth Date: ${petData.birthDate ? new Date(petData.birthDate).toLocaleDateString() : 'Unknown'}\n`;
-        qrData += `Gender: ${petData.gender || 'Not specified'}\n`;
-        qrData += `Registered: ${new Date(petData.registered).toLocaleDateString()}\n\n`;
-        
-        qrData += `MEDICAL INFORMATION:\n`;
-        qrData += `--------------------\n`;
-        qrData += `Medical Notes: ${petData.medicalNotes || 'None'}\n`;
-        qrData += `Veterinarian: ${petData.vetContact || 'Not specified'}\n\n`;
-        
-        qrData += `MEDICAL HISTORY:\n`;
-        qrData += `----------------\n`;
-        
-        if (petData.records && petData.records.length > 0) {
-            petData.records.forEach((record, index) => {
-                if (record.service_date) {
-                    qrData += `VISIT ${index + 1}:\n`;
-                    qrData += `Date: ${record.service_date}\n`;
-                    if (record.service_type) qrData += `Service: ${record.service_type}\n`;
-                    if (record.service_description) qrData += `Description: ${record.service_description}\n`;
-                    if (record.veterinarian) qrData += `Veterinarian: ${record.veterinarian}\n`;
-                    if (record.notes) qrData += `Notes: ${record.notes}\n`;
-                    qrData += `\n`;
-                }
-            });
-        } else {
-            qrData += `No medical records available.\n`;
-        }
-        
-        qrData += `\nGenerated on: ${new Date().toLocaleDateString()}`;
-        qrData += `\nOwner: ${document.getElementById('ownerName').textContent}`;
-        qrData += `\nPet ID: ${petData.petId}`;
-        
-        // Generate QR code
-        const qr = qrcode(0, 'M');
-        qr.addData(qrData);
-        qr.make();
-        
-        container.innerHTML = qr.createSvgTag({
-            scalable: true,
-            margin: 2,
-            color: '#000',
-            background: '#fff'
-        });
-        
-        // Store the data for later use
-        container.setAttribute('data-qr-content', qrData);
-        container.setAttribute('data-pet-name', petData.petName);
-        container.setAttribute('data-pet-id', petData.petId);
-        
-        // Also update the QR data preview
-        const qrDataPreview = document.getElementById(`qr-data-${petData.petId}`);
-        if (qrDataPreview) {
-            qrDataPreview.textContent = qrData;
-        }
-    }
-
-    // Function to show QR code in modal
-    function showQRModal(petId) {
-        const qrContainer = document.getElementById(`qrcode-${petId}`);
-        const modalQrContainer = document.getElementById('modalQrContainer');
-        const modalQrData = document.getElementById('modalQrData');
-        const qrModalTitle = document.getElementById('qrModalTitle');
-        
-        if (!qrContainer || !modalQrContainer) return;
-        
-        const petName = qrContainer.getAttribute('data-pet-name');
-        const qrContent = qrContainer.getAttribute('data-qr-content');
-        
-        // Update modal title
-        qrModalTitle.textContent = `QR Code - ${petName}`;
-        
-        // Copy QR code to modal
-        modalQrContainer.innerHTML = qrContainer.innerHTML;
-        
-        // Set QR data
-        modalQrData.textContent = qrContent;
-        modalQrData.style.display = 'none';
-        
-        // Update download button
-        const downloadBtn = document.getElementById('downloadModalQr');
-        downloadBtn.onclick = function() {
-            downloadQRCode(petId);
-        };
-        
-        // Show modal
-        const qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
-        qrModal.show();
-    }
-
-    // Function to toggle QR data visibility in modal
-    function toggleQrData() {
-        const qrData = document.getElementById('modalQrData');
-        if (qrData.style.display === 'none') {
-            qrData.style.display = 'block';
-        } else {
-            qrData.style.display = 'none';
-        }
-    }
-
-    // Function to download QR code as SVG
-    function downloadQRCode(petId) {
-        const qrContainer = document.getElementById(`qrcode-${petId}`);
-        if (!qrContainer) return;
-        
-        const petName = qrContainer.getAttribute('data-pet-name');
-        const svgElement = qrContainer.querySelector('svg');
-        
-        if (!svgElement) {
-            alert('QR code not found!');
-            return;
-        }
-        
-        // Serialize SVG
-        const serializer = new XMLSerializer();
-        let source = serializer.serializeToString(svgElement);
-        
-        // Add namespace
-        if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
-            source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
-        }
-        if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
-            source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
-        }
-        
-        // Add styling for better print quality
-        source = source.replace('</svg>', '<style>text{font-family:Helvetica,Arial,sans-serif;}</style></svg>');
-        
-        // Convert to blob
-        const blob = new Blob([source], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(blob);
-        
-        // Create download link
-        const downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.download = `petmedqr-${petName.toLowerCase().replace(/\s+/g, '-')}-${petId}.svg`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        URL.revokeObjectURL(url);
-    }
-
-    // Function to show cancel appointment modal
     function showCancelModal(appointmentId) {
         document.getElementById('cancelAppointmentId').value = appointmentId;
         const cancelModal = new bootstrap.Modal(document.getElementById('cancelModal'));
@@ -1726,7 +1038,6 @@ if (isset($_POST['cancel_appointment'])) {
 
     // Search functionality
     document.addEventListener('keydown', function(e) {
-        // Ctrl+K for search focus (common shortcut)
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
             e.preventDefault();
             const searchInput = document.querySelector('.input-group input');
@@ -1734,26 +1045,11 @@ if (isset($_POST['cancel_appointment'])) {
         }
     });
 
-    // Auto-refresh data every 5 minutes
+    // Auto-refresh data every 2 minutes
     setInterval(() => {
         console.log('Auto-refreshing dashboard data...');
-        // In a real application, you might want to fetch updated data
-        // location.reload(); // Simple refresh for demo
-    }, 300000); // 5 minutes
-
-    console.log('PetMedQR Dashboard with Appointment Management initialized successfully!');
+        // You can implement AJAX refresh here if needed
+    }, 120000);
 </script>
 </body>
 </html>
-
-<?php
-// Helper function for random colors in PHP
-function getRandomColor($seed, $opacity = 1) {
-    $colors = [
-        '#e91e63', '#4a6cf7', '#2ecc71', '#f39c12', 
-        '#9c27b0', '#2196f3', '#00bcd4', '#ff9800'
-    ];
-    $index = abs($seed) % count($colors);
-    return $colors[$index];
-}
-?>
