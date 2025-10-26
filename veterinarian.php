@@ -75,7 +75,7 @@ if (isset($_GET['specialization']) && !empty($_GET['specialization'])) {
 // Build the query
 $where_clause = implode(' AND ', $where_conditions);
 $vets_query = "
-    SELECT user_id, name, email, profile_picture, created_at, last_login, status, phone_number, specialization, bio, experience_years, license_number
+    SELECT user_id, name, email, profile_picture, created_at, last_login, status, phone_number, specialization, license_number
     FROM users 
     WHERE $where_clause
     ORDER BY created_at DESC
@@ -1226,3 +1226,4 @@ if ($recent_appointments_result) {
     </script>
 </body>
 </html>
+
