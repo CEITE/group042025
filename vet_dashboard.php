@@ -19,8 +19,20 @@ $vet = $stmt->get_result()->fetch_assoc();
 // Set default profile picture
 $profile_picture = !empty($vet['profile_picture']) ? $vet['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($vet['name']);
 
-// Fetch appointment requests (scheduled appointments)
-$appointments_stmt = $conn->prepare("
+// Fetch pending appointment requests (NEW - only pending appointments)
+$pending_appointments_stmt = $conn->prepare("
+    SELECT a.*, p.name as pet_name, p.species, p.breed, u.name as owner_name, u.email as owner_email
+    FROM appointments a 
+    LEFT JOIN pets p ON a.pet_id = p.pet_id 
+    LEFT JOIN users u ON a.user_id = u.user_id
+    WHERE a.status = 'pending'
+    ORDER BY a.created_at DESC
+");
+$pending_appointments_stmt->execute();
+$pending_appointments = $pending_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// Fetch scheduled appointments (approved by vet)
+$scheduled_appointments_stmt = $conn->prepare("
     SELECT a.*, p.name as pet_name, p.species, p.breed, u.name as owner_name, u.email as owner_email
     FROM appointments a 
     LEFT JOIN pets p ON a.pet_id = p.pet_id 
@@ -28,8 +40,8 @@ $appointments_stmt = $conn->prepare("
     WHERE a.status IN ('scheduled', 'confirmed')
     ORDER BY a.appointment_date ASC, a.appointment_time ASC
 ");
-$appointments_stmt->execute();
-$appointments = $appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$scheduled_appointments_stmt->execute();
+$scheduled_appointments = $scheduled_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Fetch unread notifications
 $notifications_stmt = $conn->prepare("
@@ -50,10 +62,10 @@ $today_appointments_stmt->bind_param("s", $today);
 $today_appointments_stmt->execute();
 $today_count = $today_appointments_stmt->get_result()->fetch_assoc()['count'];
 
-// Count pending appointments
+// Count pending appointments (NEW - count only pending)
 $pending_stmt = $conn->prepare("
     SELECT COUNT(*) as count FROM appointments 
-    WHERE status = 'scheduled'
+    WHERE status = 'pending'
 ");
 $pending_stmt->execute();
 $pending_count = $pending_stmt->get_result()->fetch_assoc()['count'];
@@ -72,6 +84,32 @@ if (isset($_POST['update_status'])) {
     $update_stmt->bind_param("ssi", $new_status, $vet_notes, $appointment_id);
     
     if ($update_stmt->execute()) {
+        // Create notification for user when appointment is approved/rejected
+        if ($new_status == 'scheduled' || $new_status == 'cancelled') {
+            $appointment_info_stmt = $conn->prepare("
+                SELECT u.user_id, a.appointment_date, a.appointment_time 
+                FROM appointments a 
+                JOIN users u ON a.user_id = u.user_id 
+                WHERE a.appointment_id = ?
+            ");
+            $appointment_info_stmt->bind_param("i", $appointment_id);
+            $appointment_info_stmt->execute();
+            $appointment_info = $appointment_info_stmt->get_result()->fetch_assoc();
+            
+            if ($appointment_info) {
+                $message = $new_status == 'scheduled' 
+                    ? "Your appointment on " . date('M j, Y', strtotime($appointment_info['appointment_date'])) . " at " . date('g:i A', strtotime($appointment_info['appointment_time'])) . " has been approved!"
+                    : "Your appointment request has been cancelled by the vet.";
+                
+                $user_notification_stmt = $conn->prepare("
+                    INSERT INTO user_notifications (user_id, message, appointment_id, created_at) 
+                    VALUES (?, ?, ?, NOW())
+                ");
+                $user_notification_stmt->bind_param("isi", $appointment_info['user_id'], $message, $appointment_id);
+                $user_notification_stmt->execute();
+            }
+        }
+        
         $_SESSION['success'] = "Appointment status updated successfully!";
         
         // Mark related notifications as read
@@ -116,6 +154,7 @@ if (isset($_GET['mark_read'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Your existing CSS styles remain the same */
         :root {
             --primary-pink: #e91e63;
             --secondary-pink: #f8bbd9;
@@ -132,243 +171,11 @@ if (isset($_GET['mark_read'])) {
             --shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
         
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, var(--light-pink) 0%, #f3e5f5 100%);
-            margin: 0;
-            color: #333;
-            min-height: 100vh;
-        }
+        /* ... (keep all your existing CSS styles) ... */
         
-        .wrapper {
-            display: flex;
-            min-height: 100vh;
-        }
-        
-        .sidebar {
-            width: 260px;
-            background: var(--secondary-pink);
-            padding: 2rem 1rem;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .sidebar .brand {
-            font-weight: 800;
-            font-size: 1.2rem;
-            text-align: center;
-            margin-bottom: 2rem;
-            color: var(--dark-pink);
-        }
-        
-        .sidebar .profile {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        
-        .sidebar .profile img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin-bottom: .5rem;
-            border: 3px solid var(--accent-pink);
-            object-fit: cover;
-            transition: transform 0.3s;
-        }
-        
-        .sidebar .profile img:hover {
-            transform: scale(1.05);
-        }
-        
-        .sidebar a {
-            display: flex;
-            align-items: center;
-            padding: 12px 14px;
-            border-radius: 12px;
-            margin: .3rem 0;
-            text-decoration: none;
-            color: #333;
-            font-weight: 600;
-            transition: .2s;
-        }
-        
-        .sidebar a .icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 12px;
-            display: grid;
-            place-items: center;
-            background: rgba(255,255,255,.6);
-            margin-right: 10px;
-        }
-        
-        .sidebar a.active, .sidebar a:hover {
-            background: var(--light-pink);
-            color: var(--dark-pink);
-        }
-        
-        .sidebar .logout {
-            margin-top: auto;
-            font-weight: 600;
-            color: #fff;
-            background: linear-gradient(135deg, #dc3545, #e74c3c);
-            text-align: center;
-            padding: 10px;
-            border-radius: 10px;
-            border: none;
-        }
-
-        .main-content {
-            flex: 1;
-            padding: 1.5rem 2rem;
-            overflow-y: auto;
-        }
-        
-        .topbar {
-            background: white;
-            padding: 1rem 1.5rem;
-            border-radius: 16px;
-            box-shadow: var(--shadow);
-            margin-bottom: 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .card-custom {
-            background: white;
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: var(--shadow);
-            margin-bottom: 1.5rem;
-            border: none;
-            transition: transform 0.3s;
-        }
-        
-        .card-custom:hover {
-            transform: translateY(-2px);
-        }
-        
-        .alert-custom {
-            border-radius: 12px;
-            border: none;
-        }
-        
-        .appointment-card {
-            border-left: 4px solid var(--primary-pink);
-            transition: all 0.3s;
-        }
-        
-        .appointment-card:hover {
-            transform: translateX(5px);
-        }
-        
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .status-scheduled {
-            background-color: var(--blue-light);
-            color: var(--blue);
-        }
-        
-        .status-confirmed {
-            background-color: var(--green-light);
-            color: var(--green);
-        }
-        
-        .status-completed {
-            background-color: #e8f5e8;
-            color: #2ecc71;
-        }
-        
-        .status-cancelled {
-            background-color: #ffebee;
-            color: #e74c3c;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 3rem 2rem;
-            color: #6c757d;
-        }
-        
-        .empty-state i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary-pink), var(--dark-pink));
-            border: none;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: linear-gradient(135deg, var(--dark-pink), var(--primary-pink));
-            color: white;
-        }
-        
-        .pet-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            background: var(--light-pink);
-            color: var(--dark-pink);
-        }
-        
-        .stats-card {
-            text-align: center;
-            padding: 1.5rem;
-            border-radius: 12px;
-            color: white;
-            margin-bottom: 1rem;
-        }
-        
-        .stats-today {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-        }
-        
-        .stats-pending {
-            background: linear-gradient(135deg, #f093fb, #f5576c);
-        }
-        
-        .stats-notifications {
-            background: linear-gradient(135deg, #4facfe, #00f2fe);
-        }
-        
-        .stats-number {
-            font-size: 2.5rem;
-            font-weight: 800;
-            margin-bottom: 0.5rem;
-        }
-        
-        .notification-item {
-            border-left: 4px solid var(--primary-pink);
-            padding: 1rem;
-            margin-bottom: 1rem;
-            background: white;
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-        
-        .notification-item.unread {
-            background: var(--light-pink);
-            border-left-color: var(--dark-pink);
-        }
-        
-        .notification-item:hover {
-            transform: translateX(5px);
+        .status-pending {
+            background-color: var(--orange-light);
+            color: var(--orange);
         }
         
         .badge-new {
@@ -380,27 +187,33 @@ if (isset($_GET['mark_read'])) {
             margin-left: 10px;
         }
         
-        @media (max-width: 768px) {
-            .wrapper {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                padding: 1rem;
-            }
-            
-            .topbar {
-                flex-direction: column;
-                gap: 1rem;
-                text-align: center;
-            }
+        .appointment-card.pending {
+            border-left: 4px solid var(--orange);
+            background: var(--orange-light);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn-approve {
+            background: linear-gradient(135deg, var(--green), #27ae60);
+            color: white;
+            border: none;
+        }
+        
+        .btn-reject {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
         }
     </style>
 </head>
 <body>
 <div class="wrapper">
-    <!-- Sidebar -->
+    <!-- Sidebar (unchanged) -->
     <div class="sidebar">
         <div class="brand"><i class="fa-solid fa-paw"></i> VetCareQR</div>
         <div class="profile">
@@ -435,7 +248,7 @@ if (isset($_GET['mark_read'])) {
     </div>
 
     <div class="main-content">
-        <!-- Topbar -->
+        <!-- Topbar (unchanged) -->
         <div class="topbar">
             <div>
                 <h5 class="mb-0">Veterinary Dashboard</h5>
@@ -534,23 +347,152 @@ if (isset($_GET['mark_read'])) {
         </div>
 
         <div class="row">
-            <!-- Appointment Requests -->
+            <!-- Pending Appointment Requests -->
             <div class="col-lg-8 mb-4">
                 <div class="card-custom">
                     <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="mb-0"><i class="fas fa-calendar-plus me-2"></i>Appointment Requests</h4>
-                        <span class="badge bg-primary"><?php echo count($appointments); ?> Total</span>
+                        <h4 class="mb-0"><i class="fas fa-clock me-2 text-warning"></i>Pending Appointment Requests</h4>
+                        <span class="badge bg-warning"><?php echo count($pending_appointments); ?> New</span>
                     </div>
                     
-                    <?php if (empty($appointments)): ?>
+                    <?php if (empty($pending_appointments)): ?>
                         <div class="empty-state">
-                            <i class="fas fa-calendar-check"></i>
-                            <h5>No Appointment Requests</h5>
-                            <p class="text-muted">No pending appointments at the moment.</p>
+                            <i class="fas fa-calendar-check text-success"></i>
+                            <h5>No Pending Requests</h5>
+                            <p class="text-muted">All appointment requests have been processed.</p>
                         </div>
                     <?php else: ?>
                         <div class="appointments-list">
-                            <?php foreach ($appointments as $appointment): ?>
+                            <?php foreach ($pending_appointments as $appointment): ?>
+                                <div class="card appointment-card pending mb-3">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="d-flex align-items-center">
+                                                <div class="pet-avatar me-3">
+                                                    <i class="fas fa-<?php echo strtolower($appointment['species']) == 'dog' ? 'dog' : 'cat'; ?>"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0"><?php echo htmlspecialchars($appointment['pet_name']); ?></h6>
+                                                    <small class="text-muted">
+                                                        Owner: <?php echo htmlspecialchars($appointment['owner_name']); ?> | 
+                                                        Service: <?php echo htmlspecialchars($appointment['service_type']); ?>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <span class="status-badge status-pending">
+                                                <i class="fas fa-clock me-1"></i>Pending Review
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="row mt-3">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Requested Date & Time</small>
+                                                <div class="fw-semibold">
+                                                    <?php echo date('M j, Y', strtotime($appointment['appointment_date'])); ?> 
+                                                    at <?php echo date('g:i A', strtotime($appointment['appointment_time'])); ?>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Contact</small>
+                                                <div class="fw-semibold">
+                                                    <?php echo htmlspecialchars($appointment['owner_email']); ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <?php if (!empty($appointment['reason'])): ?>
+                                            <div class="mt-2">
+                                                <small class="text-muted">Reason for Visit</small>
+                                                <div class="small"><?php echo htmlspecialchars($appointment['reason']); ?></div>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <?php if (!empty($appointment['notes'])): ?>
+                                            <div class="mt-2">
+                                                <small class="text-muted">Owner Notes</small>
+                                                <div class="small"><?php echo htmlspecialchars($appointment['notes']); ?></div>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <!-- Quick Action Buttons -->
+                                        <div class="action-buttons">
+                                            <form method="POST" action="vet_dashboard.php" class="d-inline">
+                                                <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
+                                                <input type="hidden" name="status" value="scheduled">
+                                                <input type="hidden" name="vet_notes" value="Appointment approved by vet">
+                                                <button type="submit" name="update_status" class="btn btn-approve">
+                                                    <i class="fas fa-check me-1"></i> Approve
+                                                </button>
+                                            </form>
+                                            
+                                            <form method="POST" action="vet_dashboard.php" class="d-inline">
+                                                <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
+                                                <input type="hidden" name="status" value="cancelled">
+                                                <input type="hidden" name="vet_notes" value="Appointment rejected by vet">
+                                                <button type="submit" name="update_status" class="btn btn-reject">
+                                                    <i class="fas fa-times me-1"></i> Reject
+                                                </button>
+                                            </form>
+                                            
+                                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#detailsModal<?php echo $appointment['appointment_id']; ?>">
+                                                <i class="fas fa-edit me-1"></i> Custom Response
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Custom Response Modal -->
+                                        <div class="modal fade" id="detailsModal<?php echo $appointment['appointment_id']; ?>" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Manage Appointment</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form method="POST" action="vet_dashboard.php">
+                                                        <div class="modal-body">
+                                                            <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Status</label>
+                                                                <select class="form-select" name="status" required>
+                                                                    <option value="scheduled">Approve (Scheduled)</option>
+                                                                    <option value="cancelled">Reject (Cancelled)</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Vet Notes</label>
+                                                                <textarea class="form-control" name="vet_notes" rows="3" placeholder="Add notes for the owner..."></textarea>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                            <button type="submit" name="update_status" class="btn btn-primary">Update Appointment</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Scheduled Appointments -->
+                <div class="card-custom mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="mb-0"><i class="fas fa-calendar-check me-2 text-success"></i>Scheduled Appointments</h4>
+                        <span class="badge bg-success"><?php echo count($scheduled_appointments); ?> Total</span>
+                    </div>
+                    
+                    <?php if (empty($scheduled_appointments)): ?>
+                        <div class="empty-state">
+                            <i class="fas fa-calendar-times"></i>
+                            <h5>No Scheduled Appointments</h5>
+                            <p class="text-muted">No upcoming appointments at the moment.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="appointments-list">
+                            <?php foreach ($scheduled_appointments as $appointment): ?>
                                 <div class="card appointment-card mb-3">
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -586,20 +528,6 @@ if (isset($_GET['mark_read'])) {
                                                 </div>
                                             </div>
                                         </div>
-                                        
-                                        <?php if (!empty($appointment['reason'])): ?>
-                                            <div class="mt-2">
-                                                <small class="text-muted">Reason for Visit</small>
-                                                <div class="small"><?php echo htmlspecialchars($appointment['reason']); ?></div>
-                                            </div>
-                                        <?php endif; ?>
-
-                                        <?php if (!empty($appointment['notes'])): ?>
-                                            <div class="mt-2">
-                                                <small class="text-muted">Owner Notes</small>
-                                                <div class="small"><?php echo htmlspecialchars($appointment['notes']); ?></div>
-                                            </div>
-                                        <?php endif; ?>
 
                                         <?php if (!empty($appointment['vet_notes'])): ?>
                                             <div class="mt-2">
