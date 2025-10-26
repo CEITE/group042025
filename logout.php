@@ -28,19 +28,19 @@ header("Expires: 0");
 session_start();
 $_SESSION['success'] = "You have been successfully logged out.";
 
-// Redirect based on user role with parameters
+// Redirect based on user role
 switch ($user_role) {
     case 'vet':
-        header("Location: login.php?role=vet");
+        header("Location: login_vet.php");
         break;
     case 'lgu':
-        header("Location: login.php?role=lgu");
+        header("Location: login_lgu.php");
         break;
     case 'admin':
-        header("Location: login.php?role=admin");
+        header("Location: login_admin.php");
         break;
     default:
-        header("Location: login.php");
+        header("Location: login.php"); // For regular users
         break;
 }
 exit();
