@@ -10,11 +10,23 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// ✅ Fetch logged-in user info
-$stmt = $conn->prepare("SELECT name, role, email FROM users WHERE user_id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
+// ✅ Fetch logged-in user info WITH profile picture
+try {
+    $stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    
+    if (!$user) {
+        throw new Exception("User not found");
+    }
+    
+    // Set default profile picture if none exists
+    $user_profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($user['name']);
+    
+} catch (Exception $e) {
+    die("Error fetching user data: " . $e->getMessage());
+}
 
 // ✅ Fetch user's pets with QR codes
 $query = "
@@ -136,6 +148,27 @@ $base_url = 'https://group042025.ceitesystems.com';
             border-radius: var(--radius-lg);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .profile:hover::after {
+            content: 'Change Photo';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
         }
         
         .sidebar .profile img {
@@ -146,6 +179,11 @@ $base_url = 'https://group042025.ceitesystems.com';
             border: 3px solid rgba(255, 255, 255, 0.3);
             object-fit: cover;
             box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .profile:hover img {
+            transform: scale(1.05);
         }
         
         .sidebar .profile h6 {
@@ -723,8 +761,11 @@ $base_url = 'https://group042025.ceitesystems.com';
             <i class="fa-solid fa-paw"></i> 
             <span>PetMedQR</span>
         </div>
-        <div class="profile">
-            <img src="https://i.pravatar.cc/100?u=<?php echo urlencode($user['name']); ?>" alt="User">
+        <div class="profile" data-bs-toggle="modal" data-bs-target="#profilePictureModal">
+            <img src="<?php echo htmlspecialchars($user_profile_picture); ?>" 
+                 alt="User" 
+                 id="sidebarProfilePicture"
+                 onerror="this.src='https://i.pravatar.cc/100?u=<?php echo urlencode($user['name']); ?>'">
             <h6><?php echo htmlspecialchars($user['name']); ?></h6>
             <small><?php echo htmlspecialchars($user['role']); ?></small>
         </div>
@@ -740,7 +781,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             <div class="icon"><i class="fa-solid fa-qrcode"></i></div> 
             <span>QR Codes</span>
         </a>
-        <a href="#" data-bs-toggle="modal" data-bs-target="#addPetModal">
+        <a href="register_pet.php">
             <div class="icon"><i class="fa-solid fa-plus-circle"></i></div> 
             <span>Register Pet</span>
         </a>
@@ -856,9 +897,9 @@ $base_url = 'https://group042025.ceitesystems.com';
                 <i class="fa-solid fa-qrcode floating"></i>
                 <h5>No QR Codes Available</h5>
                 <p class="text-muted mb-4">You haven't registered any pets yet. Register a pet to generate QR codes!</p>
-                <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addPetModal">
+                <a href="register_pet.php" class="btn btn-primary btn-lg">
                     <i class="fa-solid fa-plus me-2"></i> Register Your First Pet
-                </button>
+                </a>
             </div>
         <?php else: ?>
             <!-- Print Header -->
@@ -933,6 +974,45 @@ $base_url = 'https://group042025.ceitesystems.com';
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
+    </div>
+</div>
+
+<!-- Profile Picture Upload Modal -->
+<div class="modal fade" id="profilePictureModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Profile Picture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="profilePictureForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <img src="<?php echo htmlspecialchars($user_profile_picture); ?>" 
+                             alt="Current Profile" 
+                             id="currentProfilePicture"
+                             class="rounded-circle border" 
+                             style="width: 150px; height: 150px; object-fit: cover;"
+                             onerror="this.src='https://i.pravatar.cc/150?u=<?php echo urlencode($user['name']); ?>'">
+                    </div>
+                    <div class="mb-3">
+                        <label for="profile_picture" class="form-label">Choose new picture</label>
+                        <input type="file" class="form-control" id="profile_picture" name="profile_picture" accept="image/*" required>
+                        <div class="form-text">Max file size: 5MB. Allowed: JPG, JPEG, PNG, GIF</div>
+                    </div>
+                    <div id="uploadProgress" class="progress d-none mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div id="uploadMessage" class="alert d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="uploadButton">
+                        <i class="fas fa-upload me-1"></i> Upload
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -1030,6 +1110,60 @@ $base_url = 'https://group042025.ceitesystems.com';
                 bsAlert.close();
             });
         }, 5000);
+    });
+
+    // Profile Picture Upload
+    document.getElementById('profilePictureForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const uploadButton = document.getElementById('uploadButton');
+        const progressBar = document.getElementById('uploadProgress');
+        const progressFill = progressBar.querySelector('.progress-bar');
+        const messageDiv = document.getElementById('uploadMessage');
+        
+        // Reset and show progress
+        messageDiv.className = 'alert d-none';
+        progressBar.classList.remove('d-none');
+        uploadButton.disabled = true;
+        uploadButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Uploading...';
+        
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                progressFill.style.width = percentComplete + '%';
+            }
+        });
+        
+        xhr.addEventListener('load', function() {
+            const response = JSON.parse(xhr.responseText);
+            
+            if (response.success) {
+                messageDiv.className = 'alert alert-success';
+                messageDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + response.message;
+                
+                // Update profile pictures on page
+                document.getElementById('sidebarProfilePicture').src = response.filePath + '?t=' + new Date().getTime();
+                document.getElementById('currentProfilePicture').src = response.filePath + '?t=' + new Date().getTime();
+                
+                // Close modal after 2 seconds
+                setTimeout(() => {
+                    bootstrap.Modal.getInstance(document.getElementById('profilePictureModal')).hide();
+                }, 2000);
+            } else {
+                messageDiv.className = 'alert alert-danger';
+                messageDiv.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + response.message;
+            }
+            
+            progressBar.classList.add('d-none');
+            uploadButton.disabled = false;
+            uploadButton.innerHTML = '<i class="fas fa-upload me-1"></i> Upload';
+        });
+        
+        xhr.open('POST', 'update_user_profile_picture.php');
+        xhr.send(formData);
     });
 
     // Update date and time display
@@ -1271,9 +1405,3 @@ $base_url = 'https://group042025.ceitesystems.com';
 </script>
 </body>
 </html>
-
-
-
-
-
-
