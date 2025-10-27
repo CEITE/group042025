@@ -62,14 +62,50 @@
     width: 70%;
   }
 
-  /* Enhanced HERO with More Visible Background Image */
+  /* Enhanced HERO with Sliding Background Animation */
   .hero{
-    background: 
-      linear-gradient(rgba(255, 214, 231, 0.6), rgba(255, 216, 236, 0.6)),
-      url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2043&q=80') center/cover no-repeat;
-    padding: 80px 0 100px;
     position: relative;
+    padding: 80px 0 100px;
     overflow: hidden;
+  }
+  .hero-slideshow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+  .slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 1.5s ease-in-out;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  .slide.active {
+    opacity: 1;
+  }
+  .slide-1 {
+    background-image: linear-gradient(rgba(255, 214, 231, 0.6), rgba(255, 216, 236, 0.6)), 
+                     url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2043&q=80');
+  }
+  .slide-2 {
+    background-image: linear-gradient(rgba(255, 214, 231, 0.6), rgba(255, 216, 236, 0.6)), 
+                     url('https://images.unsplash.com/photo-1543466835-00a7907e9de1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1974&q=80');
+  }
+  .slide-3 {
+    background-image: linear-gradient(rgba(255, 214, 231, 0.6), rgba(255, 216, 236, 0.6)), 
+                     url('https://images.unsplash.com/photo-1554456854-55a089fd4cb2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+  }
+  .slide-4 {
+    background-image: linear-gradient(rgba(255, 214, 231, 0.6), rgba(255, 216, 236, 0.6)), 
+                     url('https://images.unsplash.com/photo-1583337130417-3346a1be7dee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1964&q=80');
   }
   .hero::before {
     content: "";
@@ -80,7 +116,7 @@
     height: 500px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 50%;
-    z-index: 0;
+    z-index: 1;
   }
   .hero-content {
     position: relative;
@@ -147,6 +183,139 @@
     transform: translateY(-2px);
   }
   
+  /* Role Selection Modal */
+  .role-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 248, 252, 0.95);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+  }
+  .role-modal.active {
+    opacity: 1;
+    visibility: visible;
+  }
+  .role-container {
+    background: white;
+    border-radius: 24px;
+    padding: 3rem;
+    box-shadow: 0 20px 60px rgba(191, 59, 120, 0.2);
+    max-width: 800px;
+    width: 90%;
+    text-align: center;
+  }
+  .role-title {
+    font-weight: 800;
+    color: var(--pink-dark);
+    margin-bottom: 1rem;
+    font-size: 2.5rem;
+  }
+  .role-subtitle {
+    color: #5d6370;
+    margin-bottom: 3rem;
+    font-size: 1.2rem;
+  }
+  .role-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+  }
+  .role-card {
+    background: #fff;
+    border: 2px solid #f1e6f0;
+    border-radius: 20px;
+    padding: 2.5rem 1.5rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .role-card:hover {
+    transform: translateY(-10px);
+    border-color: var(--pink-dark);
+    box-shadow: 0 15px 40px rgba(191, 59, 120, 0.15);
+  }
+  .role-card.active {
+    border-color: var(--pink-dark);
+    background: linear-gradient(135deg, #fff8fc, #ffeaf3);
+  }
+  .role-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(191, 59, 120, 0.1);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: var(--pink-dark);
+    font-size: 2.5rem;
+    transition: all 0.3s ease;
+  }
+  .role-card:hover .role-icon {
+    background: var(--pink-dark);
+    color: white;
+    transform: scale(1.1);
+  }
+  .role-card h4 {
+    color: var(--ink);
+    margin-bottom: 1rem;
+    font-weight: 700;
+  }
+  .role-card p {
+    color: #5d6370;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+  }
+  .role-features {
+    list-style: none;
+    padding: 0;
+    text-align: left;
+  }
+  .role-features li {
+    padding: 0.5rem 0;
+    color: #5d6370;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .role-features li i {
+    color: var(--pink-dark);
+    font-size: 0.9rem;
+  }
+  .role-continue-btn {
+    background: var(--pink-dark);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 1rem 3rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  .role-continue-btn.active {
+    opacity: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(191, 59, 120, 0.4);
+  }
+  .role-continue-btn.active:hover {
+    background: var(--pink-darker);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(191, 59, 120, 0.5);
+  }
+
   /* Feature Highlights */
   .feature-highlights {
     display: flex;
@@ -175,60 +344,6 @@
     font-size: 1.25rem;
   }
 
-  /* SVG MAP WRAP (right side) */
-  .map-container {
-    position: relative;
-  }
-  .map-wrap{
-    background: #ffeaf3; 
-    border: 1px solid #f3d5e7; 
-    border-radius: 24px;
-    box-shadow: 0 20px 40px rgba(184, 71, 129, 0.15);
-    padding: 24px; 
-    aspect-ratio: 4/5;
-    transition: transform 0.3s ease;
-    position: relative;
-    overflow: hidden;
-  }
-  .map-wrap:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 25px 50px rgba(184, 71, 129, 0.2);
-  }
-  .map-wrap svg {
-    width: 100%; 
-    height: 100%;
-  }
-  .b-label{
-    font: 700 9px/1.1 system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-    fill: #34495e; 
-    paint-order: stroke; 
-    stroke: #fff; 
-    stroke-width: 3px; 
-    stroke-linejoin: round;
-  }
-
-  /* Legend */
-  .legend {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    margin-top: 1.5rem;
-  }
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(255, 255, 255, 0.8);
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    backdrop-filter: blur(5px);
-  }
-  .legend-color {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-  }
-
   /* sections */
   .section {
     padding: 100px 0;
@@ -242,55 +357,6 @@
     color: #5d6370;
     font-size: 1.1rem;
     margin-bottom: 3rem;
-  }
-
-  /* ===== Enhanced pulsing risk dots ===== */
-  .pulse-dot {
-    stroke: #fff;
-    stroke-width: 2;
-    transform-origin: center;
-    animation: fadeInScale 0.8s ease forwards;
-    opacity: 0;
-    cursor: pointer;
-  }
-  .pulse-hi {
-    fill: var(--hi);
-    animation: fadeInScale 0.8s ease forwards, pulseHi 1.6s ease-in-out infinite;
-  }
-  .pulse-med {
-    fill: var(--med);
-    animation: fadeInScale 0.8s ease forwards, pulseMed 1.8s ease-in-out infinite;
-  }
-  .pulse-low {
-    fill: var(--low);
-    animation: fadeInScale 0.8s ease forwards, pulseLow 2s ease-in-out infinite;
-  }
-
-  @keyframes fadeInScale {
-    0% { transform: scale(0.5); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
-  }
-  @keyframes pulseHi {
-    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(255, 107, 107, 0.7)); }
-    50% { transform: scale(1.3); filter: drop-shadow(0 0 10px rgba(255, 107, 107, 0.9)); }
-  }
-  @keyframes pulseMed {
-    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(255, 169, 77, 0.6)); }
-    50% { transform: scale(1.25); filter: drop-shadow(0 0 10px rgba(255, 169, 77, 0.85)); }
-  }
-  @keyframes pulseLow {
-    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(116, 198, 157, 0.6)); }
-    50% { transform: scale(1.2); filter: drop-shadow(0 0 10px rgba(116, 198, 157, 0.85)); }
-  }
-
-  /* Subtle hover glow for areas */
-  .map-wrap path {
-    transition: all 0.3s ease;
-  }
-  .map-wrap path:hover {
-    filter: brightness(1.08) drop-shadow(0 0 5px rgba(0,0,0,0.25));
-    cursor: pointer;
-    transform: translateY(-2px);
   }
 
   /* Feature cards */
@@ -391,6 +457,9 @@
       flex-direction: column;
       gap: 1rem;
     }
+    .role-cards {
+      grid-template-columns: 1fr;
+    }
   }
   @media (max-width: 768px) {
     .hero {
@@ -403,11 +472,14 @@
       flex-direction: column;
       align-items: flex-start;
     }
-    .map-wrap {
-      margin-top: 3rem;
-    }
     .section {
       padding: 60px 0;
+    }
+    .role-container {
+      padding: 2rem;
+    }
+    .role-title {
+      font-size: 2rem;
     }
   }
 
@@ -456,6 +528,62 @@
 </head>
 <body>
 
+<!-- Role Selection Modal -->
+<div class="role-modal active" id="roleModal">
+  <div class="role-container">
+    <h1 class="role-title">Welcome to VetCareQR</h1>
+    <p class="role-subtitle">Please select your role to continue</p>
+    
+    <div class="role-cards">
+      <div class="role-card" data-role="user">
+        <div class="role-icon">
+          <i class="bi bi-person"></i>
+        </div>
+        <h4>Pet Owner</h4>
+        <p>Manage your pet's health records, track vaccinations, and access medical history</p>
+        <ul class="role-features">
+          <li><i class="bi bi-check-circle"></i> Manage pet profiles</li>
+          <li><i class="bi bi-check-circle"></i> Track medical records</li>
+          <li><i class="bi bi-check-circle"></i> QR code access</li>
+          <li><i class="bi bi-check-circle"></i> Appointment scheduling</li>
+        </ul>
+      </div>
+      
+      <div class="role-card" data-role="veterinarian">
+        <div class="role-icon">
+          <i class="bi bi-heart-pulse"></i>
+        </div>
+        <h4>Veterinarian</h4>
+        <p>Access patient records, update medical information, and provide professional care</p>
+        <ul class="role-features">
+          <li><i class="bi bi-check-circle"></i> Patient record access</li>
+          <li><i class="bi bi-check-circle"></i> Medical updates</li>
+          <li><i class="bi bi-check-circle"></i> Treatment planning</li>
+          <li><i class="bi bi-check-circle"></i> Professional dashboard</li>
+        </ul>
+      </div>
+      
+      <div class="role-card" data-role="admin">
+        <div class="role-icon">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <h4>Administrator</h4>
+        <p>Manage system users, monitor platform activity, and maintain system integrity</p>
+        <ul class="role-features">
+          <li><i class="bi bi-check-circle"></i> User management</li>
+          <li><i class="bi bi-check-circle"></i> System monitoring</li>
+          <li><i class="bi bi-check-circle"></i> Data analytics</li>
+          <li><i class="bi bi-check-circle"></i> Platform settings</li>
+        </ul>
+      </div>
+    </div>
+    
+    <button class="role-continue-btn" id="continueBtn" onclick="continueToLogin()">
+      Continue to Login
+    </button>
+  </div>
+</div>
+
 <nav class="navbar navbar-expand-lg sticky-top">
   <div class="container">
     <a class="navbar-brand" href="front_page.php">
@@ -470,10 +598,9 @@
         <li class="nav-item"><a class="nav-link" href="about.php">About</a></li>
         <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
         <li class="nav-item"><a class="nav-link" href="#research">Research</a></li>
-        <li class="nav-item"><a class="nav-link" href="#map">Risk Map</a></li>
         <li class="nav-item"><a class="nav-link" href="#team">Team</a></li>
         <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
-        <li class="nav-item ms-2"><a class="btn btn-outline-pink mt-1 mt-lg-0" href="login.php">Login</a></li>
+        <li class="nav-item ms-2"><a class="btn btn-outline-pink mt-1 mt-lg-0" href="#" onclick="showRoleModal()">Login</a></li>
         <li class="nav-item ms-2"><a class="btn btn-pink mt-1 mt-lg-0" href="register.php">Get Started</a></li>
       </ul>
     </div>
@@ -482,6 +609,12 @@
 
 <!-- HERO -->
 <section class="hero">
+  <div class="hero-slideshow">
+    <div class="slide slide-1 active"></div>
+    <div class="slide slide-2"></div>
+    <div class="slide slide-3"></div>
+    <div class="slide slide-4"></div>
+  </div>
   <div class="container">
     <div class="row align-items-center">
       <!-- LEFT: copy & CTA -->
@@ -492,7 +625,7 @@
 
         <div class="cta-group">
           <a class="btn btn-pink" href="register.php">Get Started Free</a>
-          <a class="btn btn-outline-pink" href="#map">View Risk Map</a>
+          <a class="btn btn-outline-pink" href="#" onclick="showRoleModal()">Login to Your Account</a>
         </div>
 
         <div class="feature-highlights">
@@ -510,70 +643,21 @@
           </div>
           <div class="feature-item">
             <div class="feature-icon">
-              <i class="bi bi-map"></i>
+              <i class="bi bi-heart-pulse"></i>
             </div>
-            <span>Risk Monitoring</span>
+            <span>Health Monitoring</span>
           </div>
         </div>
       </div>
 
-      <!-- RIGHT: static SVG MAP -->
-      <div class="col-lg-6 map-container" data-aos="fade-left" data-aos-delay="200">
-        <div class="map-wrap" id="map">
-          <svg viewBox="0 0 320 420" xmlns="http://www.w3.org/2000/svg" aria-label="Pet health risk monitoring map">
-            <defs>
-              <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#caa0b7" flood-opacity=".35"/>
-              </filter>
-            </defs>
-
-            <!-- Base silhouette -->
-            <path d="M120,20  210,40 260,95 300,180 280,240 250,300 210,360 150,395 100,380 60,330 40,260 55,180 80,120 Z"
-              fill="#f1d9e7" filter="url(#softShadow)"/>
-
-            <!-- Regions (placeholder shapes) -->
-            <path id="b1"  d="M128,52 188,64 220,96 180,116 120,104 Z" fill="var(--low)" data-bs-toggle="tooltip" title="Area 1 — Low Risk"/>
-            <path id="b2"  d="M180,116 220,96 246,140 214,162 176,148 Z" fill="var(--med)" data-bs-toggle="tooltip" title="Area 2 — Moderate Risk"/>
-            <path id="b3"  d="M120,104 180,116 176,148 132,168 96,146 Z" fill="var(--low)" data-bs-toggle="tooltip" title="Area 3 — Low Risk"/>
-            <path id="b4"  d="M214,162 246,140 268,188 238,214 204,196 Z" fill="var(--hi)"  data-bs-toggle="tooltip" title="Area 4 — High Risk"/>
-            <path id="b5"  d="M132,168 176,148 204,196 176,224 132,212 Z" fill="var(--med)" data-bs-toggle="tooltip" title="Area 5 — Moderate Risk"/>
-            <path id="b6"  d="M96,146 132,168 132,212 90,206 76,172 Z" fill="var(--low)" data-bs-toggle="tooltip" title="Area 6 — Low Risk"/>
-            <path id="b7"  d="M204,196 238,214 230,254 196,264 176,224 Z" fill="var(--med)" data-bs-toggle="tooltip" title="Area 7 — Moderate Risk"/>
-            <path id="b8"  d="M132,212 176,224 196,264 164,296 120,270 Z" fill="var(--low)" data-bs-toggle="tooltip" title="Area 8 — Low Risk"/>
-            <path id="b9"  d="M90,206 132,212 120,270 86,252 74,224 Z"  fill="var(--med)" data-bs-toggle="tooltip" title="Area 9 — Moderate Risk"/>
-            <path id="b10" d="M196,264 230,254 214,296 186,320 164,296 Z" fill="var(--hi)"  data-bs-toggle="tooltip" title="Area 10 — High Risk"/>
-            <path id="b11" d="M120,270 164,296 146,330 110,324 92,290 Z"  fill="var(--low)" data-bs-toggle="tooltip" title="Area 11 — Low Risk"/>
-            <path id="b12" d="M86,252 120,270 92,290 72,270 68,246 Z"    fill="var(--low)" data-bs-toggle="tooltip" title="Area 12 — Low Risk"/>
-
-            <!-- Single, non-duplicated pulsing dots (classes control color & pulse) -->
-            <circle cx="170" cy="90"  r="8" class="pulse-dot pulse-hi"  data-bs-toggle="tooltip" title="Area 1 — High Risk"/>
-            <circle cx="205" cy="125" r="8" class="pulse-dot pulse-med" data-bs-toggle="tooltip" title="Area 2 — Moderate Risk"/>
-            <circle cx="138" cy="135" r="8" class="pulse-dot pulse-low" data-bs-toggle="tooltip" title="Area 3 — Low Risk"/>
-            <circle cx="218" cy="185" r="8" class="pulse-dot pulse-hi"  data-bs-toggle="tooltip" title="Area 4 — High Risk"/>
-            <circle cx="152" cy="190" r="8" class="pulse-dot pulse-med" data-bs-toggle="tooltip" title="Area 5 — Moderate Risk"/>
-            <circle cx="98"  cy="185" r="8" class="pulse-dot pulse-low" data-bs-toggle="tooltip" title="Area 6 — Low Risk"/>
-            <circle cx="196" cy="235" r="8" class="pulse-dot pulse-med" data-bs-toggle="tooltip" title="Area 7 — Moderate Risk"/>
-            <circle cx="142" cy="253" r="8" class="pulse-dot pulse-low" data-bs-toggle="tooltip" title="Area 8 — Low Risk"/>
-            <circle cx="102" cy="247" r="8" class="pulse-dot pulse-med" data-bs-toggle="tooltip" title="Area 9 — Moderate Risk"/>
-            <circle cx="186" cy="293" r="8" class="pulse-dot pulse-hi"  data-bs-toggle="tooltip" title="Area 10 — High Risk"/>
-            <circle cx="120" cy="305" r="8" class="pulse-dot pulse-low" data-bs-toggle="tooltip" title="Area 11 — Low Risk"/>
-            <circle cx="88"  cy="265" r="8" class="pulse-dot pulse-low" data-bs-toggle="tooltip" title="Area 12 — Low Risk"/>
-          </svg>
-        </div>
-        
-        <div class="legend">
-          <div class="legend-item">
-            <div class="legend-color" style="background:var(--hi)"></div>
-            <span>High risk</span>
+      <!-- RIGHT: Feature illustration -->
+      <div class="col-lg-6" data-aos="fade-left" data-aos-delay="200">
+        <div class="text-center">
+          <div class="feature-icon-wrapper" style="width: 120px; height: 120px; margin: 0 auto 2rem;">
+            <i class="bi bi-phone" style="font-size: 3rem;"></i>
           </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background:var(--med)"></div>
-            <span>Moderate</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background:var(--low)"></div>
-            <span>Low</span>
-          </div>
+          <h3 style="color: var(--pink-dark); margin-bottom: 1rem;">Scan. Access. Care.</h3>
+          <p class="hero-subtitle">Instant access to pet medical records through QR technology for faster, smarter healthcare decisions.</p>
         </div>
       </div>
     </div>
@@ -609,10 +693,10 @@
       <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
         <div class="feature-card">
           <div class="feature-icon-wrapper">
-            <i class="bi bi-map-fill"></i>
+            <i class="bi bi-clipboard-data"></i>
           </div>
-          <h4>Community Risk Monitoring</h4>
-          <p>Track disease outbreaks and risk levels across different areas with our interactive map to protect the entire pet community.</p>
+          <h4>Comprehensive Health Tracking</h4>
+          <p>Monitor your pet's complete health history, medications, and treatment plans in one secure, accessible platform.</p>
         </div>
       </div>
     </div>
@@ -774,7 +858,63 @@
     once: true
   });
 
-  // Enable tooltips (including for SVG elements)
+  // Role Selection Functionality
+  let selectedRole = null;
+  const roleCards = document.querySelectorAll('.role-card');
+  const continueBtn = document.getElementById('continueBtn');
+  const roleModal = document.getElementById('roleModal');
+
+  roleCards.forEach(card => {
+    card.addEventListener('click', function() {
+      // Remove active class from all cards
+      roleCards.forEach(c => c.classList.remove('active'));
+      
+      // Add active class to clicked card
+      this.classList.add('active');
+      
+      // Set selected role
+      selectedRole = this.getAttribute('data-role');
+      
+      // Enable continue button
+      continueBtn.classList.add('active');
+    });
+  });
+
+  function continueToLogin() {
+    if (selectedRole) {
+      // Store the selected role in sessionStorage
+      sessionStorage.setItem('selectedRole', selectedRole);
+      
+      // Redirect to login page with role parameter
+      window.location.href = `login.php?role=${selectedRole}`;
+    }
+  }
+
+  function showRoleModal() {
+    roleModal.classList.add('active');
+  }
+
+  // Hide role modal if user clicks outside
+  roleModal.addEventListener('click', function(e) {
+    if (e.target === roleModal) {
+      roleModal.classList.remove('active');
+    }
+  });
+
+  // Background Slideshow
+  let currentSlide = 0;
+  const slides = document.querySelectorAll('.slide');
+  
+  function nextSlide() {
+    slides[currentSlide].classList.remove('active');
+    currentSlide = (currentSlide + 1) % slides.length;
+    slides[currentSlide].classList.add('active');
+  }
+  
+  // Change slide every 5 seconds
+  setInterval(nextSlide, 5000);
+
+  // Enable tooltips
   document.addEventListener('DOMContentLoaded', function () {
     const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
