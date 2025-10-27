@@ -91,6 +91,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
     
+    // ✅ NEW: Handle quick confirm action
+    if ($_POST['action'] === 'confirm_appointment') {
+        $update_query = "UPDATE appointments SET status = 'confirmed' WHERE appointment_id = ?";
+        $stmt = $conn->prepare($update_query);
+        $stmt->bind_param("i", $appointment_id);
+        
+        if ($stmt->execute()) {
+            $_SESSION['success'] = "Appointment confirmed successfully!";
+            header("Location: vet_appointments.php");
+            exit();
+        } else {
+            $_SESSION['error'] = "Error confirming appointment: " . $conn->error;
+        }
+    }
+    
     if ($_POST['action'] === 'add_appointment') {
         $pet_id = $_POST['pet_id'];
         $user_id = $_POST['user_id'];
@@ -424,6 +439,29 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
             transform: translateY(-2px);
         }
         
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-success:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
         /* Appointment Cards */
         .appointment-card {
             background: white;
@@ -534,6 +572,14 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
             color: white;
         }
         
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
         /* Empty State */
         .empty-state {
             text-align: center;
@@ -640,6 +686,11 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
             
             .appointment-info-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                justify-content: center;
+                width: 100%;
             }
         }
     </style>
@@ -802,13 +853,28 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
                                         <span class="status-badge bg-light text-dark">
                                             <?php echo ucfirst($appointment['status']); ?>
                                         </span>
-                                        <button class="btn btn-sm btn-light" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#editAppointmentModal"
-                                                onclick="editAppointment(<?php echo $appointment['appointment_id']; ?>)"
-                                                title="Edit Appointment">
-                                            <i class="fa-solid fa-edit"></i>
-                                        </button>
+                                        <div class="action-buttons">
+                                            <!-- ✅ NEW: Confirm Appointment Button -->
+                                            <?php if ($appointment['status'] === 'scheduled'): ?>
+                                                <form method="POST" action="vet_appointments.php" class="d-inline">
+                                                    <input type="hidden" name="action" value="confirm_appointment">
+                                                    <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
+                                                    <button type="submit" class="btn btn-success btn-sm" 
+                                                            title="Confirm Appointment"
+                                                            onclick="return confirm('Are you sure you want to confirm this appointment?')">
+                                                        <i class="fa-solid fa-check me-1"></i> Confirm
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                            
+                                            <button class="btn btn-sm btn-light" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#editAppointmentModal"
+                                                    onclick="editAppointment(<?php echo $appointment['appointment_id']; ?>)"
+                                                    title="Edit Appointment">
+                                                <i class="fa-solid fa-edit"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="appointment-body">
