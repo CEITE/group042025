@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
 <style>
+  /* Your existing CSS styles here */
   :root{
     --pink:#ffd6e7;
     --pink-2:#f7c5e0;
@@ -1071,8 +1072,12 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
 <script>
-  // Initialize AOS (Animate On Scroll)
+  // Global variables
+  let selectedRole = null;
+
+  // Initialize everything when DOM is loaded
   document.addEventListener('DOMContentLoaded', function() {
+    // Initialize AOS
     AOS.init({
       duration: 800,
       once: true,
@@ -1096,16 +1101,22 @@
     // Change slide every 5 seconds
     setInterval(nextSlide, 5000);
     
-    // Role Selection Modal
-    let selectedRole = null;
-    
-    // Role selection
+    // Role selection event listeners
     document.querySelectorAll('.role-card').forEach(card => {
       card.addEventListener('click', function() {
-        document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
-        this.classList.add('active');
-        selectedRole = this.getAttribute('data-role');
+        // Remove active class from all cards
+        document.querySelectorAll('.role-card').forEach(c => {
+          c.classList.remove('active');
+        });
         
+        // Add active class to clicked card
+        this.classList.add('active');
+        
+        // Set selected role
+        selectedRole = this.getAttribute('data-role');
+        console.log('Selected role:', selectedRole);
+        
+        // Enable continue button
         const continueBtn = document.getElementById('continueBtn');
         continueBtn.classList.add('active');
         continueBtn.disabled = false;
@@ -1123,8 +1134,6 @@
     document.getElementById('verificationForm').addEventListener('submit', function(e) {
       e.preventDefault();
       alert('Verification successful! Redirecting to login...');
-      // In a real application, you would redirect to the appropriate login page
-      // window.location.href = 'login.php?role=' + selectedRole;
       hideVerificationModal();
     });
 
@@ -1165,10 +1174,22 @@
     });
   });
 
-  // Modal functions (need to be global)
+  // Modal functions
   function showRoleModal() {
+    console.log('Showing role modal');
     document.getElementById('roleModal').classList.add('active');
     document.body.style.overflow = 'hidden';
+    
+    // Reset selection when modal opens
+    selectedRole = null;
+    const continueBtn = document.getElementById('continueBtn');
+    continueBtn.classList.remove('active');
+    continueBtn.disabled = true;
+    
+    // Remove active class from all cards
+    document.querySelectorAll('.role-card').forEach(card => {
+      card.classList.remove('active');
+    });
   }
   
   function hideRoleModal() {
@@ -1182,7 +1203,12 @@
   }
   
   function handleRoleSelection() {
-    if (!selectedRole) return;
+    console.log('Handle role selection called, selected role:', selectedRole);
+    
+    if (!selectedRole) {
+      alert('Please select a role first!');
+      return;
+    }
     
     hideRoleModal();
     
@@ -1213,6 +1239,7 @@
     }
     
     // Show verification modal for professionals
+    console.log('Showing verification modal for:', selectedRole);
     document.getElementById('verificationModal').classList.add('active');
   }
   
