@@ -571,7 +571,7 @@ if (isset($_POST['cancel_appointment'])) {
         <a href="user_pet_profile.php">
             <div class="icon"><i class="fa-solid fa-dog"></i></div> My Pets
         </a>
-        <a href="user_appointments.php">
+        <a href="user_appointment.php">
             <div class="icon"><i class="fa-solid fa-calendar-days"></i></div> My Appointments
         </a>
         <a href="qr_code.php">
@@ -1053,3 +1053,4 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
