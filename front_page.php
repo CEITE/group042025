@@ -640,6 +640,10 @@
     background: var(--pink-darker);
     transform: translateY(-3px);
   }
+
+  .text-pink-dark {
+    color: var(--pink-dark) !important;
+  }
 </style>
 </head>
 <body>
@@ -740,7 +744,7 @@
 
 <nav class="navbar navbar-expand-lg sticky-top">
   <div class="container">
-    <a class="navbar-brand" href="front_page.php">
+    <a class="navbar-brand" href="#">
       <i class="bi bi-qr-code me-2"></i>VetCareQR
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -748,14 +752,13 @@
     </button>
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav ms-auto">
-        <li class="nav-item"><a class="nav-link active" href="front_page.php">Home</a></li>
-        <li class="nav-item"><a class="nav-link" href="about.php">About</a></li>
+        <li class="nav-item"><a class="nav-link active" href="#">Home</a></li>
         <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
         <li class="nav-item"><a class="nav-link" href="#research">Research</a></li>
         <li class="nav-item"><a class="nav-link" href="#team">Team</a></li>
         <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
         <li class="nav-item ms-2"><a class="btn btn-outline-pink mt-1 mt-lg-0" href="#" onclick="showRoleModal()">Login</a></li>
-        <li class="nav-item ms-2"><a class="btn btn-pink mt-1 mt-lg-0" href="register.php">Get Started</a></li>
+        <li class="nav-item ms-2"><a class="btn btn-pink mt-1 mt-lg-0" href="#">Get Started</a></li>
       </ul>
     </div>
   </div>
@@ -778,7 +781,7 @@
         <p class="hero-subtitle">VetCareQR revolutionizes pet healthcare with QR-based medical records, predictive analytics, and real-time risk monitoring for healthier pet communities.</p>
 
         <div class="cta-group">
-          <a class="btn btn-pink" href="register.php">Get Started Free</a>
+          <a class="btn btn-pink" href="#">Get Started Free</a>
           <a class="btn btn-outline-pink" href="#" onclick="showRoleModal()">Login to Your Account</a>
         </div>
 
@@ -878,9 +881,6 @@
           <p>Leveraging QR codes for instant access to medical records enables faster treatment decisions during emergencies, reducing response time by 65%.</p>
         </div>
       </div>
-      <div class="col-md-6" data-aos="fade-up" data
-        </div>
-      </div>
       <div class="col-md-6" data-aos="fade-up" data-aos-delay="300">
         <div class="research-card">
           <h5>Data Security & Privacy</h5>
@@ -893,10 +893,6 @@
           <p>Our system analyzes vaccination schedules, breed-specific health risks, and regional disease patterns to provide proactive healthcare recommendations.</p>
         </div>
       </div>
-    </div>
-    
-    <div class="text-center mt-5" data-aos="fade-up">
-      <a href="#" class="btn btn-outline-pink">View Full Research Paper</a>
     </div>
   </div>
 </section>
@@ -985,7 +981,7 @@
       
       <div class="col-lg-6" data-aos="fade-left" data-aos-delay="200">
         <div class="feature-card">
-          <form>
+          <form id="contactForm">
             <div class="row g-3">
               <div class="col-md-6">
                 <label for="name" class="form-label">Full Name</label>
@@ -1031,10 +1027,10 @@
       <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
         <h5 class="mb-3">Quick Links</h5>
         <ul class="list-unstyled">
-          <li class="mb-2"><a href="front_page.php" class="text-muted text-decoration-none">Home</a></li>
-          <li class="mb-2"><a href="about.php" class="text-muted text-decoration-none">About</a></li>
+          <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Home</a></li>
           <li class="mb-2"><a href="#features" class="text-muted text-decoration-none">Features</a></li>
           <li class="mb-2"><a href="#research" class="text-muted text-decoration-none">Research</a></li>
+          <li class="mb-2"><a href="#team" class="text-muted text-decoration-none">Team</a></li>
         </ul>
       </div>
       <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
@@ -1076,32 +1072,100 @@
 <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
 <script>
   // Initialize AOS (Animate On Scroll)
-  AOS.init({
-    duration: 800,
-    once: true,
-    offset: 100
+  document.addEventListener('DOMContentLoaded', function() {
+    AOS.init({
+      duration: 800,
+      once: true,
+      offset: 100
+    });
+
+    // Hero Slideshow
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    
+    function showSlide(n) {
+      slides.forEach(slide => slide.classList.remove('active'));
+      currentSlide = (n + slides.length) % slides.length;
+      slides[currentSlide].classList.add('active');
+    }
+    
+    function nextSlide() {
+      showSlide(currentSlide + 1);
+    }
+    
+    // Change slide every 5 seconds
+    setInterval(nextSlide, 5000);
+    
+    // Role Selection Modal
+    let selectedRole = null;
+    
+    // Role selection
+    document.querySelectorAll('.role-card').forEach(card => {
+      card.addEventListener('click', function() {
+        document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        selectedRole = this.getAttribute('data-role');
+        
+        const continueBtn = document.getElementById('continueBtn');
+        continueBtn.classList.add('active');
+        continueBtn.disabled = false;
+      });
+    });
+
+    // Contact form submission
+    document.getElementById('contactForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      alert('Thank you for your message! We will get back to you soon.');
+      this.reset();
+    });
+
+    // Verification form submission
+    document.getElementById('verificationForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      alert('Verification successful! Redirecting to login...');
+      // In a real application, you would redirect to the appropriate login page
+      // window.location.href = 'login.php?role=' + selectedRole;
+      hideVerificationModal();
+    });
+
+    // Scroll to top functionality
+    const scrollTopBtn = document.getElementById('scrollTop');
+    
+    window.addEventListener('scroll', function() {
+      if (window.pageYOffset > 300) {
+        scrollTopBtn.classList.add('active');
+      } else {
+        scrollTopBtn.classList.remove('active');
+      }
+    });
+    
+    scrollTopBtn.addEventListener('click', function() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
+    
+    // Smooth scrolling for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        
+        const targetId = this.getAttribute('href');
+        if (targetId === '#') return;
+        
+        const targetElement = document.querySelector(targetId);
+        if (targetElement) {
+          window.scrollTo({
+            top: targetElement.offsetTop - 80,
+            behavior: 'smooth'
+          });
+        }
+      });
+    });
   });
 
-  // Hero Slideshow
-  let currentSlide = 0;
-  const slides = document.querySelectorAll('.slide');
-  
-  function showSlide(n) {
-    slides.forEach(slide => slide.classList.remove('active'));
-    currentSlide = (n + slides.length) % slides.length;
-    slides[currentSlide].classList.add('active');
-  }
-  
-  function nextSlide() {
-    showSlide(currentSlide + 1);
-  }
-  
-  // Change slide every 5 seconds
-  setInterval(nextSlide, 5000);
-  
-  // Role Selection Modal
-  let selectedRole = null;
-  
+  // Modal functions (need to be global)
   function showRoleModal() {
     document.getElementById('roleModal').classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -1117,19 +1181,6 @@
     document.body.style.overflow = 'auto';
   }
   
-  // Role selection
-  document.querySelectorAll('.role-card').forEach(card => {
-    card.addEventListener('click', function() {
-      document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
-      this.classList.add('active');
-      selectedRole = this.getAttribute('data-role');
-      
-      const continueBtn = document.getElementById('continueBtn');
-      continueBtn.classList.add('active');
-      continueBtn.disabled = false;
-    });
-  });
-  
   function handleRoleSelection() {
     if (!selectedRole) return;
     
@@ -1144,7 +1195,8 @@
     switch(selectedRole) {
       case 'user':
         // Redirect pet owners directly to login
-        window.location.href = 'login.php?role=user';
+        alert('Redirecting to user login...');
+        // window.location.href = 'login.php?role=user';
         return;
       case 'veterinarian':
         roleTitle.textContent = 'Professional Verification Required';
@@ -1168,67 +1220,6 @@
     hideVerificationModal();
     showRoleModal();
   }
-  
-  // Verification form submission
-  document.getElementById('verificationForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    // In a real application, you would verify credentials with a server
-    // For demo purposes, we'll simulate successful verification
-    
-    let redirectUrl = 'login.php';
-    if (selectedRole === 'veterinarian') {
-      redirectUrl += '?role=veterinarian';
-    } else if (selectedRole === 'admin') {
-      redirectUrl += '?role=admin';
-    }
-    
-    // Redirect to login page
-    window.location.href = redirectUrl;
-  });
-  
-  // Scroll to top functionality
-  const scrollTopBtn = document.getElementById('scrollTop');
-  
-  window.addEventListener('scroll', function() {
-    if (window.pageYOffset > 300) {
-      scrollTopBtn.classList.add('active');
-    } else {
-      scrollTopBtn.classList.remove('active');
-    }
-  });
-  
-  scrollTopBtn.addEventListener('click', function() {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  });
-  
-  // Smooth scrolling for anchor links
-  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-      e.preventDefault();
-      
-      const targetId = this.getAttribute('href');
-      if (targetId === '#') return;
-      
-      const targetElement = document.querySelector(targetId);
-      if (targetElement) {
-        window.scrollTo({
-          top: targetElement.offsetTop - 80,
-          behavior: 'smooth'
-        });
-      }
-    });
-  });
-  
-  // Auto-show role modal on page load (for demo purposes)
-  // In production, you might want to remove this or conditionally show it
-  window.addEventListener('load', function() {
-    // Uncomment the line below to automatically show the role modal on page load
-    // setTimeout(showRoleModal, 1000);
-  });
 </script>
 </body>
 </html>
