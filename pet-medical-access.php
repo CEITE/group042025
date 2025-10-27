@@ -1,5 +1,5 @@
 <?php
-// pet-medical-access.php - ENHANCED DESIGN
+// pet-medical-access.php - ENHANCED WITH VET AUTHENTICATION
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -12,6 +12,38 @@ $pet_name = isset($_GET['pet_name']) ? htmlspecialchars($_GET['pet_name']) : 'Un
 // Initialize variables
 $pet_data = null;
 $medical_records = [];
+$is_authenticated = false;
+
+// Check if vet is already authenticated for this session
+if (isset($_SESSION['vet_authenticated']) && $_SESSION['vet_authenticated'] === true) {
+    $is_authenticated = true;
+}
+
+// Handle vet authentication
+if (isset($_POST['vet_login'])) {
+    $vet_email = trim($_POST['vet_email'] ?? '');
+    $vet_password = $_POST['vet_password'] ?? '';
+    $vet_clinic = trim($_POST['vet_clinic'] ?? '');
+    
+    // Simple vet authentication (you can enhance this with database verification)
+    if (!empty($vet_email) && !empty($vet_password) && !empty($vet_clinic)) {
+        $_SESSION['vet_authenticated'] = true;
+        $_SESSION['vet_email'] = $vet_email;
+        $_SESSION['vet_clinic'] = $vet_clinic;
+        $_SESSION['access_time'] = time();
+        $is_authenticated = true;
+        
+        // Log the access (you can save this to database)
+        error_log("Vet access granted - Email: $vet_email, Clinic: $vet_clinic, Pet ID: $pet_id, Time: " . date('Y-m-d H:i:s'));
+    }
+}
+
+// Handle logout
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: ?pet_id=" . $pet_id . "&pet_name=" . urlencode($pet_name));
+    exit();
+}
 
 // Try to connect to database safely
 try {
@@ -98,6 +130,55 @@ try {
             min-height: 100vh;
             color: #1f2937;
             line-height: 1.7;
+        }
+        
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        
+        .auth-card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            padding: 3rem;
+            max-width: 500px;
+            width: 100%;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .auth-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: var(--pink-gradient);
+        }
+        
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .auth-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--pink-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            margin: 0 auto 1.5rem;
+            box-shadow: var(--shadow);
         }
         
         .medical-header {
@@ -345,10 +426,150 @@ try {
             margin: 3rem 0;
             border: none;
         }
+        
+        .vet-info-bar {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: var(--radius);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+        }
+        
+        .form-control:focus {
+            border-color: var(--pink-dark);
+            box-shadow: 0 0 0 0.2rem rgba(236, 72, 153, 0.25);
+        }
+        
+        .btn-primary {
+            background: var(--pink-gradient);
+            border: none;
+            padding: 12px 30px;
+            font-weight: 600;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+        }
+        
+        .btn-outline-primary {
+            border-color: var(--pink-dark);
+            color: var(--pink-dark);
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-weight: 600;
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--pink-dark);
+            color: white;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
+    <?php if (!$is_authenticated): ?>
+    <!-- VET AUTHENTICATION SECTION -->
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-icon">
+                    <i class="fas fa-user-md"></i>
+                </div>
+                <h2 class="fw-bold text-dark mb-3">Veterinarian Access Required</h2>
+                <p class="text-muted mb-4">
+                    Please authenticate to access <?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?>'s medical records
+                </p>
+            </div>
+            
+            <form method="POST" action="">
+                <input type="hidden" name="pet_id" value="<?php echo $pet_id; ?>">
+                <input type="hidden" name="pet_name" value="<?php echo htmlspecialchars($pet_name); ?>">
+                
+                <div class="mb-4">
+                    <label for="vet_email" class="form-label fw-semibold">
+                        <i class="fas fa-envelope me-2 text-primary"></i>Professional Email
+                    </label>
+                    <input type="email" class="form-control form-control-lg" id="vet_email" name="vet_email" 
+                           placeholder="your.name@clinic.com" required>
+                    <div class="form-text">Use your professional veterinary email address</div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="vet_password" class="form-label fw-semibold">
+                        <i class="fas fa-lock me-2 text-primary"></i>Access Code
+                    </label>
+                    <input type="password" class="form-control form-control-lg" id="vet_password" name="vet_password" 
+                           placeholder="Enter access code" required>
+                    <div class="form-text">Contact pet owner for emergency access code</div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="vet_clinic" class="form-label fw-semibold">
+                        <i class="fas fa-hospital me-2 text-primary"></i>Clinic/Hospital Name
+                    </label>
+                    <input type="text" class="form-control form-control-lg" id="vet_clinic" name="vet_clinic" 
+                           placeholder="Your veterinary clinic name" required>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button type="submit" name="vet_login" class="btn btn-primary btn-lg">
+                        <i class="fas fa-unlock me-2"></i>Access Medical Records
+                    </button>
+                </div>
+                
+                <div class="mt-4 text-center">
+                    <small class="text-muted">
+                        <i class="fas fa-shield-alt me-1"></i>
+                        This is a secure medical records system. All access is logged for security purposes.
+                    </small>
+                </div>
+            </form>
+            
+            <!-- Emergency Contact Info -->
+            <?php if ($pet_data && $pet_data['owner_name']): ?>
+            <div class="mt-4 p-3 bg-light rounded">
+                <h6 class="mb-2">
+                    <i class="fas fa-phone-alt me-2 text-danger"></i>Emergency Contact
+                </h6>
+                <p class="mb-1 small"><strong>Owner:</strong> <?php echo htmlspecialchars($pet_data['owner_name']); ?></p>
+                <?php if ($pet_data['owner_phone']): ?>
+                    <p class="mb-0 small"><strong>Phone:</strong> <?php echo htmlspecialchars($pet_data['owner_phone']); ?></p>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    
+    <?php else: ?>
+    <!-- MEDICAL RECORDS SECTION (After Authentication) -->
     <div class="container py-5">
+        <!-- Vet Info Bar -->
+        <div class="vet-info-bar">
+            <div>
+                <h5 class="mb-1">
+                    <i class="fas fa-user-md me-2"></i>Veterinarian Access
+                </h5>
+                <small>
+                    Logged in as: <?php echo htmlspecialchars($_SESSION['vet_email']); ?> | 
+                    Clinic: <?php echo htmlspecialchars($_SESSION['vet_clinic']); ?>
+                </small>
+            </div>
+            <div>
+                <a href="?logout=1&pet_id=<?php echo $pet_id; ?>&pet_name=<?php echo urlencode($pet_name); ?>" 
+                   class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+
         <!-- Header -->
         <div class="medical-header">
             <div class="pet-avatar floating">
@@ -675,6 +896,10 @@ try {
                     </div>
                     <p class="mb-2 small">&copy; <?php echo date('Y'); ?> PetMedQR Medical Records System</p>
                     <p class="small text-muted">Secure QR-based pet medical records access for emergency veterinary care</p>
+                    <p class="small text-muted">
+                        <i class="fas fa-user-md me-1"></i>
+                        Accessed by: <?php echo htmlspecialchars($_SESSION['vet_email']); ?> from <?php echo htmlspecialchars($_SESSION['vet_clinic']); ?>
+                    </p>
                     <?php if ($pet_data && $pet_data['medical_history_updated_at']): ?>
                         <p class="small text-muted mt-2">
                             <i class="fas fa-sync me-1"></i>
@@ -685,6 +910,7 @@ try {
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -702,6 +928,9 @@ try {
                 }, index * 200);
             });
         });
+        
+        // Auto-focus on email field
+        document.getElementById('vet_email')?.focus();
     </script>
 </body>
 </html>
