@@ -14,6 +14,8 @@ $vet_session = isset($_GET['vet_session']) ? $_GET['vet_session'] : '';
 // Initialize variables
 $pet_data = null;
 $medical_records = [];
+$vaccinations = [];
+$allergies = [];
 $is_authenticated = false;
 $auth_error = '';
 $access_request = null;
@@ -271,6 +273,7 @@ if ($is_authenticated) {
     try {
         include("conn.php");
         if ($pet_id > 0) {
+            // Fetch basic pet information
             $stmt = $conn->prepare("SELECT p.*, u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone FROM pets p LEFT JOIN users u ON p.user_id = u.user_id WHERE p.pet_id = ?");
             $stmt->bind_param("i", $pet_id);
             $stmt->execute();
@@ -278,10 +281,25 @@ if ($is_authenticated) {
             $pet_data = $result->fetch_assoc();
             $stmt->close();
 
+            // Fetch medical records
             $stmt = $conn->prepare("SELECT * FROM pet_medical_records WHERE pet_id = ? ORDER BY record_date DESC");
             $stmt->bind_param("i", $pet_id);
             $stmt->execute();
             $medical_records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+
+            // Fetch vaccinations
+            $stmt = $conn->prepare("SELECT * FROM pet_vaccinations WHERE pet_id = ? ORDER BY vaccination_date DESC");
+            $stmt->bind_param("i", $pet_id);
+            $stmt->execute();
+            $vaccinations = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+
+            // Fetch allergies
+            $stmt = $conn->prepare("SELECT * FROM pet_allergies WHERE pet_id = ?");
+            $stmt->bind_param("i", $pet_id);
+            $stmt->execute();
+            $allergies = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             $stmt->close();
         }
     } catch (Exception $e) {
@@ -309,13 +327,13 @@ if ($is_authenticated) {
         .auth-icon { width: 80px; height: 80px; border-radius: 50%; background: var(--pink-gradient); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: white; margin: 0 auto 1.5rem; }
         .waiting-animation { animation: pulse 2s infinite; }
         @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .medical-record-card { border-left: 4px solid #0d6efd; }
+        .vaccination-card { border-left: 4px solid #198754; }
+        .allergy-card { border-left: 4px solid #dc3545; }
+        .info-card { border-left: 4px solid #6f42c1; }
     </style>
 </head>
 <body>
-<?php
-// KEEP YOUR FRONTEND SECTIONS BELOW (unchanged)
-?>
-
     <?php if (isset($success_message) && !$is_authenticated && !isset($submitted_request_id)): ?>
     <!-- Success Message for Owner (After Approval/Rejection) -->
     <div class="auth-container">
@@ -333,18 +351,331 @@ if ($is_authenticated) {
     <!-- MEDICAL RECORDS SECTION (Veterinarian Access After Approval) -->
     <div class="container py-5">
         <!-- Vet Info Bar -->
-        <div class="alert alert-success">
-            <i class="fas fa-check-circle me-2"></i>
-            Access granted! You can now view <?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?>'s medical records.
+        <div class="alert alert-success d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-check-circle me-2"></i>
+                Access granted! You can now view <?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?>'s medical records.
+            </div>
+            <div class="text-muted small">
+                <i class="fas fa-clock me-1"></i>
+                Session expires: <?php echo date('g:i A', strtotime('+2 hours')); ?>
+            </div>
         </div>
-        
-        <!-- Your medical records display code here -->
-        <h1>Medical Records for <?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?></h1>
-        <p>Veterinarian: <?php echo htmlspecialchars($_SESSION['vet_email']); ?></p>
-        <p>Clinic: <?php echo htmlspecialchars($_SESSION['vet_clinic']); ?></p>
-        
-        <!-- Add your full medical records display sections here -->
-        
+
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1 class="display-5 fw-bold text-primary">
+                        <i class="fas fa-paw me-2"></i>
+                        <?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?>'s Medical Records
+                    </h1>
+                    <div class="text-end">
+                        <p class="mb-1"><strong>Veterinarian:</strong> <?php echo htmlspecialchars($_SESSION['vet_email']); ?></p>
+                        <p class="mb-0"><strong>Clinic:</strong> <?php echo htmlspecialchars($_SESSION['vet_clinic']); ?></p>
+                    </div>
+                </div>
+                <hr>
+            </div>
+        </div>
+
+        <!-- Pet Information Card -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card info-card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Pet Information
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <?php if ($pet_data): ?>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Name:</strong> <?php echo htmlspecialchars($pet_data['name']); ?></p>
+                                <p><strong>Species:</strong> <?php echo htmlspecialchars($pet_data['species'] ?? 'Not specified'); ?></p>
+                                <p><strong>Breed:</strong> <?php echo htmlspecialchars($pet_data['breed'] ?? 'Not specified'); ?></p>
+                                <p><strong>Color:</strong> <?php echo htmlspecialchars($pet_data['color'] ?? 'Not specified'); ?></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Date of Birth:</strong> <?php echo $pet_data['date_of_birth'] ? date('F j, Y', strtotime($pet_data['date_of_birth'])) : 'Unknown'; ?></p>
+                                <p><strong>Age:</strong> 
+                                    <?php 
+                                    if ($pet_data['date_of_birth']) {
+                                        $birthDate = new DateTime($pet_data['date_of_birth']);
+                                        $today = new DateTime();
+                                        $age = $today->diff($birthDate);
+                                        echo $age->y . ' years, ' . $age->m . ' months';
+                                    } else {
+                                        echo 'Unknown';
+                                    }
+                                    ?>
+                                </p>
+                                <p><strong>Weight:</strong> <?php echo $pet_data['weight'] ? htmlspecialchars($pet_data['weight']) . ' kg' : 'Not specified'; ?></p>
+                                <p><strong>Microchip:</strong> <?php echo !empty($pet_data['microchip_number']) ? htmlspecialchars($pet_data['microchip_number']) : 'Not registered'; ?></p>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <p><strong>Owner:</strong> <?php echo htmlspecialchars($pet_data['owner_name'] ?? 'Unknown'); ?></p>
+                                <p><strong>Contact:</strong> <?php echo htmlspecialchars($pet_data['owner_email'] ?? 'Unknown'); ?> 
+                                    <?php if (!empty($pet_data['owner_phone'])): ?>
+                                    | <?php echo htmlspecialchars($pet_data['owner_phone']); ?>
+                                    <?php endif; ?>
+                                </p>
+                            </div>
+                        </div>
+                        <?php if (!empty($pet_data['medical_notes'])): ?>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <p><strong>Medical Notes:</strong></p>
+                                <div class="alert alert-light border">
+                                    <?php echo nl2br(htmlspecialchars($pet_data['medical_notes'])); ?>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                        <?php else: ?>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No pet information found.
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Allergies Section -->
+        <?php if (!empty($allergies)): ?>
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card allergy-card shadow-sm">
+                    <div class="card-header bg-danger text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-skull-crossbones me-2"></i>
+                            Known Allergies & Sensitivities
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Allergen</th>
+                                        <th>Reaction</th>
+                                        <th>Severity</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($allergies as $allergy): ?>
+                                    <tr>
+                                        <td><strong><?php echo htmlspecialchars($allergy['allergen']); ?></strong></td>
+                                        <td><?php echo htmlspecialchars($allergy['reaction']); ?></td>
+                                        <td>
+                                            <span class="badge 
+                                                <?php echo $allergy['severity'] == 'Severe' ? 'bg-danger' : 
+                                                         ($allergy['severity'] == 'Moderate' ? 'bg-warning' : 'bg-info'); ?>">
+                                                <?php echo htmlspecialchars($allergy['severity']); ?>
+                                            </span>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($allergy['notes'] ?? 'None'); ?></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Vaccinations Section -->
+        <?php if (!empty($vaccinations)): ?>
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card vaccination-card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-syringe me-2"></i>
+                            Vaccination History
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Vaccine</th>
+                                        <th>Date Administered</th>
+                                        <th>Next Due</th>
+                                        <th>Veterinarian</th>
+                                        <th>Lot Number</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($vaccinations as $vaccination): ?>
+                                    <tr>
+                                        <td><strong><?php echo htmlspecialchars($vaccination['vaccine_name']); ?></strong></td>
+                                        <td><?php echo date('M j, Y', strtotime($vaccination['vaccination_date'])); ?></td>
+                                        <td>
+                                            <?php if ($vaccination['next_due_date']): ?>
+                                                <?php 
+                                                $nextDue = new DateTime($vaccination['next_due_date']);
+                                                $today = new DateTime();
+                                                if ($nextDue < $today) {
+                                                    echo '<span class="badge bg-danger">OVERDUE: ' . $nextDue->format('M j, Y') . '</span>';
+                                                } else {
+                                                    echo $nextDue->format('M j, Y');
+                                                }
+                                                ?>
+                                            <?php else: ?>
+                                                <span class="text-muted">Not specified</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($vaccination['administered_by'] ?? 'Unknown'); ?></td>
+                                        <td><?php echo htmlspecialchars($vaccination['lot_number'] ?? 'N/A'); ?></td>
+                                        <td><?php echo htmlspecialchars($vaccination['notes'] ?? 'None'); ?></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Medical Records Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card medical-record-card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-file-medical me-2"></i>
+                            Medical History & Visit Records
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <?php if (!empty($medical_records)): ?>
+                            <div class="accordion" id="medicalRecordsAccordion">
+                                <?php foreach ($medical_records as $index => $record): ?>
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="heading<?php echo $index; ?>">
+                                        <button class="accordion-button <?php echo $index > 0 ? 'collapsed' : ''; ?>" 
+                                                type="button" data-bs-toggle="collapse" 
+                                                data-bs-target="#collapse<?php echo $index; ?>" 
+                                                aria-expanded="<?php echo $index === 0 ? 'true' : 'false'; ?>" 
+                                                aria-controls="collapse<?php echo $index; ?>">
+                                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                                <div>
+                                                    <strong><?php echo htmlspecialchars($record['visit_type']); ?></strong> 
+                                                    - <?php echo date('F j, Y', strtotime($record['record_date'])); ?>
+                                                </div>
+                                                <div>
+                                                    <span class="badge 
+                                                        <?php echo $record['urgency'] == 'Emergency' ? 'bg-danger' : 
+                                                                 ($record['urgency'] == 'Urgent' ? 'bg-warning' : 'bg-info'); ?> me-2">
+                                                        <?php echo htmlspecialchars($record['urgency']); ?>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse<?php echo $index; ?>" 
+                                         class="accordion-collapse collapse <?php echo $index === 0 ? 'show' : ''; ?>" 
+                                         aria-labelledby="heading<?php echo $index; ?>" 
+                                         data-bs-parent="#medicalRecordsAccordion">
+                                        <div class="accordion-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <p><strong>Veterinarian:</strong> <?php echo htmlspecialchars($record['veterinarian_name'] ?? 'Unknown'); ?></p>
+                                                    <p><strong>Clinic:</strong> <?php echo htmlspecialchars($record['clinic_name'] ?? 'Unknown'); ?></p>
+                                                    <p><strong>Diagnosis:</strong> <?php echo htmlspecialchars($record['diagnosis'] ?? 'Not specified'); ?></p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <p><strong>Temperature:</strong> <?php echo $record['temperature'] ? htmlspecialchars($record['temperature']) . '°C' : 'Not recorded'; ?></p>
+                                                    <p><strong>Weight:</strong> <?php echo $record['weight'] ? htmlspecialchars($record['weight']) . ' kg' : 'Not recorded'; ?></p>
+                                                    <p><strong>Heart Rate:</strong> <?php echo $record['heart_rate'] ? htmlspecialchars($record['heart_rate']) . ' bpm' : 'Not recorded'; ?></p>
+                                                </div>
+                                            </div>
+                                            
+                                            <?php if (!empty($record['symptoms'])): ?>
+                                            <div class="mt-3">
+                                                <strong>Symptoms:</strong>
+                                                <div class="alert alert-light border">
+                                                    <?php echo nl2br(htmlspecialchars($record['symptoms'])); ?>
+                                                </div>
+                                            </div>
+                                            <?php endif; ?>
+                                            
+                                            <?php if (!empty($record['treatment'])): ?>
+                                            <div class="mt-3">
+                                                <strong>Treatment:</strong>
+                                                <div class="alert alert-light border">
+                                                    <?php echo nl2br(htmlspecialchars($record['treatment'])); ?>
+                                                </div>
+                                            </div>
+                                            <?php endif; ?>
+                                            
+                                            <?php if (!empty($record['medications'])): ?>
+                                            <div class="mt-3">
+                                                <strong>Medications Prescribed:</strong>
+                                                <div class="alert alert-light border">
+                                                    <?php echo nl2br(htmlspecialchars($record['medications'])); ?>
+                                                </div>
+                                            </div>
+                                            <?php endif; ?>
+                                            
+                                            <?php if (!empty($record['notes'])): ?>
+                                            <div class="mt-3">
+                                                <strong>Additional Notes:</strong>
+                                                <div class="alert alert-light border">
+                                                    <?php echo nl2br(htmlspecialchars($record['notes'])); ?>
+                                                </div>
+                                            </div>
+                                            <?php endif; ?>
+                                            
+                                            <?php if (!empty($record['follow_up_date'])): ?>
+                                            <div class="mt-3">
+                                                <strong>Follow-up Date:</strong> 
+                                                <span class="badge bg-info">
+                                                    <?php echo date('F j, Y', strtotime($record['follow_up_date'])); ?>
+                                                </span>
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-info text-center">
+                                <i class="fas fa-info-circle me-2"></i>
+                                No medical records found for this pet.
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Note -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="alert alert-secondary text-center">
+                    <small>
+                        <i class="fas fa-shield-alt me-1"></i>
+                        This access is temporary and will expire automatically. All access is logged for security purposes.
+                    </small>
+                </div>
+            </div>
+        </div>
     </div>
     
     <?php elseif (isset($submitted_request_id)): ?>
@@ -463,4 +794,3 @@ if ($is_authenticated) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
