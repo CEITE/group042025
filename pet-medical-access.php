@@ -117,7 +117,7 @@ try {
                     if ($check_result->num_rows === 0) {
                         // Generate access key and set expiration
                         $access_key = bin2hex(random_bytes(16));
-                        $expires_at = date('Y-m-d H:i:s', strtotime('+30 days'));
+                        $expires_at = date('Y-m-d H:i:s', strtotime('+24 hours'));
                         $ip_address = $_SERVER['REMOTE_ADDR'];
                         $user_agent = $_SERVER['HTTP_USER_AGENT'];
                         
@@ -162,77 +162,119 @@ try {
 // Function to send access request email to pet owner
 function sendAccessRequestEmail($pet_data, $vet_email, $vet_clinic, $vet_phone, $purpose, $access_key, $request_id) {
     $to = $pet_data['owner_email'];
-    $subject = "Medical Records Access Request for " . $pet_data['name'];
+    $subject = "Access Request for " . $pet_data['name'] . "'s Medical Records";
     
     $current_domain = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
     $approve_url = $current_domain . dirname($_SERVER['PHP_SELF']) . "/approve_vet_request.php?request_id=" . $request_id . "&token=" . $access_key . "&action=approve";
     $reject_url = $current_domain . dirname($_SERVER['PHP_SELF']) . "/approve_vet_request.php?request_id=" . $request_id . "&token=" . $access_key . "&action=reject";
-    $manage_url = $current_domain . dirname($_SERVER['PHP_SELF']) . "/manage_access_requests.php";
     
-    $message = "
+    $message = '
     <!DOCTYPE html>
     <html>
     <head>
+        <meta charset="UTF-8">
         <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #f9a8d4 0%, #ec4899 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-            .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ec4899; }
-            .button { display: inline-block; padding: 12px 24px; margin: 10px 5px; text-decoration: none; border-radius: 5px; font-weight: bold; color: white; }
-            .approve { background-color: #10b981; }
-            .reject { background-color: #ef4444; }
-            .manage { background-color: #3b82f6; }
+            body { 
+                font-family: Arial, sans-serif; 
+                line-height: 1.6; 
+                color: #333; 
+                margin: 0; 
+                padding: 0; 
+                background-color: #f9f9f9;
+            }
+            .container { 
+                max-width: 600px; 
+                margin: 0 auto; 
+                padding: 20px; 
+                background-color: #ffffff;
+            }
+            .header { 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                color: white; 
+                padding: 30px; 
+                text-align: center; 
+                border-radius: 10px 10px 0 0; 
+            }
+            .content { 
+                padding: 30px; 
+                border: 1px solid #e0e0e0;
+                border-top: none;
+                border-radius: 0 0 10px 10px;
+            }
+            .request-details {
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 8px;
+                margin: 20px 0;
+                border-left: 4px solid #667eea;
+            }
+            .button { 
+                display: inline-block; 
+                padding: 12px 30px; 
+                margin: 10px 10px 10px 0; 
+                text-decoration: none; 
+                border-radius: 5px; 
+                font-weight: bold; 
+                color: white; 
+                text-align: center;
+            }
+            .approve { 
+                background-color: #28a745; 
+            }
+            .reject { 
+                background-color: #dc3545; 
+            }
+            .footer {
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #e0e0e0;
+                color: #666;
+                font-size: 12px;
+            }
         </style>
     </head>
     <body>
-        <div class='container'>
-            <div class='header'>
-                <h1>Medical Records Access Request</h1>
-                <p>For your pet: <strong>{$pet_data['name']}</strong></p>
+        <div class="container">
+            <div class="header">
+                <h1>PetMedQR Access Request</h1>
             </div>
-            <div class='content'>
-                <p>Hello {$pet_data['owner_name']},</p>
-                <p>A veterinarian has requested access to the medical records of your pet, <strong>{$pet_data['name']}</strong>.</p>
+            <div class="content">
+                <p>Hello ' . htmlspecialchars($pet_data['owner_name']) . ',</p>
+                <p>A veterinarian has requested access to ' . htmlspecialchars($pet_data['name']) . '\'s medical records.</p>
                 
-                <div class='info-box'>
-                    <h3 style='margin-top: 0; color: #ec4899;'>Veterinarian Information:</h3>
-                    <p><strong>Email:</strong> {$vet_email}</p>
-                    <p><strong>Clinic:</strong> {$vet_clinic}</p>
-                    " . (!empty($vet_phone) ? "<p><strong>Phone:</strong> {$vet_phone}</p>" : "") . "
-                    <p><strong>Purpose:</strong> {$purpose}</p>
-                    <p><strong>Request ID:</strong> #{$request_id}</p>
-                    <p><strong>Request Time:</strong> " . date('F j, Y \a\t g:i A') . "</p>
+                <div class="request-details">
+                    <h3 style="margin-top: 0; color: #333;">Request Details:</h3>
+                    <p><strong>Veterinarian:</strong> ' . htmlspecialchars($vet_email) . '</p>
+                    <p><strong>Clinic:</strong> ' . htmlspecialchars($vet_clinic) . '</p>
+                    ' . (!empty($vet_phone) ? '<p><strong>Phone:</strong> ' . htmlspecialchars($vet_phone) . '</p>' : '') . '
+                    <p><strong>Purpose:</strong> ' . htmlspecialchars($purpose) . '</p>
+                    <p><strong>Request Time:</strong> ' . date('F j, Y g:i A') . '</p>
+                    <p><strong>Pet:</strong> ' . htmlspecialchars($pet_data['name']) . '</p>
                 </div>
                 
-                <h3>Quick Actions:</h3>
-                <p>You can quickly approve or reject this request using the links below:</p>
-                <p style='text-align: center;'>
-                    <a href='{$approve_url}' class='button approve'>✓ Approve Access</a>
-                    <a href='{$reject_url}' class='button reject'>✗ Reject Request</a>
+                <p>Please review this request and choose to approve or reject it:</p>
+                
+                <p>
+                    <a href="' . $approve_url . '" class="button approve">Approve Access</a>
+                    <a href="' . $reject_url . '" class="button reject">Reject Access</a>
                 </p>
                 
-                <p>Or manage all access requests from your dashboard:</p>
-                <p style='text-align: center;'>
-                    <a href='{$manage_url}' class='button manage'>Manage All Requests</a>
-                </p>
+                <p><em>This request will expire in 24 hours. If you didn\'t expect this request, please reject it immediately.</em></p>
                 
-                <p><em>This request will expire in 30 days if not approved.</em></p>
-                
-                <hr>
-                <p style='color: #666; font-size: 12px;'>
-                    This is an automated message from PetMedQR System. Please do not reply to this email.
-                </p>
+                <div class="footer">
+                    <p>PetMedQR Medical Records System</p>
+                    <p>This is an automated message. Please do not reply to this email.</p>
+                </div>
             </div>
         </div>
     </body>
     </html>
-    ";
+    ';
     
     $headers = "MIME-Version: 1.0" . "\r\n";
     $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-    $headers .= "From: PetMedQR <noreply@" . $_SERVER['HTTP_HOST'] . ">" . "\r\n";
-    $headers .= "Reply-To: noreply@" . $_SERVER['HTTP_HOST'] . "\r\n";
+    $headers .= "From: PetMedQR <noreply@petmedqr.com>" . "\r\n";
+    $headers .= "Reply-To: noreply@petmedqr.com" . "\r\n";
     
     // Send email
     mail($to, $subject, $message, $headers);
