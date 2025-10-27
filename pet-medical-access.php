@@ -1,5 +1,5 @@
 <?php
-// pet-medical-access.php - FIXED: VET GETS ACCESS AFTER OWNER APPROVAL
+// pet-medical-access.php - REAL-TIME ACCESS AFTER APPROVAL
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -10,7 +10,7 @@ $pet_id = isset($_GET['pet_id']) ? intval($_GET['pet_id']) : 0;
 $pet_name = isset($_GET['pet_name']) ? htmlspecialchars($_GET['pet_name']) : 'Unknown Pet';
 $request_id = isset($_GET['request_id']) ? intval($_GET['request_id']) : 0;
 $token = isset($_GET['token']) ? $_GET['token'] : '';
-$access_key = isset($_GET['access_key']) ? $_GET['access_key'] : '';
+$check_approval = isset($_GET['check_approval']) ? intval($_GET['check_approval']) : 0;
 
 // Initialize variables
 $pet_data = null;
@@ -81,50 +81,6 @@ function sendAccessRequestEmail($owner_email, $owner_name, $pet_name, $vet_email
     return mail($owner_email, $subject, $message, $headers);
 }
 
-// Function to send approval notification to VET with access link
-function sendApprovalEmail($vet_email, $pet_name, $access_url) {
-    $subject = "Access Approved for $pet_name's Medical Records";
-    
-    $message = "
-    <html>
-    <head>
-        <style>
-            body { font-family: Arial, sans-serif; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #10b981; color: white; padding: 20px; text-align: center; }
-            .content { padding: 20px; background: #f8fafc; }
-            .button { display: inline-block; padding: 12px 24px; background: #ec4899; color: white; text-decoration: none; border-radius: 5px; }
-        </style>
-    </head>
-    <body>
-        <div class='container'>
-            <div class='header'>
-                <h1>Access Approved</h1>
-            </div>
-            <div class='content'>
-                <h2>Access Granted</h2>
-                <p>Your request to access <strong>$pet_name</strong>'s medical records has been approved by the pet owner.</p>
-                
-                <div style='text-align: center; margin: 30px 0;'>
-                    <a href='$access_url' class='button'>View Medical Records Now</a>
-                </div>
-                
-                <p><small>You can also copy and paste this link in your browser:<br>$access_url</small></p>
-                
-                <p><small>This access will expire in 2 hours for security reasons.</small></p>
-            </div>
-        </div>
-    </body>
-    </html>
-    ";
-    
-    $headers = "MIME-Version: 1.0" . "\r\n";
-    $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-    $headers .= "From: PetMedQR <noreply@petmedqr.com>" . "\r\n";
-    
-    return mail($vet_email, $subject, $message, $headers);
-}
-
 // Handle access request approval/rejection
 if (isset($_GET['action']) && $request_id > 0) {
     try {
@@ -149,26 +105,22 @@ if (isset($_GET['action']) && $request_id > 0) {
             
             if (hash_equals($expected_token, $token)) {
                 if ($_GET['action'] === 'approve') {
-                    // Generate unique access key for the vet
-                    $access_key = bin2hex(random_bytes(16));
+                    // Generate session ID for the vet
+                    $session_id = bin2hex(random_bytes(16));
                     $expires_at = date('Y-m-d H:i:s', strtotime('+2 hours'));
                     
-                    // Update the request with access key and approve it
+                    // Update the request with session ID and approve it
                     $stmt = $conn->prepare("
                         UPDATE vet_access_requests 
-                        SET status = 'approved', approved_at = NOW(), access_key = ?, expires_at = ?
+                        SET status = 'approved', approved_at = NOW(), session_id = ?, expires_at = ?, access_granted = TRUE
                         WHERE request_id = ?
                     ");
-                    $stmt->bind_param("ssi", $access_key, $expires_at, $request_id);
+                    $stmt->bind_param("ssi", $session_id, $expires_at, $request_id);
                     $stmt->execute();
                     $stmt->close();
                     
-                    // Send approval email to VET with the access link
-                    $access_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'] . "?pet_id=" . $request_data['pet_id'] . "&access_key=" . $access_key;
-                    sendApprovalEmail($request_data['vet_email'], $request_data['pet_name'], $access_url);
-                    
-                    // Show success message to owner (NOT medical records)
-                    $success_message = "Access has been approved. The veterinarian has been notified and can now access the medical records.";
+                    // Show success message to owner
+                    $success_message = "Access has been approved. The veterinarian can now access the medical records.";
                     
                 } elseif ($_GET['action'] === 'reject') {
                     // Reject the request
@@ -190,42 +142,52 @@ if (isset($_GET['action']) && $request_id > 0) {
     }
 }
 
-// Check if vet is accessing with valid access key
-if (!empty($access_key)) {
+// Check if this is a vet checking for approval status
+if ($check_approval > 0) {
     try {
         include("conn.php");
         
-        // Verify access key is valid and not expired
+        // Check if the request has been approved
         $stmt = $conn->prepare("
             SELECT r.*, p.name as pet_name 
             FROM vet_access_requests r 
             JOIN pets p ON r.pet_id = p.pet_id 
-            WHERE r.access_key = ? AND r.status = 'approved' AND r.expires_at > NOW()
+            WHERE r.request_id = ? AND r.status = 'approved' AND r.access_granted = TRUE
         ");
-        $stmt->bind_param("s", $access_key);
+        $stmt->bind_param("i", $check_approval);
         $stmt->execute();
-        $access_data = $stmt->get_result()->fetch_assoc();
+        $approved_request = $stmt->get_result()->fetch_assoc();
         $stmt->close();
         
-        if ($access_data) {
-            // Valid access key - create session for vet
+        if ($approved_request) {
+            // Create session for the vet
             $_SESSION['vet_authenticated'] = true;
-            $_SESSION['vet_email'] = $access_data['vet_email'];
-            $_SESSION['vet_clinic'] = $access_data['vet_clinic'];
+            $_SESSION['vet_email'] = $approved_request['vet_email'];
+            $_SESSION['vet_clinic'] = $approved_request['vet_clinic'];
             $_SESSION['access_time'] = time();
             $_SESSION['approved_request'] = true;
             $is_authenticated = true;
             
             // Set pet data
-            $pet_id = $access_data['pet_id'];
-            $pet_name = $access_data['pet_name'];
+            $pet_id = $approved_request['pet_id'];
+            $pet_name = $approved_request['pet_name'];
+            
+            // Mark as accessed
+            $stmt = $conn->prepare("UPDATE vet_access_requests SET access_granted = FALSE WHERE request_id = ?");
+            $stmt->bind_param("i", $check_approval);
+            $stmt->execute();
+            $stmt->close();
+            
+            // Redirect to medical records
+            header("Location: ?pet_id=" . $pet_id . "&pet_name=" . urlencode($pet_name));
+            exit();
         }
     } catch (Exception $e) {
-        error_log("Access key verification error: " . $e->getMessage());
+        error_log("Approval check error: " . $e->getMessage());
     }
 }
 
-// Check if vet is already authenticated via session
+// Check if vet is already authenticated
 if (isset($_SESSION['vet_authenticated']) && $_SESSION['vet_authenticated'] === true) {
     // Check session timeout (2 hours)
     if (isset($_SESSION['access_time']) && (time() - $_SESSION['access_time']) > 7200) {
@@ -270,7 +232,7 @@ if (isset($_POST['request_access']) && !$is_authenticated) {
                     (pet_id, vet_email, vet_clinic, vet_phone, access_code, expires_at, ip_address, user_agent) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ");
-                $access_code = bin2hex(random_bytes(8)); // Generate random code
+                $access_code = bin2hex(random_bytes(8));
                 $stmt->bind_param("isssssss", $pet_id, $vet_email, $vet_clinic, $vet_phone, $access_code, $expires_at, $ip_address, $user_agent);
                 $stmt->execute();
                 $request_id = $conn->insert_id;
@@ -293,7 +255,8 @@ if (isset($_POST['request_access']) && !$is_authenticated) {
                 }
                 
                 $request_success = true;
-                $success_message = "Access request sent to the pet owner. You'll receive an email when approved.";
+                $submitted_request_id = $request_id;
+                $success_message = "Access request sent to the pet owner. Waiting for approval...";
             }
         }
     } catch (Exception $e) {
@@ -401,52 +364,20 @@ if ($is_authenticated) {
             color: white;
             margin: 0 auto 1.5rem;
         }
-
-        /* Add this to your existing CSS */
-        .medical-header {
-            background: var(--pink-gradient);
-            color: white;
-            padding: 4rem 2rem;
-            border-radius: var(--radius);
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-            margin-bottom: 3rem;
-            box-shadow: var(--shadow-lg);
+        
+        .waiting-animation {
+            animation: pulse 2s infinite;
         }
         
-        .pet-avatar {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            margin: 0 auto 2rem;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(10px);
-            box-shadow: var(--shadow);
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
-        
-        .vet-info-bar {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            padding: 1rem 2rem;
-            border-radius: var(--radius);
-            margin-bottom: 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: var(--shadow);
-        }
-        
-        /* Add other medical records CSS styles as needed */
     </style>
 </head>
 <body>
-    <?php if (isset($success_message) && !$is_authenticated): ?>
+    <?php if (isset($success_message) && !$is_authenticated && !isset($submitted_request_id)): ?>
     <!-- Success Message for Owner (After Approval/Rejection) -->
     <div class="auth-container">
         <div class="auth-card text-center">
@@ -463,47 +394,62 @@ if ($is_authenticated) {
     
     <?php elseif ($is_authenticated): ?>
     <!-- MEDICAL RECORDS SECTION (Veterinarian Access After Approval) -->
+    <!-- Your existing medical records display code goes here -->
     <div class="container py-5">
-        <!-- Vet Info Bar -->
-        <div class="vet-info-bar">
-            <div>
-                <h5 class="mb-1">
-                    <i class="fas fa-user-md me-2"></i>Approved Veterinary Access
-                </h5>
-                <small>
-                    Access granted to: <?php echo htmlspecialchars($_SESSION['vet_email']); ?> | 
-                    Clinic: <?php echo htmlspecialchars($_SESSION['vet_clinic']); ?> |
-                    <i class="fas fa-clock me-1"></i>Session expires in 2 hours
-                </small>
-            </div>
-            <div>
-                <a href="?logout=1&pet_id=<?php echo $pet_id; ?>&pet_name=<?php echo urlencode($pet_name); ?>" 
-                   class="btn btn-outline-light btn-sm">
-                    <i class="fas fa-sign-out-alt me-1"></i>Logout
-                </a>
-            </div>
-        </div>
-
-        <!-- Header -->
-        <div class="medical-header">
-            <div class="pet-avatar">
-                <i class="fas fa-paw"></i>
-            </div>
-            <h1 class="display-4 fw-bold mb-3"><?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?>'s Medical Profile</h1>
-            <p class="lead mb-4 opacity-90">Complete Medical History & Healthcare Records</p>
-        </div>
-
-        <!-- Your existing medical records display code here -->
-        <!-- Include all the medical records content sections -->
         <div class="alert alert-success">
             <i class="fas fa-check-circle me-2"></i>
             Access granted! You can now view <?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?>'s medical records.
         </div>
-
-        <!-- Add your medical records display sections here -->
-        <!-- Pet Information, Medical Records, History, etc. -->
-        
+        <!-- Include all your medical records display sections -->
     </div>
+    
+    <?php elseif (isset($submitted_request_id)): ?>
+    <!-- WAITING FOR APPROVAL PAGE (Vet sees this after submitting request) -->
+    <div class="auth-container">
+        <div class="auth-card text-center">
+            <div class="auth-icon waiting-animation" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <i class="fas fa-clock"></i>
+            </div>
+            <h2 class="text-warning mb-3">Waiting for Approval</h2>
+            <p class="mb-4">Your access request has been sent to the pet owner. This page will automatically refresh and grant access once approved.</p>
+            
+            <div class="mb-4">
+                <div class="spinner-border text-warning" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            
+            <p class="text-muted small mb-4">
+                <i class="fas fa-sync-alt me-1"></i>
+                Auto-refreshing every 5 seconds...
+            </p>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                You can close this page and return later. You'll need to scan the QR code again to check approval status.
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-check for approval every 5 seconds
+        function checkApproval() {
+            fetch('?check_approval=<?php echo $submitted_request_id; ?>')
+                .then(response => response.text())
+                .then(data => {
+                    // If approved, the page will redirect automatically
+                    // If not approved, continue waiting
+                    setTimeout(checkApproval, 5000);
+                })
+                .catch(error => {
+                    console.error('Error checking approval:', error);
+                    setTimeout(checkApproval, 5000);
+                });
+        }
+        
+        // Start checking for approval
+        setTimeout(checkApproval, 5000);
+    </script>
     
     <?php elseif (!$is_authenticated): ?>
     <!-- ACCESS REQUEST FORM (Initial QR Code Scan) -->
@@ -518,13 +464,7 @@ if ($is_authenticated) {
                     Requesting access to <?php echo htmlspecialchars($pet_name); ?>'s medical records
                 </p>
                 
-                <?php if (isset($request_success)): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="fas fa-check-circle me-2"></i>
-                    Access request sent! The pet owner will review your request and you'll receive an email when approved.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                <?php elseif (!empty($auth_error)): ?>
+                <?php if (!empty($auth_error)): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <?php echo htmlspecialchars($auth_error); ?>
@@ -564,7 +504,7 @@ if ($is_authenticated) {
                 <div class="mt-4 text-center">
                     <small class="text-muted">
                         <i class="fas fa-shield-alt me-1"></i>
-                        The pet owner will receive an email to approve your request. You'll get an email with access link when approved.
+                        The pet owner will receive an email to approve your request. You'll get immediate access once approved.
                     </small>
                 </div>
             </form>
