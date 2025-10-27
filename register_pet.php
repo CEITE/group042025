@@ -966,21 +966,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     <option value="Exotic Shorthair" <?php echo ($_POST['breed'] ?? '') == 'Exotic Shorthair' ? 'selected' : ''; ?>>Exotic Shorthair</option>
                                     <option value="Other Cat Breed" <?php echo ($_POST['breed'] ?? '') == 'Other Cat Breed' ? 'selected' : ''; ?>>Other Cat Breed</option>
                                 </optgroup>
-                                
-                                <!-- Other Animals -->
-                                <optgroup label="🐾 Other Animals">
-                                    <option value="Parakeet" <?php echo ($_POST['breed'] ?? '') == 'Parakeet' ? 'selected' : ''; ?>>Parakeet</option>
-                                    <option value="Cockatiel" <?php echo ($_POST['breed'] ?? '') == 'Cockatiel' ? 'selected' : ''; ?>>Cockatiel</option>
-                                    <option value="Lovebird" <?php echo ($_POST['breed'] ?? '') == 'Lovebird' ? 'selected' : ''; ?>>Lovebird</option>
-                                    <option value="Canary" <?php echo ($_POST['breed'] ?? '') == 'Canary' ? 'selected' : ''; ?>>Canary</option>
-                                    <option value="Finch" <?php echo ($_POST['breed'] ?? '') == 'Finch' ? 'selected' : ''; ?>>Finch</option>
-                                    <option value="Hamster" <?php echo ($_POST['breed'] ?? '') == 'Hamster' ? 'selected' : ''; ?>>Hamster</option>
-                                    <option value="Guinea Pig" <?php echo ($_POST['breed'] ?? '') == 'Guinea Pig' ? 'selected' : ''; ?>>Guinea Pig</option>
-                                    <option value="Rabbit" <?php echo ($_POST['breed'] ?? '') == 'Rabbit' ? 'selected' : ''; ?>>Rabbit</option>
-                                    <option value="Ferret" <?php echo ($_POST['breed'] ?? '') == 'Ferret' ? 'selected' : ''; ?>>Ferret</option>
-                                    <option value="Turtle" <?php echo ($_POST['breed'] ?? '') == 'Turtle' ? 'selected' : ''; ?>>Turtle</option>
-                                    <option value="Other" <?php echo ($_POST['breed'] ?? '') == 'Other' ? 'selected' : ''; ?>>Other</option>
-                                </optgroup>
                             </select>
                             <div class="form-text">Select your pet's breed from the list</div>
                         </div>
@@ -1727,4 +1712,5 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
 
