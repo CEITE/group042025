@@ -895,12 +895,11 @@
     setInterval(nextSlide, 5000);
   });
 
-  // Role Selection Functions - REMOVED body overflow hidden
+  // Role Selection Functions
   let selectedRole = null;
 
   function showRoleModal() {
     document.getElementById('roleModal').classList.add('active');
-    // REMOVED: document.body.style.overflow = 'hidden';
     
     // Reset selection
     selectedRole = null;
@@ -938,8 +937,8 @@
     document.getElementById('roleModal').classList.remove('active');
     
     if (selectedRole === 'user') {
-      // Redirect pet owners directly
-      alert('Redirecting to user login...');
+      // Redirect pet owners to login.php
+      window.location.href = 'login.php';
       return;
     }
     
@@ -970,8 +969,31 @@
 
   function handleVerification(event) {
     event.preventDefault();
-    alert('Verification successful! Redirecting to dashboard...');
-    hideVerificationModal();
+    
+    // Get form values
+    const licenseNumber = document.getElementById('licenseNumber').value;
+    const clinicName = document.getElementById('clinicName').value;
+    const adminCode = document.getElementById('adminCode') ? document.getElementById('adminCode').value : '';
+    
+    // Basic validation
+    if (!licenseNumber || !clinicName) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+    
+    if (selectedRole === 'admin' && !adminCode) {
+      alert('Please enter the administrator access code.');
+      return;
+    }
+    
+    // Redirect based on role after verification
+    if (selectedRole === 'veterinarian') {
+      // Redirect to veterinarian login
+      window.location.href = 'login_vet.php';
+    } else if (selectedRole === 'admin') {
+      // Redirect to admin login
+      window.location.href = 'login_admin.php';
+    }
   }
 
   function backToRoleSelection() {
@@ -981,7 +1003,6 @@
 
   function hideVerificationModal() {
     document.getElementById('verificationModal').classList.remove('active');
-    // REMOVED: document.body.style.overflow = 'auto';
   }
 
   // Close modals when clicking outside
