@@ -33,7 +33,9 @@ $query = "
     SELECT p.*, u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone,
            COUNT(a.appointment_id) as total_visits,
            MAX(a.appointment_date) as last_visit,
-           MAX(a.created_at) as last_appointment
+           MAX(a.created_at) as last_appointment,
+           (SELECT COUNT(*) FROM pet_medical_records pmr WHERE pmr.pet_id = p.pet_id) as total_records,
+           (SELECT MAX(service_date) FROM pet_medical_records pmr WHERE pmr.pet_id = p.pet_id) as last_record_date
     FROM pets p 
     LEFT JOIN users u ON p.user_id = u.user_id
     LEFT JOIN appointments a ON p.pet_id = a.pet_id
@@ -63,10 +65,10 @@ if (!empty($species_filter) && in_array($species_filter, ['dog', 'cat'])) {
 $query .= " GROUP BY p.pet_id";
 
 // Add sorting
-$allowed_sorts = ['name', 'species', 'last_visit', 'total_visits', 'created_at'];
+$allowed_sorts = ['name', 'species', 'last_visit', 'total_visits', 'created_at', 'last_record_date'];
 if (in_array($sort_by, $allowed_sorts)) {
-    if ($sort_by == 'last_visit') {
-        $query .= " ORDER BY last_visit DESC";
+    if ($sort_by == 'last_visit' || $sort_by == 'last_record_date') {
+        $query .= " ORDER BY $sort_by DESC";
     } else {
         $query .= " ORDER BY p.$sort_by ASC";
     }
@@ -101,43 +103,64 @@ foreach ($species_counts as $count) {
     if ($count['species'] == 'cat') $cat_count = $count['count'];
 }
 
-// Handle medical record updates
-if (isset($_POST['update_medical_record'])) {
+// Handle new medical record creation using your existing table structure
+if (isset($_POST['add_medical_record'])) {
     $pet_id = $_POST['pet_id'];
-    $medical_notes = $_POST['medical_notes'] ?? '';
-    $previous_conditions = $_POST['previous_conditions'] ?? '';
-    $vaccination_history = $_POST['vaccination_history'] ?? '';
-    $surgical_history = $_POST['surgical_history'] ?? '';
-    $medication_history = $_POST['medication_history'] ?? '';
-    $weight = $_POST['weight'] ?? null;
-    $next_vet_visit = $_POST['next_vet_visit'] ?? null;
-    $rabies_vaccine_date = $_POST['rabies_vaccine_date'] ?? null;
-    $dhpp_vaccine_date = $_POST['dhpp_vaccine_date'] ?? null;
-    $is_spayed_neutered = isset($_POST['is_spayed_neutered']) ? 1 : 0;
-    $spay_neuter_date = $_POST['spay_neuter_date'] ?? null;
     
-    $update_stmt = $conn->prepare("
-        UPDATE pets SET 
-        medical_notes = ?, previous_conditions = ?, vaccination_history = ?, 
-        surgical_history = ?, medication_history = ?, weight = ?, next_vet_visit = ?,
-        rabies_vaccine_date = ?, dhpp_vaccine_date = ?, is_spayed_neutered = ?, spay_neuter_date = ?,
-        medical_history_updated_at = NOW()
-        WHERE pet_id = ?
+    // Get pet and owner info
+    $pet_info_stmt = $conn->prepare("
+        SELECT p.*, u.name as owner_name, u.email as owner_email, u.user_id as owner_id 
+        FROM pets p 
+        LEFT JOIN users u ON p.user_id = u.user_id 
+        WHERE p.pet_id = ?
     ");
+    $pet_info_stmt->bind_param("i", $pet_id);
+    $pet_info_stmt->execute();
+    $pet_info = $pet_info_stmt->get_result()->fetch_assoc();
     
-    $update_stmt->bind_param("sssssdsssisi", 
-        $medical_notes, $previous_conditions, $vaccination_history,
-        $surgical_history, $medication_history, $weight, $next_vet_visit,
-        $rabies_vaccine_date, $dhpp_vaccine_date, $is_spayed_neutered, $spay_neuter_date,
-        $pet_id
-    );
-    
-    if ($update_stmt->execute()) {
-        $_SESSION['success'] = "Medical record updated successfully!";
-        header("Location: vet_patients.php");
-        exit();
-    } else {
-        $_SESSION['error'] = "Error updating medical record: " . $conn->error;
+    if ($pet_info) {
+        $service_type = $_POST['service_type'] ?? 'Check-up';
+        $service_description = $_POST['service_description'] ?? '';
+        $weight = $_POST['weight'] ?? $pet_info['weight'];
+        $notes = $_POST['notes'] ?? '';
+        $veterinarian = $vet['name'];
+        $blood_test = $_POST['blood_test'] ?? '';
+        $rbc_cbc = $_POST['rbc_cbc'] ?? '';
+        
+        // Insert medical record using your existing table structure
+        $insert_stmt = $conn->prepare("
+            INSERT INTO pet_medical_records 
+            (owner_id, owner_name, pet_id, pet_name, species, breed, color, sex, dob, age, weight, 
+             service_date, service_time, service_type, service_description, veterinarian, notes, 
+             weight_date, owner_email, blood_test, rbc_cbc, generated_date) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME(), ?, ?, ?, ?, CURDATE(), ?, ?, ?, NOW())
+        ");
+        
+        $insert_stmt->bind_param("issssssssdssssssssss", 
+            $pet_info['owner_id'], $pet_info['owner_name'], $pet_id, $pet_info['name'], 
+            $pet_info['species'], $pet_info['breed'], $pet_info['color'], $pet_info['gender'],
+            $pet_info['birth_date'], $pet_info['age'], $weight, $service_type, $service_description,
+            $veterinarian, $notes, $pet_info['owner_email'], $blood_test, $rbc_cbc
+        );
+        
+        if ($insert_stmt->execute()) {
+            // Update pet's weight and last vet visit
+            if ($weight) {
+                $update_pet_stmt = $conn->prepare("UPDATE pets SET weight = ?, last_vet_visit = CURDATE() WHERE pet_id = ?");
+                $update_pet_stmt->bind_param("di", $weight, $pet_id);
+                $update_pet_stmt->execute();
+            } else {
+                $update_pet_stmt = $conn->prepare("UPDATE pets SET last_vet_visit = CURDATE() WHERE pet_id = ?");
+                $update_pet_stmt->bind_param("i", $pet_id);
+                $update_pet_stmt->execute();
+            }
+            
+            $_SESSION['success'] = "Medical record added successfully!";
+            header("Location: vet_patients.php");
+            exit();
+        } else {
+            $_SESSION['error'] = "Error adding medical record: " . $conn->error;
+        }
     }
 }
 
@@ -147,6 +170,7 @@ if (isset($_POST['update_vaccination'])) {
     $vaccine_type = $_POST['vaccine_type'];
     $vaccine_date = $_POST['vaccine_date'];
     
+    // Update pet vaccination date
     if ($vaccine_type == 'rabies') {
         $update_stmt = $conn->prepare("UPDATE pets SET rabies_vaccine_date = ? WHERE pet_id = ?");
     } else {
@@ -162,6 +186,25 @@ if (isset($_POST['update_vaccination'])) {
     } else {
         $_SESSION['error'] = "Error updating vaccination: " . $conn->error;
     }
+}
+
+// Fetch medical records for a specific pet (for the view history modal)
+if (isset($_GET['view_records'])) {
+    $pet_id = $_GET['view_records'];
+    $records_stmt = $conn->prepare("
+        SELECT * FROM pet_medical_records 
+        WHERE pet_id = ? 
+        ORDER BY service_date DESC, generated_date DESC
+    ");
+    $records_stmt->bind_param("i", $pet_id);
+    $records_stmt->execute();
+    $medical_records = $records_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    
+    // Get pet info for the modal
+    $pet_stmt = $conn->prepare("SELECT p.*, u.name as owner_name FROM pets p LEFT JOIN users u ON p.user_id = u.user_id WHERE p.pet_id = ?");
+    $pet_stmt->bind_param("i", $pet_id);
+    $pet_stmt->execute();
+    $current_pet = $pet_stmt->get_result()->fetch_assoc();
 }
 ?>
 
@@ -393,6 +436,18 @@ if (isset($_POST['update_vaccination'])) {
             transform: translateY(-2px);
         }
         
+        .btn-history { 
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
+            border: none;
+            transition: all 0.3s;
+        }
+        
+        .btn-history:hover {
+            background: linear-gradient(135deg, #8e44ad, #7d3c98);
+            transform: translateY(-2px);
+        }
+        
         .action-buttons {
             display: flex;
             gap: 10px;
@@ -404,6 +459,23 @@ if (isset($_POST['update_vaccination'])) {
         .vaccine-due { color: #e74c3c; font-weight: bold; }
         .vaccine-upcoming { color: #f39c12; font-weight: bold; }
         .vaccine-current { color: #27ae60; font-weight: bold; }
+        
+        /* Medical Record Cards */
+        .record-card {
+            border-left: 4px solid;
+            margin-bottom: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .record-checkup { border-left-color: #3498db; background: linear-gradient(135deg, #ebf5fb, #eaf2f8); }
+        .record-vaccination { border-left-color: #2ecc71; background: linear-gradient(135deg, #eafaf1, #e8f8f5); }
+        .record-surgery { border-left-color: #e74c3c; background: linear-gradient(135deg, #fdedec, #fadbd8); }
+        .record-dental { border-left-color: #9b59b6; background: linear-gradient(135deg, #f4ecf7, #f2eef5); }
+        .record-emergency { border-left-color: #e67e22; background: linear-gradient(135deg, #fef9e7, #fef5e7); }
+        
+        .record-card:hover {
+            transform: translateX(5px);
+        }
         
         /* Search and Filter */
         .search-box {
@@ -529,9 +601,14 @@ if (isset($_POST['update_vaccination'])) {
             </div>
             <div class="col-md-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
-                    <div class="stats-number"><?php echo count(array_filter($patients, function($p) { return $p['total_visits'] > 0; })); ?></div>
-                    <div class="stats-label">Active Patients</div>
-                    <i class="fas fa-heartbeat"></i>
+                    <div class="stats-number">
+                        <?php 
+                        $total_records = array_sum(array_column($patients, 'total_records'));
+                        echo $total_records; 
+                        ?>
+                    </div>
+                    <div class="stats-label">Medical Records</div>
+                    <i class="fas fa-file-medical"></i>
                 </div>
             </div>
         </div>
@@ -563,8 +640,8 @@ if (isset($_POST['update_vaccination'])) {
                             <option value="name" <?php echo $sort_by == 'name' ? 'selected' : ''; ?>>Name A-Z</option>
                             <option value="species" <?php echo $sort_by == 'species' ? 'selected' : ''; ?>>Species</option>
                             <option value="last_visit" <?php echo $sort_by == 'last_visit' ? 'selected' : ''; ?>>Last Visit</option>
+                            <option value="last_record_date" <?php echo $sort_by == 'last_record_date' ? 'selected' : ''; ?>>Last Record</option>
                             <option value="total_visits" <?php echo $sort_by == 'total_visits' ? 'selected' : ''; ?>>Most Visits</option>
-                            <option value="created_at" <?php echo $sort_by == 'created_at' ? 'selected' : ''; ?>>Newest First</option>
                         </select>
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
@@ -633,15 +710,15 @@ if (isset($_POST['update_vaccination'])) {
                                     
                                     <div class="row mb-3">
                                         <div class="col-md-6">
-                                            <small class="text-muted">Total Visits</small>
+                                            <small class="text-muted">Medical Records</small>
                                             <div class="fw-semibold">
-                                                <?php echo $patient['total_visits']; ?> visits
+                                                <?php echo $patient['total_records']; ?> records
                                             </div>
                                         </div>
                                         <div class="col-md-6">
-                                            <small class="text-muted">Last Visit</small>
+                                            <small class="text-muted">Last Record</small>
                                             <div class="fw-semibold">
-                                                <?php echo $patient['last_visit'] ? date('M j, Y', strtotime($patient['last_visit'])) : 'Never'; ?>
+                                                <?php echo $patient['last_record_date'] ? date('M j, Y', strtotime($patient['last_record_date'])) : 'No records'; ?>
                                             </div>
                                         </div>
                                     </div>
@@ -682,9 +759,15 @@ if (isset($_POST['update_vaccination'])) {
                                     <div class="action-buttons">
                                         <button class="btn btn-medical btn-sm" 
                                                 data-bs-toggle="modal" 
-                                                data-bs-target="#medicalRecordModal"
-                                                onclick="loadPetData(<?php echo $patient['pet_id']; ?>)">
-                                            <i class="fas fa-file-medical me-1"></i> Medical Record
+                                                data-bs-target="#addRecordModal"
+                                                onclick="setPetId(<?php echo $patient['pet_id']; ?>)">
+                                            <i class="fas fa-plus me-1"></i> Add Record
+                                        </button>
+                                        <button class="btn btn-history btn-sm" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#viewRecordsModal"
+                                                onclick="viewRecords(<?php echo $patient['pet_id']; ?>)">
+                                            <i class="fas fa-history me-1"></i> View History
                                         </button>
                                         <button class="btn btn-vaccine btn-sm" 
                                                 data-bs-toggle="modal" 
@@ -692,9 +775,6 @@ if (isset($_POST['update_vaccination'])) {
                                                 onclick="setVaccinePet(<?php echo $patient['pet_id']; ?>)">
                                             <i class="fas fa-syringe me-1"></i> Vaccine
                                         </button>
-                                        <a href="vet_appointments.php?pet_id=<?php echo $patient['pet_id']; ?>" class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-calendar-plus me-1"></i> Schedule
-                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -706,23 +786,23 @@ if (isset($_POST['update_vaccination'])) {
     </div>
 </div>
 
-<!-- Medical Record Modal -->
-<div class="modal fade" id="medicalRecordModal" tabindex="-1" aria-hidden="true">
+<!-- Add Medical Record Modal -->
+<div class="modal fade" id="addRecordModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Medical Record</h5>
+                <h5 class="modal-title">Add Medical Record</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="POST" action="vet_patients.php">
-                <input type="hidden" name="update_medical_record" value="1">
-                <input type="hidden" name="pet_id" id="medicalRecordPetId">
+                <input type="hidden" name="add_medical_record" value="1">
+                <input type="hidden" name="pet_id" id="recordPetId">
                 
                 <div class="modal-body">
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Pet</label>
-                            <select class="form-select" name="pet_id" id="petSelect" required onchange="loadPetData(this.value)">
+                            <select class="form-select" name="pet_id" id="petSelect" required onchange="setPetId(this.value)">
                                 <option value="">Choose a pet...</option>
                                 <?php foreach ($patients as $patient): ?>
                                     <option value="<?php echo $patient['pet_id']; ?>">
@@ -732,70 +812,45 @@ if (isset($_POST['update_vaccination'])) {
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Service Type *</label>
+                            <select class="form-select" name="service_type" required>
+                                <option value="Check-up">Check-up</option>
+                                <option value="Vaccination">Vaccination</option>
+                                <option value="Surgery">Surgery</option>
+                                <option value="Dental">Dental</option>
+                                <option value="Emergency">Emergency</option>
+                                <option value="Laboratory Test">Laboratory Test</option>
+                                <option value="Follow-up">Follow-up</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
                             <label class="form-label">Weight (kg)</label>
-                            <input type="number" step="0.1" class="form-control" name="weight" id="petWeight" placeholder="e.g., 5.2">
+                            <input type="number" step="0.1" class="form-control" name="weight" placeholder="e.g., 5.2">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Next Visit</label>
-                            <input type="date" class="form-control" name="next_vet_visit" id="nextVetVisit">
+                        <div class="col-md-4">
+                            <label class="form-label">Blood Test Results</label>
+                            <input type="text" class="form-control" name="blood_test" placeholder="Blood test findings...">
                         </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Rabies Vaccine Date</label>
-                            <input type="date" class="form-control" name="rabies_vaccine_date" id="rabiesVaccineDate">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">DHPP Vaccine Date</label>
-                            <input type="date" class="form-control" name="dhpp_vaccine_date" id="dhppVaccineDate">
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="is_spayed_neutered" id="isSpayedNeutered">
-                                <label class="form-check-label" for="isSpayedNeutered">
-                                    Spayed/Neutered
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Spay/Neuter Date</label>
-                            <input type="date" class="form-control" name="spay_neuter_date" id="spayNeuterDate">
+                        <div class="col-md-4">
+                            <label class="form-label">RBC/CBC Results</label>
+                            <input type="text" class="form-control" name="rbc_cbc" placeholder="RBC/CBC results...">
                         </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Medical Notes</label>
-                        <textarea class="form-control" name="medical_notes" rows="3" 
-                                  placeholder="Current medical observations, treatment notes..." id="medicalNotes"></textarea>
+                        <label class="form-label">Service Description</label>
+                        <textarea class="form-control" name="service_description" rows="3" 
+                                  placeholder="Describe the service provided, findings, treatment..."></textarea>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Previous Conditions</label>
-                        <textarea class="form-control" name="previous_conditions" rows="2" 
-                                  placeholder="Known medical conditions, allergies..." id="previousConditions"></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Vaccination History</label>
-                        <textarea class="form-control" name="vaccination_history" rows="2" 
-                                  placeholder="Vaccination records and history..." id="vaccinationHistory"></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Surgical History</label>
-                        <textarea class="form-control" name="surgical_history" rows="2" 
-                                  placeholder="Previous surgeries and procedures..." id="surgicalHistory"></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Medication History</label>
-                        <textarea class="form-control" name="medication_history" rows="2" 
-                                  placeholder="Current and previous medications..." id="medicationHistory"></textarea>
+                        <label class="form-label">Additional Notes</label>
+                        <textarea class="form-control" name="notes" rows="2" 
+                                  placeholder="Any additional observations or recommendations..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -803,6 +858,21 @@ if (isset($_POST['update_vaccination'])) {
                     <button type="submit" class="btn btn-primary">Save Medical Record</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Medical Records History Modal -->
+<div class="modal fade" id="viewRecordsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Medical Records History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="recordsHistoryContent">
+                <!-- Content will be loaded via JavaScript -->
+            </div>
         </div>
     </div>
 </div>
@@ -832,11 +902,6 @@ if (isset($_POST['update_vaccination'])) {
                     <div class="mb-3">
                         <label class="form-label">Vaccination Date</label>
                         <input type="date" class="form-control" name="vaccine_date" value="<?php echo date('Y-m-d'); ?>" required>
-                    </div>
-                    
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        This will update the vaccination record and set reminders for the next dose.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -874,32 +939,129 @@ if (isset($_POST['update_vaccination'])) {
         document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US');
     }
 
-    // Load pet data for medical record modal
-    function loadPetData(petId) {
-        document.getElementById('medicalRecordPetId').value = petId;
+    // Set pet ID for medical record modal
+    function setPetId(petId) {
+        document.getElementById('recordPetId').value = petId;
         document.getElementById('petSelect').value = petId;
-        
-        // In a real implementation, you would fetch pet data via AJAX
-        // For now, we'll just set the form values to empty
-        document.getElementById('petWeight').value = '';
-        document.getElementById('nextVetVisit').value = '';
-        document.getElementById('rabiesVaccineDate').value = '';
-        document.getElementById('dhppVaccineDate').value = '';
-        document.getElementById('isSpayedNeutered').checked = false;
-        document.getElementById('spayNeuterDate').value = '';
-        document.getElementById('medicalNotes').value = '';
-        document.getElementById('previousConditions').value = '';
-        document.getElementById('vaccinationHistory').value = '';
-        document.getElementById('surgicalHistory').value = '';
-        document.getElementById('medicationHistory').value = '';
-        
-        console.log('Loading data for pet ID:', petId);
     }
 
     // Set pet ID for vaccine modal
     function setVaccinePet(petId) {
         document.getElementById('vaccinePetId').value = petId;
     }
+
+    // View medical records history
+    function viewRecords(petId) {
+        // Show loading state
+        document.getElementById('recordsHistoryContent').innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading medical records...</p>
+            </div>
+        `;
+        
+        // Fetch medical records via AJAX
+        fetch(`vet_patients.php?view_records=${petId}`)
+            .then(response => response.text())
+            .then(html => {
+                // This would normally be an AJAX call, but for simplicity we'll redirect
+                window.location.href = `vet_patients.php?view_records=${petId}#recordsHistoryContent`;
+            })
+            .catch(error => {
+                document.getElementById('recordsHistoryContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error loading medical records. Please try again.
+                    </div>
+                `;
+            });
+    }
+
+    // If we're viewing records (from URL parameter), show the modal
+    <?php if (isset($_GET['view_records'])): ?>
+    document.addEventListener('DOMContentLoaded', function() {
+        const viewRecordsModal = new bootstrap.Modal(document.getElementById('viewRecordsModal'));
+        viewRecordsModal.show();
+        
+        // Populate the modal with records
+        const recordsContent = document.getElementById('recordsHistoryContent');
+        recordsContent.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6>Medical Records for <strong><?php echo htmlspecialchars($current_pet['name']); ?></strong></h6>
+                <span class="badge bg-primary"><?php echo count($medical_records); ?> Records</span>
+            </div>
+            
+            <?php if (empty($medical_records)): ?>
+                <div class="empty-state">
+                    <i class="fas fa-file-medical"></i>
+                    <h6>No Medical Records</h6>
+                    <p class="text-muted">No medical records found for this pet.</p>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRecordModal" onclick="setPetId(<?php echo $current_pet['pet_id']; ?>)">
+                        <i class="fas fa-plus me-1"></i> Add First Record
+                    </button>
+                </div>
+            <?php else: ?>
+                <div class="medical-records-list">
+                    <?php foreach ($medical_records as $record): ?>
+                        <div class="card record-card record-<?php echo strtolower(str_replace(' ', '-', $record['service_type'])); ?> mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="mb-1"><?php echo htmlspecialchars($record['service_type']); ?></h6>
+                                        <small class="text-muted">
+                                            Date: <?php echo date('M j, Y', strtotime($record['service_date'])); ?> • 
+                                            Veterinarian: <?php echo htmlspecialchars($record['veterinarian']); ?>
+                                        </small>
+                                    </div>
+                                    <span class="badge bg-secondary">
+                                        <?php echo date('g:i A', strtotime($record['generated_date'])); ?>
+                                    </span>
+                                </div>
+                                
+                                <?php if (!empty($record['service_description'])): ?>
+                                    <div class="mb-2">
+                                        <small class="text-muted">Service Description:</small>
+                                        <div class="small"><?php echo htmlspecialchars($record['service_description']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <?php if (!empty($record['weight'])): ?>
+                                    <div class="mb-2">
+                                        <small class="text-muted">Weight:</small>
+                                        <span class="small"><?php echo $record['weight']; ?> kg</span>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <?php if (!empty($record['blood_test'])): ?>
+                                    <div class="mb-2">
+                                        <small class="text-muted">Blood Test:</small>
+                                        <span class="small"><?php echo htmlspecialchars($record['blood_test']); ?></span>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <?php if (!empty($record['rbc_cbc'])): ?>
+                                    <div class="mb-2">
+                                        <small class="text-muted">RBC/CBC:</small>
+                                        <span class="small"><?php echo htmlspecialchars($record['rbc_cbc']); ?></span>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <?php if (!empty($record['notes'])): ?>
+                                    <div class="mb-2">
+                                        <small class="text-muted">Notes:</small>
+                                        <div class="small"><?php echo htmlspecialchars($record['notes']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        `;
+    });
+    <?php endif; ?>
 </script>
 </body>
 </html>
