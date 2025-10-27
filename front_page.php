@@ -364,6 +364,388 @@
     transform: rotate(10deg) scale(1.1);
   }
 
+  /* Enhanced Role Selection Modal */
+  .role-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 248, 252, 0.98);
+    backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    padding: 20px 0;
+  }
+
+  .role-modal.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .role-container {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    padding: 4rem;
+    box-shadow: var(--shadow-lg);
+    max-width: 900px;
+    width: 95%;
+    text-align: center;
+    margin: auto;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .role-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--pink-gradient);
+  }
+
+  .role-title {
+    font-weight: 800;
+    color: var(--pink-dark);
+    margin-bottom: 1rem;
+    font-size: 2.8rem;
+    background: var(--pink-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .role-subtitle {
+    color: var(--ink-light);
+    margin-bottom: 3rem;
+    font-size: 1.3rem;
+    font-weight: 400;
+  }
+
+  .role-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+  }
+
+  .role-card {
+    background: var(--white);
+    border: 2px solid #f8f0f5;
+    border-radius: var(--border-radius-lg);
+    padding: 3rem 2rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .role-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--pink-gradient);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+
+  .role-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    border-color: var(--pink-dark);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .role-card:hover::before {
+    transform: scaleX(1);
+  }
+
+  .role-card.active {
+    border-color: var(--pink-dark);
+    background: linear-gradient(135deg, #fff8fc, #ffeaf3);
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .role-card.active::before {
+    transform: scaleX(1);
+  }
+
+  .role-icon {
+    width: 90px;
+    height: 90px;
+    background: rgba(191, 59, 120, 0.1);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 2rem;
+    color: var(--pink-dark);
+    font-size: 2.8rem;
+    transition: all 0.4s ease;
+    position: relative;
+  }
+
+  .role-icon::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    background: var(--pink-gradient);
+    border-radius: 25px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+  }
+
+  .role-card:hover .role-icon {
+    background: var(--pink-gradient);
+    color: var(--white);
+    transform: scale(1.1) rotate(5deg);
+  }
+
+  .role-card:hover .role-icon::after {
+    opacity: 1;
+    animation: pulse-ring 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-ring {
+    0% { transform: scale(0.8); opacity: 1; }
+    100% { transform: scale(1.2); opacity: 0; }
+  }
+
+  .role-card h4 {
+    color: var(--ink);
+    margin-bottom: 1.2rem;
+    font-weight: 700;
+    font-size: 1.4rem;
+  }
+
+  .role-card p {
+    color: var(--ink-light);
+    line-height: 1.7;
+    margin-bottom: 2rem;
+    font-size: 1rem;
+  }
+
+  .role-features {
+    list-style: none;
+    padding: 0;
+    text-align: left;
+  }
+
+  .role-features li {
+    padding: 0.6rem 0;
+    color: var(--ink-light);
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    transition: all 0.3s ease;
+  }
+
+  .role-features li:hover {
+    color: var(--pink-dark);
+    transform: translateX(5px);
+  }
+
+  .role-features li i {
+    color: var(--pink-dark);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  .role-features li:hover i {
+    transform: scale(1.2);
+  }
+
+  .role-continue-btn {
+    background: var(--pink-gradient);
+    color: var(--white);
+    border: none;
+    border-radius: 50px;
+    padding: 1.2rem 4rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.7;
+    cursor: not-allowed;
+    box-shadow: 0 8px 25px rgba(191, 59, 120, 0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .role-continue-btn.active {
+    opacity: 1;
+    cursor: pointer;
+  }
+
+  .role-continue-btn.active:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 35px rgba(191, 59, 120, 0.4);
+  }
+
+  /* Enhanced Verification Modal */
+  .verification-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 248, 252, 0.98);
+    backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    padding: 20px 0;
+  }
+
+  .verification-modal.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .verification-container {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    padding: 4rem;
+    box-shadow: var(--shadow-lg);
+    max-width: 550px;
+    width: 95%;
+    text-align: center;
+    margin: auto;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    position: relative;
+  }
+
+  .verification-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--pink-gradient);
+  }
+
+  .verification-title {
+    font-weight: 800;
+    color: var(--pink-dark);
+    margin-bottom: 1rem;
+    font-size: 2.2rem;
+    background: var(--pink-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .verification-subtitle {
+    color: var(--ink-light);
+    margin-bottom: 2.5rem;
+    font-size: 1.1rem;
+    line-height: 1.6;
+  }
+
+  .form-group {
+    margin-bottom: 2rem;
+    text-align: left;
+  }
+
+  .form-label {
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 0.8rem;
+    display: block;
+    font-size: 1rem;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    border: 2px solid #f0f0f0;
+    border-radius: 12px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: var(--white);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .form-control:focus {
+    border-color: var(--pink-dark);
+    box-shadow: 0 0 0 3px rgba(191, 59, 120, 0.1);
+    outline: none;
+    transform: translateY(-2px);
+  }
+
+  .verification-badge {
+    background: rgba(191, 59, 120, 0.1);
+    color: var(--pink-dark);
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 2.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    border: 1px solid rgba(191, 59, 120, 0.2);
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 1.2rem;
+    margin-top: 2.5rem;
+  }
+
+  .btn-back {
+    background: #f8f9fa;
+    color: var(--ink);
+    border: 2px solid #e9ecef;
+    border-radius: 50px;
+    padding: 1rem 2.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    flex: 1;
+  }
+
+  .btn-back:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-verify {
+    background: var(--pink-gradient);
+    color: var(--white);
+    border: none;
+    border-radius: 50px;
+    padding: 1rem 2.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    flex: 1;
+    box-shadow: 0 8px 25px rgba(191, 59, 120, 0.3);
+  }
+
+  .btn-verify:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 35px rgba(191, 59, 120, 0.4);
+  }
+
   /* Enhanced Sections */
   .section {
     padding: 120px 0;
@@ -786,6 +1168,10 @@
       gap: 1rem;
     }
     
+    .role-cards {
+      grid-template-columns: 1fr;
+    }
+    
     .hero h1 {
       font-size: 2.5rem;
     }
@@ -813,8 +1199,25 @@
       padding: 80px 0;
     }
     
+    .role-container,
+    .verification-container {
+      padding: 2.5rem 2rem;
+    }
+    
+    .role-title {
+      font-size: 2.2rem;
+    }
+    
     .section-title {
       font-size: 2rem;
+    }
+    
+    .btn-group {
+      flex-direction: column;
+    }
+    
+    .feature-item {
+      padding: 1rem;
     }
     
     .about-content,
@@ -835,6 +1238,16 @@
     
     .section-title {
       font-size: 1.8rem;
+    }
+    
+    .role-title,
+    .verification-title {
+      font-size: 1.8rem;
+    }
+    
+    .role-container,
+    .verification-container {
+      padding: 2rem 1.5rem;
     }
     
     .stats {
@@ -860,9 +1273,120 @@
   .text-pink-dark {
     color: var(--pink-dark) !important;
   }
+
+  /* Loading Animation */
+  .loading-spinner {
+    display: none;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--pink-dark);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 </style>
 </head>
 <body>
+
+<!-- Role Selection Modal -->
+<div class="role-modal" id="roleModal">
+  <div class="role-container">
+    <h1 class="role-title">Welcome to VetCareQR</h1>
+    <p class="role-subtitle">Please select your role to continue</p>
+    
+    <div class="role-cards">
+      <div class="role-card" onclick="selectRole('user')">
+        <div class="role-icon">
+          <i class="bi bi-person"></i>
+        </div>
+        <h4>Pet Owner</h4>
+        <p>Manage your pet's health records, track vaccinations, and access medical history</p>
+        <ul class="role-features">
+          <li><i class="bi bi-check-circle"></i> Manage pet profiles</li>
+          <li><i class="bi bi-check-circle"></i> Track medical records</li>
+          <li><i class="bi bi-check-circle"></i> QR code access</li>
+          <li><i class="bi bi-check-circle"></i> Appointment scheduling</li>
+        </ul>
+      </div>
+      
+      <div class="role-card" onclick="selectRole('veterinarian')">
+        <div class="role-icon">
+          <i class="bi bi-heart-pulse"></i>
+        </div>
+        <h4>Veterinarian</h4>
+        <p>Access patient records, update medical information, and provide professional care</p>
+        <ul class="role-features">
+          <li><i class="bi bi-check-circle"></i> Patient record access</li>
+          <li><i class="bi bi-check-circle"></i> Medical updates</li>
+          <li><i class="bi bi-check-circle"></i> Treatment planning</li>
+          <li><i class="bi bi-check-circle"></i> Professional dashboard</li>
+        </ul>
+      </div>
+      
+      <div class="role-card" onclick="selectRole('admin')">
+        <div class="role-icon">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <h4>Administrator</h4>
+        <p>Manage system users, monitor platform activity, and maintain system integrity</p>
+        <ul class="role-features">
+          <li><i class="bi bi-check-circle"></i> User management</li>
+          <li><i class="bi bi-check-circle"></i> System monitoring</li>
+          <li><i class="bi bi-check-circle"></i> Data analytics</li>
+          <li><i class="bi bi-check-circle"></i> Platform settings</li>
+        </ul>
+      </div>
+    </div>
+    
+    <button class="role-continue-btn" id="continueBtn" onclick="handleContinue()">
+      Continue to Login
+    </button>
+  </div>
+</div>
+
+<!-- Verification Modal -->
+<div class="verification-modal" id="verificationModal">
+  <div class="verification-container">
+    <div class="verification-badge" id="verificationBadge">
+      <i class="bi bi-shield-check"></i>
+      <span id="verificationRole">Veterinarian Verification</span>
+    </div>
+    <h2 class="verification-title" id="verificationTitle">Professional Verification Required</h2>
+    <p class="verification-subtitle" id="verificationSubtitle">Please provide your credentials to verify your identity as a veterinarian</p>
+    
+    <form id="verificationForm" onsubmit="handleVerification(event)">
+      <div class="form-group">
+        <label for="licenseNumber" class="form-label">License Number</label>
+        <input type="text" class="form-control" id="licenseNumber" placeholder="Enter your professional license number" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="clinicName" class="form-label">Clinic/Hospital Name</label>
+        <input type="text" class="form-control" id="clinicName" placeholder="Enter your clinic or hospital name" required>
+      </div>
+      
+      <div class="form-group" id="adminCodeGroup" style="display: none;">
+        <label for="adminCode" class="form-label">Administrator Access Code</label>
+        <input type="password" class="form-control" id="adminCode" placeholder="Enter administrator access code" required>
+      </div>
+      
+      <div class="btn-group">
+        <button type="button" class="btn btn-back" onclick="backToRoleSelection()">
+          <i class="bi bi-arrow-left me-2"></i>Back
+        </button>
+        <button type="submit" class="btn btn-verify">
+          <i class="bi bi-shield-check me-2"></i>Verify & Continue
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <!-- Navigation -->
 <nav class="navbar navbar-expand-lg sticky-top">
@@ -1255,7 +1779,6 @@
   <i class="bi bi-chevron-up"></i>
 </div>
 
-<!-- Include your modals and JavaScript here -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
 <script>
@@ -1324,6 +1847,130 @@
         }
       });
     });
+  });
+
+  // Role Selection Functions
+  let selectedRole = null;
+
+  function showRoleModal() {
+    document.getElementById('roleModal').classList.add('active');
+    
+    // Reset selection
+    selectedRole = null;
+    document.getElementById('continueBtn').classList.remove('active');
+    
+    // Remove active class from all cards
+    document.querySelectorAll('.role-card').forEach(card => {
+      card.classList.remove('active');
+    });
+  }
+
+  function selectRole(role) {
+    // Remove active class from all cards
+    document.querySelectorAll('.role-card').forEach(card => {
+      card.classList.remove('active');
+    });
+    
+    // Add active class to clicked card
+    event.currentTarget.classList.add('active');
+    
+    // Set selected role
+    selectedRole = role;
+    
+    // Enable continue button
+    document.getElementById('continueBtn').classList.add('active');
+  }
+
+  function handleContinue() {
+    if (!selectedRole) {
+      alert('Please select a role first!');
+      return;
+    }
+    
+    // Hide role modal
+    document.getElementById('roleModal').classList.remove('active');
+    
+    if (selectedRole === 'user') {
+      // Redirect pet owners to login.php
+      window.location.href = 'login.php';
+      return;
+    }
+    
+    // Show verification modal for professionals
+    showVerificationModal();
+  }
+
+  function showVerificationModal() {
+    const roleTitle = document.getElementById('verificationTitle');
+    const roleSubtitle = document.getElementById('verificationSubtitle');
+    const roleBadge = document.getElementById('verificationRole');
+    const adminCodeGroup = document.getElementById('adminCodeGroup');
+    
+    if (selectedRole === 'veterinarian') {
+      roleTitle.textContent = 'Professional Verification Required';
+      roleSubtitle.textContent = 'Please provide your credentials to verify your identity as a veterinarian';
+      roleBadge.textContent = 'Veterinarian Verification';
+      adminCodeGroup.style.display = 'none';
+    } else if (selectedRole === 'admin') {
+      roleTitle.textContent = 'Administrator Access';
+      roleSubtitle.textContent = 'Please provide administrator credentials to access the system';
+      roleBadge.textContent = 'Administrator Verification';
+      adminCodeGroup.style.display = 'block';
+    }
+    
+    document.getElementById('verificationModal').classList.add('active');
+  }
+
+  function handleVerification(event) {
+    event.preventDefault();
+    
+    // Get form values
+    const licenseNumber = document.getElementById('licenseNumber').value;
+    const clinicName = document.getElementById('clinicName').value;
+    const adminCode = document.getElementById('adminCode') ? document.getElementById('adminCode').value : '';
+    
+    // Basic validation
+    if (!licenseNumber || !clinicName) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+    
+    if (selectedRole === 'admin' && !adminCode) {
+      alert('Please enter the administrator access code.');
+      return;
+    }
+    
+    // Redirect based on role after verification
+    if (selectedRole === 'veterinarian') {
+      // Redirect to veterinarian login
+      window.location.href = 'login_vet.php';
+    } else if (selectedRole === 'admin') {
+      // Redirect to admin login
+      window.location.href = 'login_admin.php';
+    }
+  }
+
+  function backToRoleSelection() {
+    document.getElementById('verificationModal').classList.remove('active');
+    showRoleModal();
+  }
+
+  function hideVerificationModal() {
+    document.getElementById('verificationModal').classList.remove('active');
+  }
+
+  // Close modals when clicking outside
+  document.addEventListener('click', function(event) {
+    const roleModal = document.getElementById('roleModal');
+    const verificationModal = document.getElementById('verificationModal');
+    
+    if (event.target === roleModal) {
+      roleModal.classList.remove('active');
+    }
+    
+    if (event.target === verificationModal) {
+      verificationModal.classList.remove('active');
+    }
   });
 </script>
 </body>
