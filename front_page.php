@@ -529,7 +529,7 @@
 <body>
 
 <!-- Role Selection Modal -->
-<div class="role-modal active" id="roleModal">
+<div class="role-modal" id="roleModal">
   <div class="role-container">
     <h1 class="role-title">Welcome to VetCareQR</h1>
     <p class="role-subtitle">Please select your role to continue</p>
