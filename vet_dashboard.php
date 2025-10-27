@@ -495,7 +495,7 @@ foreach ($missing_notifications as $appointment) {
                      onerror="this.src='https://i.pravatar.cc/100?u=<?php echo urlencode($vet['name']); ?>'">
             </div>
             <h6 id="vetNameSidebar">Dr. <?php echo htmlspecialchars($vet['name']); ?></h6>
-            <small class="text-muted"><?php echo htmlspecialchars($vet['role']); ?></small>
+            <small class="text-muted"><?php echo htmlspecialchars($vet['veterinarian']); ?></small>
         </div>
 
         <a href="vet_dashboard.php" class="active">
@@ -1079,4 +1079,5 @@ foreach ($missing_notifications as $appointment) {
     });
 </script>
 </body>
+
 </html>
