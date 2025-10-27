@@ -1,5 +1,5 @@
 <?php
-// pet-medical-access.php - FIXED: VET GETS ACCESS, NOT OWNER
+// pet-medical-access.php - FIXED EMAIL ISSUES
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -21,6 +21,7 @@ $access_request = null;
 $request_success = false;
 $submitted_request_id = null;
 $success_message = '';
+$email_sent = false;
 
 // Function to send email notification
 function sendAccessRequestEmail($owner_email, $owner_name, $pet_name, $vet_email, $vet_clinic, $request_id, $token) {
@@ -29,6 +30,8 @@ function sendAccessRequestEmail($owner_email, $owner_name, $pet_name, $vet_email
     
     $approve_url = "https://" . $domain . $script_path . "?request_id=$request_id&token=$token&action=approve";
     $reject_url = "https://" . $domain . $script_path . "?request_id=$request_id&token=$token&action=reject";
+    
+    $subject = "Access Request for $pet_name's Medical Records";
     
     $message = "
     <html>
@@ -55,7 +58,7 @@ function sendAccessRequestEmail($owner_email, $owner_name, $pet_name, $vet_email
                 
                 <div style='background: white; padding: 15px; border-radius: 8px; margin: 20px 0;'>
                     <h3>Request Details:</h3>
-                    <p><strong>Veterinarian:</strong> $vet_email</p>
+                    <p><strong>Veterinarian Email:</strong> $vet_email</p>
                     <p><strong>Clinic:</strong> $vet_clinic</p>
                     <p><strong>Request Time:</strong> " . date('F j, Y g:i A') . "</p>
                     <p><strong>Pet:</strong> $pet_name</p>
@@ -80,9 +83,16 @@ function sendAccessRequestEmail($owner_email, $owner_name, $pet_name, $vet_email
     
     $headers = "MIME-Version: 1.0" . "\r\n";
     $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-    $headers .= "From: PetMedQR <noreply@petmedqr.com>" . "\r\n";
+    $headers .= "From: PetMedQR <noreply@$domain>" . "\r\n";
+    $headers .= "Reply-To: noreply@$domain" . "\r\n";
     
-    return mail($owner_email, $subject, $message, $headers);
+    // Try to send email
+    $mail_result = mail($owner_email, $subject, $message, $headers);
+    
+    // Log email attempt
+    error_log("Email sent to: $owner_email - Subject: $subject - Result: " . ($mail_result ? 'SUCCESS' : 'FAILED'));
+    
+    return $mail_result;
 }
 
 // Handle AJAX approval check
@@ -294,23 +304,24 @@ if (isset($_POST['request_access']) && !$is_authenticated) {
                     // Generate security token
                     $token = md5($request_id . $vet_email . 'secret_salt');
                     
-                    // Send email to pet owner if notifications are enabled
-                    if ($pet_owner_data['notify_email']) {
-                        $subject = "Access Request for " . $pet_owner_data['name'] . "'s Medical Records";
-                        $email_sent = sendAccessRequestEmail(
-                            $pet_owner_data['owner_email'],
-                            $pet_owner_data['owner_name'],
-                            $pet_owner_data['name'],
-                            $vet_email,
-                            $vet_clinic,
-                            $request_id,
-                            $token
-                        );
-                    }
+                    // Send email to pet owner
+                    $email_sent = sendAccessRequestEmail(
+                        $pet_owner_data['owner_email'],
+                        $pet_owner_data['owner_name'],
+                        $pet_owner_data['name'],
+                        $vet_email,
+                        $vet_clinic,
+                        $request_id,
+                        $token
+                    );
                     
                     $request_success = true;
                     $submitted_request_id = $request_id;
                     $success_message = "Access request sent to the pet owner. Waiting for approval...";
+                    
+                    if (!$email_sent) {
+                        $success_message .= " (Note: Email notification may not have been sent)";
+                    }
                 } else {
                     $auth_error = "Failed to create access request.";
                 }
@@ -462,15 +473,6 @@ if ($is_authenticated && $pet_id > 0) {
             <h2 class="text-success mb-3">Request Processed</h2>
             <p class="mb-4"><?php echo $success_message; ?></p>
             <p class="text-muted small">You can close this window.</p>
-            
-            <?php if (isset($request_data) && $_GET['action'] === 'approve'): ?>
-            <div class="debug-info">
-                <strong>Debug Info:</strong><br>
-                Request ID: <?php echo $request_id; ?><br>
-                Pet ID: <?php echo $pet_id; ?><br>
-                Vet Session Created: <?php echo isset($vet_session_id) ? 'Yes' : 'No'; ?>
-            </div>
-            <?php endif; ?>
         </div>
     </div>
     
@@ -594,6 +596,7 @@ if ($is_authenticated && $pet_id > 0) {
                 <strong>Debug Info:</strong><br>
                 Request ID: <?php echo $submitted_request_id; ?><br>
                 Pet ID: <?php echo $pet_id; ?><br>
+                Pet Name: <?php echo htmlspecialchars($pet_name); ?><br>
                 <button class="btn btn-sm btn-outline-secondary mt-2" onclick="manualCheck()">Manual Check</button>
             </div>
         </div>
