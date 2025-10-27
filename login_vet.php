@@ -2,88 +2,58 @@
 session_start();
 include("conn.php");
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Check database connection
-if (!$conn) {
-    die("Database connection failed: " . htmlspecialchars($conn->connect_error));
-}
-
-// Redirect if already logged in as vet
-if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'vet') {
-    header("Location: vet_dashboard.php");
-    exit();
-}
-
-// Handle login
+// Initialize variables
 $errors = [];
+
+// Check if form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+    $email = trim($_POST['email'] ?? '');
+    $password = trim($_POST['password'] ?? '');
     
-    // Validation
-    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "Valid email is required";
+    // Validate inputs
+    if (empty($email)) {
+        $errors[] = "Email address is required";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = "Please enter a valid email address";
     }
     
     if (empty($password)) {
         $errors[] = "Password is required";
     }
     
+    // If no errors, attempt login
     if (empty($errors)) {
-        // Check if user exists and is a vet
-        $query = "SELECT user_id, name, email, password, role, profile_picture FROM users WHERE email = ? AND role = 'vet'";
-        $stmt = $conn->prepare($query);
+        // Check if user exists
+        $stmt = $conn->prepare("SELECT user_id, name, email, password, role, profile_picture FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
         
-        if ($stmt) {
-            $stmt->bind_param("s", $email);
-            $stmt->execute();
-            $result = $stmt->get_result();
+        if ($result->num_rows === 1) {
+            $user = $result->fetch_assoc();
             
-            if ($result->num_rows === 1) {
-                $user = $result->fetch_assoc();
+            // Verify password (assuming plain text for now - you should use password_hash() in production)
+            if ($password === $user['password']) { // Change this to password_verify() if using hashed passwords
+                // Login successful - set session variables
+                $_SESSION['user_id'] = $user['user_id'];
+                $_SESSION['role'] = $user['role'];
+                $_SESSION['name'] = $user['name'];
+                $_SESSION['email'] = $user['email'];
+                $_SESSION['profile_picture'] = $user['profile_picture'];
                 
-                // Verify password
-                if (password_verify($password, $user['password'])) {
-                    // Set session variables
-                    $_SESSION['user_id'] = $user['user_id'];
-                    $_SESSION['name'] = $user['name'];
-                    $_SESSION['email'] = $user['email'];
-                    $_SESSION['role'] = $user['role'];
-                    $_SESSION['profile_picture'] = $user['profile_picture'];
-                    
-                    $_SESSION['success'] = "Welcome back, Dr. " . $user['name'] . "!";
-                    
-                    // Update last login if the column exists
-                    try {
-                        $check_column = $conn->query("SHOW COLUMNS FROM users LIKE 'last_login'");
-                        if ($check_column && $check_column->num_rows > 0) {
-                            $update_query = "UPDATE users SET last_login = NOW() WHERE user_id = ?";
-                            $update_stmt = $conn->prepare($update_query);
-                            if ($update_stmt) {
-                                $update_stmt->bind_param("i", $user['user_id']);
-                                $update_stmt->execute();
-                                $update_stmt->close();
-                            }
-                        }
-                    } catch (Exception $e) {
-                        // Silently continue if column doesn't exist
-                    }
-                    
-                    header("Location: vet_dashboard.php");
+                // Redirect based on role
+                if ($user['role'] === 'vet') {
+                    header("Location: vet_dashboard.php"); // This should go to dashboard!
                     exit();
                 } else {
-                    $errors[] = "Invalid email or password";
+                    header("Location: user_dashboard.php");
+                    exit();
                 }
             } else {
-                $errors[] = "Invalid email or password, or account is not a veterinarian account";
+                $errors[] = "Invalid email or password";
             }
-            
-            $stmt->close();
         } else {
-            $errors[] = "System error: Unable to process login";
+            $errors[] = "Invalid email or password";
         }
     }
 }
@@ -103,15 +73,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             --primary-dark: #db2777;
             --primary-light: #fbcfe8;
             --secondary: #8b5cf6;
-            --light: #fdf2f8;
             --success: #10b981;
-            --warning: #f59e0b;
             --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #fdf2f8 0%, #f3e8ff 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -119,14 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .login-container {
-            background: white;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
-            overflow: hidden;
-            max-width: 1100px;
+            max-width: 1200px;
             width: 100%;
             margin: 0 auto;
             border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
         }
         
         .login-left {
