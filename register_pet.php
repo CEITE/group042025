@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     }
 
     // Validate required fields
-    if (empty($petName) || empty($species) || empty($breed) || empty($age) || empty($gender) || empty($color) || empty($weight) || empty($medicalNotes) || empty($last_vet_visit) || empty($rabies_vaccine_date) || empty($dhpp_vaccine_date) || empty($previousConditions) || empty($vaccinationHistory) || empty($surgicalHistory) || empty($medicationHistory) || empty($vetContact)) {
+    if (empty($petName) || empty($species) || empty($breed) || empty($age) || empty($gender) || empty($color) || empty($weight) || empty($medicalNotes) || empty($last_vet_visit) || empty($rabies_vaccine_date) || empty($dhpp_vaccine_date) || empty($vetContact)) {
         $_SESSION['error'] = "❌ Please fill in all required fields marked with *.";
     } else if (!isset($_POST['is_spayed_neutered']) || !isset($_POST['hasExistingRecords'])) {
         $_SESSION['error'] = "❌ Please check all required checkboxes.";
@@ -966,6 +966,21 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     <option value="Exotic Shorthair" <?php echo ($_POST['breed'] ?? '') == 'Exotic Shorthair' ? 'selected' : ''; ?>>Exotic Shorthair</option>
                                     <option value="Other Cat Breed" <?php echo ($_POST['breed'] ?? '') == 'Other Cat Breed' ? 'selected' : ''; ?>>Other Cat Breed</option>
                                 </optgroup>
+                                
+                                <!-- Other Animals -->
+                                <optgroup label="🐾 Other Animals">
+                                    <option value="Parakeet" <?php echo ($_POST['breed'] ?? '') == 'Parakeet' ? 'selected' : ''; ?>>Parakeet</option>
+                                    <option value="Cockatiel" <?php echo ($_POST['breed'] ?? '') == 'Cockatiel' ? 'selected' : ''; ?>>Cockatiel</option>
+                                    <option value="Lovebird" <?php echo ($_POST['breed'] ?? '') == 'Lovebird' ? 'selected' : ''; ?>>Lovebird</option>
+                                    <option value="Canary" <?php echo ($_POST['breed'] ?? '') == 'Canary' ? 'selected' : ''; ?>>Canary</option>
+                                    <option value="Finch" <?php echo ($_POST['breed'] ?? '') == 'Finch' ? 'selected' : ''; ?>>Finch</option>
+                                    <option value="Hamster" <?php echo ($_POST['breed'] ?? '') == 'Hamster' ? 'selected' : ''; ?>>Hamster</option>
+                                    <option value="Guinea Pig" <?php echo ($_POST['breed'] ?? '') == 'Guinea Pig' ? 'selected' : ''; ?>>Guinea Pig</option>
+                                    <option value="Rabbit" <?php echo ($_POST['breed'] ?? '') == 'Rabbit' ? 'selected' : ''; ?>>Rabbit</option>
+                                    <option value="Ferret" <?php echo ($_POST['breed'] ?? '') == 'Ferret' ? 'selected' : ''; ?>>Ferret</option>
+                                    <option value="Turtle" <?php echo ($_POST['breed'] ?? '') == 'Turtle' ? 'selected' : ''; ?>>Turtle</option>
+                                    <option value="Other" <?php echo ($_POST['breed'] ?? '') == 'Other' ? 'selected' : ''; ?>>Other</option>
+                                </optgroup>
                             </select>
                             <div class="form-text">Select your pet's breed from the list</div>
                         </div>
@@ -1135,41 +1150,41 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                             </div>
                             <div class="card-body">
                                 <div class="form-group">
-                                    <label for="previousConditions" class="form-label required">
+                                    <label for="previousConditions" class="form-label">
                                         <i class="fas fa-file-medical"></i>Previous Medical Conditions
                                     </label>
                                     <textarea class="form-control" id="previousConditions" name="previousConditions" 
                                               rows="3" placeholder="e.g., Past surgeries, illnesses, chronic conditions that are now resolved..." 
-                                              maxlength="500" required><?php echo $_POST['previousConditions'] ?? ''; ?></textarea>
+                                              maxlength="500"><?php echo $_POST['previousConditions'] ?? ''; ?></textarea>
                                     <div class="form-text">Any medical issues your pet has had in the past</div>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="vaccinationHistory" class="form-label required">
+                                    <label for="vaccinationHistory" class="form-label">
                                         <i class="fas fa-syringe"></i>Vaccination History
                                     </label>
                                     <textarea class="form-control" id="vaccinationHistory" name="vaccinationHistory" 
                                               rows="3" placeholder="e.g., Rabies (2023), DHPP (2024), Last flea/tick treatment..." 
-                                              maxlength="500" required><?php echo $_POST['vaccinationHistory'] ?? ''; ?></textarea>
+                                              maxlength="500"><?php echo $_POST['vaccinationHistory'] ?? ''; ?></textarea>
                                     <div class="form-text">List vaccinations and their dates if known</div>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="surgicalHistory" class="form-label required">
+                                    <label for="surgicalHistory" class="form-label">
                                         <i class="fas fa-procedures"></i>Surgical History
                                     </label>
                                     <textarea class="form-control" id="surgicalHistory" name="surgicalHistory" 
                                               rows="2" placeholder="e.g., Spayed/neutered date, other surgeries..." 
-                                              maxlength="300" required><?php echo $_POST['surgicalHistory'] ?? ''; ?></textarea>
+                                              maxlength="300"><?php echo $_POST['surgicalHistory'] ?? ''; ?></textarea>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="medicationHistory" class="form-label required">
+                                    <label for="medicationHistory" class="form-label">
                                         <i class="fas fa-pills"></i>Previous Medications
                                     </label>
                                     <textarea class="form-control" id="medicationHistory" name="medicationHistory" 
                                               rows="2" placeholder="e.g., Previous long-term medications, treatments..." 
-                                              maxlength="300" required><?php echo $_POST['medicationHistory'] ?? ''; ?></textarea>
+                                              maxlength="300"><?php echo $_POST['medicationHistory'] ?? ''; ?></textarea>
                                 </div>
 
                                 <div class="form-group">
@@ -1440,10 +1455,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                 const rabiesVaccine = document.getElementById('rabies_vaccine_date').value;
                 const dhppVaccine = document.getElementById('dhpp_vaccine_date').value;
                 const isSpayedNeutered = document.getElementById('is_spayed_neutered').checked;
-                const previousConditions = document.getElementById('previousConditions').value.trim();
-                const vaccinationHistory = document.getElementById('vaccinationHistory').value.trim();
-                const surgicalHistory = document.getElementById('surgicalHistory').value.trim();
-                const medicationHistory = document.getElementById('medicationHistory').value.trim();
                 const hasExistingRecords = document.getElementById('hasExistingRecords').checked;
                 const vetContact = document.getElementById('vetContact').value.trim();
                 
@@ -1466,22 +1477,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                 } else if (!isSpayedNeutered) {
                     errorMessage = 'Please indicate if your pet is spayed/neutered';
                     document.getElementById('is_spayed_neutered').focus();
-                    isValid = false;
-                } else if (!previousConditions) {
-                    errorMessage = 'Please provide previous medical conditions (enter "None" if none)';
-                    document.getElementById('previousConditions').focus();
-                    isValid = false;
-                } else if (!vaccinationHistory) {
-                    errorMessage = 'Please provide vaccination history (enter "None" if none)';
-                    document.getElementById('vaccinationHistory').focus();
-                    isValid = false;
-                } else if (!surgicalHistory) {
-                    errorMessage = 'Please provide surgical history (enter "None" if none)';
-                    document.getElementById('surgicalHistory').focus();
-                    isValid = false;
-                } else if (!medicationHistory) {
-                    errorMessage = 'Please provide medication history (enter "None" if none)';
-                    document.getElementById('medicationHistory').focus();
                     isValid = false;
                 } else if (!hasExistingRecords) {
                     errorMessage = 'Please indicate if your pet has existing medical records';
@@ -1636,7 +1631,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             const requiredFields = [
                 'petName', 'species', 'breed', 'age', 'gender', 'color', 'weight',
                 'medicalNotes', 'last_vet_visit', 'rabies_vaccine_date', 'dhpp_vaccine_date',
-                'previousConditions', 'vaccinationHistory', 'surgicalHistory', 'medicationHistory',
                 'vetContact'
             ];
             
@@ -1733,4 +1727,3 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
-
