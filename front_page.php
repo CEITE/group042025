@@ -185,33 +185,33 @@
     background-position: center;
     background-repeat: no-repeat;
     transform: scale(1.1);
-    filter: brightness(0.9);
+    filter: brightness(0.7) contrast(1.1);
   }
 
   .slide.active {
     opacity: 1;
     transform: scale(1);
-    filter: brightness(1);
+    filter: brightness(0.8) contrast(1.2);
   }
 
   .slide-1 {
-    background-image: linear-gradient(rgba(255, 214, 231, 0.7), rgba(255, 216, 236, 0.7)), 
-                     url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2043&q=80');
+    background-image: linear-gradient(rgba(255, 214, 231, 0.4), rgba(255, 216, 236, 0.4)), 
+                     url('https://images.unsplash.com/photo-1576201836106-db1758fd1c0a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
   }
 
   .slide-2 {
-    background-image: linear-gradient(rgba(255, 214, 231, 0.7), rgba(255, 216, 236, 0.7)), 
-                     url('https://images.unsplash.com/photo-1543466835-00a7907e9de1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1974&q=80');
+    background-image: linear-gradient(rgba(255, 214, 231, 0.4), rgba(255, 216, 236, 0.4)), 
+                     url('https://images.unsplash.com/photo-1596276020309-28b367086ee4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
   }
 
   .slide-3 {
-    background-image: linear-gradient(rgba(255, 214, 231, 0.7), rgba(255, 216, 236, 0.7)), 
-                     url('https://images.unsplash.com/photo-1554456854-55a089fd4cb2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+    background-image: linear-gradient(rgba(255, 214, 231, 0.4), rgba(255, 216, 236, 0.4)), 
+                     url('https://images.unsplash.com/photo-1591946611910-2d97985eabc0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
   }
 
   .slide-4 {
-    background-image: linear-gradient(rgba(255, 214, 231, 0.7), rgba(255, 216, 236, 0.7)), 
-                     url('https://images.unsplash.com/photo-1583337130417-3346a1be7dee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1964&q=80');
+    background-image: linear-gradient(rgba(255, 214, 231, 0.4), rgba(255, 216, 236, 0.4)), 
+                     url('https://images.unsplash.com/photo-1591946611910-2d97985eabc0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
   }
 
   .hero-content {
@@ -364,388 +364,6 @@
     transform: rotate(10deg) scale(1.1);
   }
 
-  /* Enhanced Role Selection Modal */
-  .role-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 248, 252, 0.98);
-    backdrop-filter: blur(20px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow-y: auto;
-    padding: 20px 0;
-  }
-
-  .role-modal.active {
-    opacity: 1;
-    visibility: visible;
-  }
-
-  .role-container {
-    background: var(--white);
-    border-radius: var(--border-radius-lg);
-    padding: 4rem;
-    box-shadow: var(--shadow-lg);
-    max-width: 900px;
-    width: 95%;
-    text-align: center;
-    margin: auto;
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .role-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--pink-gradient);
-  }
-
-  .role-title {
-    font-weight: 800;
-    color: var(--pink-dark);
-    margin-bottom: 1rem;
-    font-size: 2.8rem;
-    background: var(--pink-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .role-subtitle {
-    color: var(--ink-light);
-    margin-bottom: 3rem;
-    font-size: 1.3rem;
-    font-weight: 400;
-  }
-
-  .role-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 2rem;
-    margin-bottom: 3rem;
-  }
-
-  .role-card {
-    background: var(--white);
-    border: 2px solid #f8f0f5;
-    border-radius: var(--border-radius-lg);
-    padding: 3rem 2rem;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .role-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--pink-gradient);
-    transform: scaleX(0);
-    transition: transform 0.3s ease;
-  }
-
-  .role-card:hover {
-    transform: translateY(-10px) scale(1.02);
-    border-color: var(--pink-dark);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .role-card:hover::before {
-    transform: scaleX(1);
-  }
-
-  .role-card.active {
-    border-color: var(--pink-dark);
-    background: linear-gradient(135deg, #fff8fc, #ffeaf3);
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .role-card.active::before {
-    transform: scaleX(1);
-  }
-
-  .role-icon {
-    width: 90px;
-    height: 90px;
-    background: rgba(191, 59, 120, 0.1);
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 2rem;
-    color: var(--pink-dark);
-    font-size: 2.8rem;
-    transition: all 0.4s ease;
-    position: relative;
-  }
-
-  .role-icon::after {
-    content: '';
-    position: absolute;
-    inset: -5px;
-    background: var(--pink-gradient);
-    border-radius: 25px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    z-index: -1;
-  }
-
-  .role-card:hover .role-icon {
-    background: var(--pink-gradient);
-    color: var(--white);
-    transform: scale(1.1) rotate(5deg);
-  }
-
-  .role-card:hover .role-icon::after {
-    opacity: 1;
-    animation: pulse-ring 1.5s ease-in-out infinite;
-  }
-
-  @keyframes pulse-ring {
-    0% { transform: scale(0.8); opacity: 1; }
-    100% { transform: scale(1.2); opacity: 0; }
-  }
-
-  .role-card h4 {
-    color: var(--ink);
-    margin-bottom: 1.2rem;
-    font-weight: 700;
-    font-size: 1.4rem;
-  }
-
-  .role-card p {
-    color: var(--ink-light);
-    line-height: 1.7;
-    margin-bottom: 2rem;
-    font-size: 1rem;
-  }
-
-  .role-features {
-    list-style: none;
-    padding: 0;
-    text-align: left;
-  }
-
-  .role-features li {
-    padding: 0.6rem 0;
-    color: var(--ink-light);
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    transition: all 0.3s ease;
-  }
-
-  .role-features li:hover {
-    color: var(--pink-dark);
-    transform: translateX(5px);
-  }
-
-  .role-features li i {
-    color: var(--pink-dark);
-    font-size: 1rem;
-    transition: all 0.3s ease;
-  }
-
-  .role-features li:hover i {
-    transform: scale(1.2);
-  }
-
-  .role-continue-btn {
-    background: var(--pink-gradient);
-    color: var(--white);
-    border: none;
-    border-radius: 50px;
-    padding: 1.2rem 4rem;
-    font-weight: 600;
-    font-size: 1.1rem;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0.7;
-    cursor: not-allowed;
-    box-shadow: 0 8px 25px rgba(191, 59, 120, 0.3);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .role-continue-btn.active {
-    opacity: 1;
-    cursor: pointer;
-  }
-
-  .role-continue-btn.active:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 35px rgba(191, 59, 120, 0.4);
-  }
-
-  /* Enhanced Verification Modal */
-  .verification-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 248, 252, 0.98);
-    backdrop-filter: blur(20px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow-y: auto;
-    padding: 20px 0;
-  }
-
-  .verification-modal.active {
-    opacity: 1;
-    visibility: visible;
-  }
-
-  .verification-container {
-    background: var(--white);
-    border-radius: var(--border-radius-lg);
-    padding: 4rem;
-    box-shadow: var(--shadow-lg);
-    max-width: 550px;
-    width: 95%;
-    text-align: center;
-    margin: auto;
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    position: relative;
-  }
-
-  .verification-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--pink-gradient);
-  }
-
-  .verification-title {
-    font-weight: 800;
-    color: var(--pink-dark);
-    margin-bottom: 1rem;
-    font-size: 2.2rem;
-    background: var(--pink-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .verification-subtitle {
-    color: var(--ink-light);
-    margin-bottom: 2.5rem;
-    font-size: 1.1rem;
-    line-height: 1.6;
-  }
-
-  .form-group {
-    margin-bottom: 2rem;
-    text-align: left;
-  }
-
-  .form-label {
-    font-weight: 600;
-    color: var(--ink);
-    margin-bottom: 0.8rem;
-    display: block;
-    font-size: 1rem;
-  }
-
-  .form-control {
-    width: 100%;
-    padding: 1rem 1.5rem;
-    border: 2px solid #f0f0f0;
-    border-radius: 12px;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    background: var(--white);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .form-control:focus {
-    border-color: var(--pink-dark);
-    box-shadow: 0 0 0 3px rgba(191, 59, 120, 0.1);
-    outline: none;
-    transform: translateY(-2px);
-  }
-
-  .verification-badge {
-    background: rgba(191, 59, 120, 0.1);
-    color: var(--pink-dark);
-    padding: 1rem 2rem;
-    border-radius: 50px;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.8rem;
-    margin-bottom: 2.5rem;
-    font-weight: 600;
-    font-size: 1rem;
-    border: 1px solid rgba(191, 59, 120, 0.2);
-  }
-
-  .btn-group {
-    display: flex;
-    gap: 1.2rem;
-    margin-top: 2.5rem;
-  }
-
-  .btn-back {
-    background: #f8f9fa;
-    color: var(--ink);
-    border: 2px solid #e9ecef;
-    border-radius: 50px;
-    padding: 1rem 2.5rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    flex: 1;
-  }
-
-  .btn-back:hover {
-    background: #e9ecef;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .btn-verify {
-    background: var(--pink-gradient);
-    color: var(--white);
-    border: none;
-    border-radius: 50px;
-    padding: 1rem 2.5rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    flex: 1;
-    box-shadow: 0 8px 25px rgba(191, 59, 120, 0.3);
-  }
-
-  .btn-verify:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 35px rgba(191, 59, 120, 0.4);
-  }
-
   /* Enhanced Sections */
   .section {
     padding: 120px 0;
@@ -886,6 +504,10 @@
   }
 
   /* Enhanced Team Section */
+  .team-section {
+    background: linear-gradient(135deg, #fff8fc 0%, #fef5f9 100%);
+  }
+
   .team-card {
     background: var(--white);
     border-radius: var(--border-radius-lg);
@@ -894,6 +516,7 @@
     transition: all 0.4s ease;
     height: 100%;
     position: relative;
+    text-align: center;
   }
 
   .team-card::before {
@@ -918,11 +541,11 @@
   }
 
   .team-img {
-    width: 140px;
-    height: 140px;
+    width: 160px;
+    height: 160px;
     border-radius: 50%;
     object-fit: cover;
-    margin: 0 auto;
+    margin: 2rem auto 1.5rem;
     border: 4px solid var(--white);
     box-shadow: var(--shadow-md);
     transition: all 0.3s ease;
@@ -934,8 +557,20 @@
   }
 
   .team-content {
-    padding: 2.5rem;
-    text-align: center;
+    padding: 0 2rem 2.5rem;
+  }
+
+  .team-content h4 {
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+  }
+
+  .team-role {
+    color: var(--pink-dark);
+    font-weight: 600;
+    margin-bottom: 1rem;
+    font-size: 1rem;
   }
 
   /* Enhanced Contact Section */
@@ -952,6 +587,104 @@
     right: 0;
     height: 2px;
     background: var(--pink-gradient);
+  }
+
+  .contact-info {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    padding: 3rem;
+    box-shadow: var(--shadow-sm);
+    height: 100%;
+  }
+
+  .contact-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    transition: all 0.3s ease;
+  }
+
+  .contact-item:hover {
+    background: rgba(191, 59, 120, 0.05);
+    transform: translateX(5px);
+  }
+
+  .contact-icon {
+    width: 60px;
+    height: 60px;
+    background: var(--pink-gradient);
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .contact-form {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    padding: 3rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* About Section */
+  .about-section {
+    background: linear-gradient(135deg, #faf5f8 0%, #fff 100%);
+  }
+
+  .about-content {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    padding: 4rem;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+  }
+
+  .about-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--pink-gradient);
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    margin-top: 3rem;
+  }
+
+  .stat-item {
+    text-align: center;
+    padding: 2rem;
+    background: rgba(191, 59, 120, 0.05);
+    border-radius: var(--border-radius);
+    transition: all 0.3s ease;
+  }
+
+  .stat-item:hover {
+    transform: translateY(-5px);
+    background: rgba(191, 59, 120, 0.1);
+  }
+
+  .stat-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--pink-dark);
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-label {
+    color: var(--ink-light);
+    font-weight: 600;
   }
 
   /* Enhanced Footer */
@@ -1014,28 +747,22 @@
     box-shadow: 0 15px 40px rgba(191, 59, 120, 0.4);
   }
 
-  /* Particle Background */
-  .particles {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-    pointer-events: none;
+  /* Form Controls */
+  .form-control {
+    border: 2px solid #f0f0f0;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: var(--white);
+    box-shadow: var(--shadow-sm);
   }
 
-  .particle {
-    position: absolute;
-    background: var(--pink-gradient);
-    border-radius: 50%;
-    opacity: 0.1;
-    animation: float-particle 20s infinite linear;
-  }
-
-  @keyframes float-particle {
-    0% { transform: translateY(0) rotate(0deg); }
-    100% { transform: translateY(-1000px) rotate(360deg); }
+  .form-control:focus {
+    border-color: var(--pink-dark);
+    box-shadow: 0 0 0 3px rgba(191, 59, 120, 0.1);
+    outline: none;
+    transform: translateY(-2px);
   }
 
   /* Responsive adjustments */
@@ -1057,10 +784,6 @@
     .feature-highlights {
       flex-direction: column;
       gap: 1rem;
-    }
-    
-    .role-cards {
-      grid-template-columns: 1fr;
     }
     
     .hero h1 {
@@ -1090,25 +813,14 @@
       padding: 80px 0;
     }
     
-    .role-container,
-    .verification-container {
-      padding: 2.5rem 2rem;
-    }
-    
-    .role-title {
-      font-size: 2.2rem;
-    }
-    
     .section-title {
       font-size: 2rem;
     }
     
-    .btn-group {
-      flex-direction: column;
-    }
-    
-    .feature-item {
-      padding: 1rem;
+    .about-content,
+    .contact-info,
+    .contact-form {
+      padding: 2rem;
     }
   }
 
@@ -1125,14 +837,8 @@
       font-size: 1.8rem;
     }
     
-    .role-title,
-    .verification-title {
-      font-size: 1.8rem;
-    }
-    
-    .role-container,
-    .verification-container {
-      padding: 2rem 1.5rem;
+    .stats {
+      grid-template-columns: 1fr;
     }
   }
 
@@ -1154,123 +860,9 @@
   .text-pink-dark {
     color: var(--pink-dark) !important;
   }
-
-  /* Loading Animation */
-  .loading-spinner {
-    display: none;
-    width: 40px;
-    height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid var(--pink-dark);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
 </style>
 </head>
 <body>
-
-<!-- Particle Background -->
-<div class="particles" id="particles"></div>
-
-<!-- Role Selection Modal -->
-<div class="role-modal" id="roleModal">
-  <div class="role-container">
-    <h1 class="role-title">Welcome to VetCareQR</h1>
-    <p class="role-subtitle">Please select your role to continue</p>
-    
-    <div class="role-cards">
-      <div class="role-card" onclick="selectRole('user')">
-        <div class="role-icon">
-          <i class="bi bi-person"></i>
-        </div>
-        <h4>Pet Owner</h4>
-        <p>Manage your pet's health records, track vaccinations, and access medical history</p>
-        <ul class="role-features">
-          <li><i class="bi bi-check-circle"></i> Manage pet profiles</li>
-          <li><i class="bi bi-check-circle"></i> Track medical records</li>
-          <li><i class="bi bi-check-circle"></i> QR code access</li>
-          <li><i class="bi bi-check-circle"></i> Appointment scheduling</li>
-        </ul>
-      </div>
-      
-      <div class="role-card" onclick="selectRole('veterinarian')">
-        <div class="role-icon">
-          <i class="bi bi-heart-pulse"></i>
-        </div>
-        <h4>Veterinarian</h4>
-        <p>Access patient records, update medical information, and provide professional care</p>
-        <ul class="role-features">
-          <li><i class="bi bi-check-circle"></i> Patient record access</li>
-          <li><i class="bi bi-check-circle"></i> Medical updates</li>
-          <li><i class="bi bi-check-circle"></i> Treatment planning</li>
-          <li><i class="bi bi-check-circle"></i> Professional dashboard</li>
-        </ul>
-      </div>
-      
-      <div class="role-card" onclick="selectRole('admin')">
-        <div class="role-icon">
-          <i class="bi bi-shield-check"></i>
-        </div>
-        <h4>Administrator</h4>
-        <p>Manage system users, monitor platform activity, and maintain system integrity</p>
-        <ul class="role-features">
-          <li><i class="bi bi-check-circle"></i> User management</li>
-          <li><i class="bi bi-check-circle"></i> System monitoring</li>
-          <li><i class="bi bi-check-circle"></i> Data analytics</li>
-          <li><i class="bi bi-check-circle"></i> Platform settings</li>
-        </ul>
-      </div>
-    </div>
-    
-    <button class="role-continue-btn" id="continueBtn" onclick="handleContinue()">
-      Continue to Login
-    </button>
-  </div>
-</div>
-
-<!-- Verification Modal -->
-<div class="verification-modal" id="verificationModal">
-  <div class="verification-container">
-    <div class="verification-badge" id="verificationBadge">
-      <i class="bi bi-shield-check"></i>
-      <span id="verificationRole">Veterinarian Verification</span>
-    </div>
-    <h2 class="verification-title" id="verificationTitle">Professional Verification Required</h2>
-    <p class="verification-subtitle" id="verificationSubtitle">Please provide your credentials to verify your identity as a veterinarian</p>
-    
-    <form id="verificationForm" onsubmit="handleVerification(event)">
-      <div class="form-group">
-        <label for="licenseNumber" class="form-label">License Number</label>
-        <input type="text" class="form-control" id="licenseNumber" placeholder="Enter your professional license number" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="clinicName" class="form-label">Clinic/Hospital Name</label>
-        <input type="text" class="form-control" id="clinicName" placeholder="Enter your clinic or hospital name" required>
-      </div>
-      
-      <div class="form-group" id="adminCodeGroup" style="display: none;">
-        <label for="adminCode" class="form-label">Administrator Access Code</label>
-        <input type="password" class="form-control" id="adminCode" placeholder="Enter administrator access code" required>
-      </div>
-      
-      <div class="btn-group">
-        <button type="button" class="btn btn-back" onclick="backToRoleSelection()">
-          <i class="bi bi-arrow-left me-2"></i>Back
-        </button>
-        <button type="submit" class="btn btn-verify">
-          <i class="bi bi-shield-check me-2"></i>Verify & Continue
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
 
 <!-- Navigation -->
 <nav class="navbar navbar-expand-lg sticky-top">
@@ -1284,6 +876,7 @@
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav ms-auto">
         <li class="nav-item"><a class="nav-link active" href="#">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="#about">About</a></li>
         <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
         <li class="nav-item"><a class="nav-link" href="#research">Research</a></li>
         <li class="nav-item"><a class="nav-link" href="#team">Team</a></li>
@@ -1305,7 +898,6 @@
   </div>
   <div class="container">
     <div class="row align-items-center">
-      <!-- LEFT: copy & CTA -->
       <div class="col-lg-6 hero-content" data-aos="fade-right">
         <span class="hero-badge"><i class="bi bi-star-fill me-2"></i>Modern Pet Healthcare</span>
         <h1>Smart Pet Healthcare Management with <span style="color:#bf3b78">QR Technology</span></h1>
@@ -1338,7 +930,6 @@
         </div>
       </div>
 
-      <!-- RIGHT: Feature illustration -->
       <div class="col-lg-6" data-aos="fade-left" data-aos-delay="200">
         <div class="text-center">
           <div class="feature-icon-wrapper" style="width: 140px; height: 140px; margin: 0 auto 2rem;">
@@ -1346,6 +937,52 @@
           </div>
           <h3 style="color: var(--pink-dark); margin-bottom: 1rem;">Scan. Access. Care.</h3>
           <p class="hero-subtitle">Instant access to pet medical records through QR technology for faster, smarter healthcare decisions.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- About Section -->
+<section id="about" class="section about-section">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-lg-6" data-aos="fade-right">
+        <h2 class="section-title text-start">About VetCareQR</h2>
+        <p class="lead mb-4">Transforming pet healthcare through innovative technology and compassionate care.</p>
+        <p class="mb-4">VetCareQR is a comprehensive pet healthcare management system that leverages QR code technology and predictive analytics to provide seamless medical record access and proactive health monitoring.</p>
+        <p class="mb-5">Our mission is to bridge the gap between pet owners, veterinarians, and emergency care providers through instant, secure access to vital medical information when it matters most.</p>
+        
+        <div class="stats">
+          <div class="stat-item" data-aos="fade-up" data-aos-delay="100">
+            <div class="stat-number">10K+</div>
+            <div class="stat-label">Pets Protected</div>
+          </div>
+          <div class="stat-item" data-aos="fade-up" data-aos-delay="200">
+            <div class="stat-number">500+</div>
+            <div class="stat-label">Veterinarians</div>
+          </div>
+          <div class="stat-item" data-aos="fade-up" data-aos-delay="300">
+            <div class="stat-number">99.9%</div>
+            <div class="stat-label">Uptime</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6" data-aos="fade-left">
+        <div class="about-content">
+          <h4 class="mb-4">Why Choose VetCareQR?</h4>
+          <div class="research-card mb-3">
+            <h5><i class="bi bi-lightning-fill text-warning me-2"></i>Instant Access</h5>
+            <p class="mb-0">QR codes provide immediate access to medical records during emergencies.</p>
+          </div>
+          <div class="research-card mb-3">
+            <h5><i class="bi bi-shield-check text-primary me-2"></i>Secure & Private</h5>
+            <p class="mb-0">Military-grade encryption ensures your pet's data remains confidential.</p>
+          </div>
+          <div class="research-card">
+            <h5><i class="bi bi-graph-up-arrow text-success me-2"></i>Smart Analytics</h5>
+            <p class="mb-0">Predictive algorithms help prevent health issues before they occur.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -1391,11 +1028,234 @@
   </div>
 </section>
 
+<!-- Research section -->
+<section id="research" class="section research-section">
+  <div class="container">
+    <div class="text-center mb-5" data-aos="fade-up">
+      <h2 class="section-title">Research Foundation</h2>
+      <p class="section-subtitle">Our project is built on extensive research in veterinary informatics and predictive analytics</p>
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6" data-aos="fade-up" data-aos-delay="100">
+        <div class="research-card">
+          <h5>Machine Learning Integration</h5>
+          <p>We implemented Random Forest and Decision Tree algorithms to analyze pet health data and predict potential risks based on historical patterns with 92% accuracy.</p>
+        </div>
+      </div>
+      <div class="col-md-6" data-aos="fade-up" data-aos-delay="200">
+        <div class="research-card">
+          <h5>QR Code Technology</h5>
+          <p>Leveraging QR codes for instant access to medical records enables faster treatment decisions during emergencies, reducing response time by 65%.</p>
+        </div>
+      </div>
+      <div class="col-md-6" data-aos="fade-up" data-aos-delay="300">
+        <div class="research-card">
+          <h5>Data Security & Privacy</h5>
+          <p>Implemented robust encryption protocols and access controls to ensure pet medical data remains secure while maintaining accessibility for authorized veterinarians.</p>
+        </div>
+      </div>
+      <div class="col-md-6" data-aos="fade-up" data-aos-delay="400">
+        <div class="research-card">
+          <h5>Predictive Analytics</h5>
+          <p>Our system analyzes vaccination schedules, breed-specific health risks, and regional disease patterns to provide proactive healthcare recommendations.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Team Section -->
+<section id="team" class="section team-section">
+  <div class="container">
+    <div class="text-center mb-5" data-aos="fade-up">
+      <h2 class="section-title">Meet Our Team</h2>
+      <p class="section-subtitle">The passionate professionals dedicated to revolutionizing pet healthcare</p>
+    </div>
+    
+    <div class="row g-4">
+      <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+        <div class="team-card">
+          <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" alt="Dr. Sarah Johnson" class="team-img">
+          <div class="team-content">
+            <h4>Dr. Sarah Johnson</h4>
+            <p class="team-role">Lead Veterinarian & Project Manager</p>
+            <p>DVM with 12+ years of clinical experience and passion for veterinary technology innovation.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+        <div class="team-card">
+          <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" alt="Michael Chen" class="team-img">
+          <div class="team-content">
+            <h4>Michael Chen</h4>
+            <p class="team-role">Data Scientist & ML Engineer</p>
+            <p>PhD in Computer Science specializing in predictive analytics and machine learning applications.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+        <div class="team-card">
+          <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" alt="Emily Rodriguez" class="team-img">
+          <div class="team-content">
+            <h4>Emily Rodriguez</h4>
+            <p class="team-role">Full-Stack Developer</p>
+            <p>Software engineer with expertise in web applications, QR technology, and database management.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Contact Section -->
+<section id="contact" class="section contact-section">
+  <div class="container">
+    <div class="text-center mb-5" data-aos="fade-up">
+      <h2 class="section-title">Get In Touch</h2>
+      <p class="section-subtitle">Have questions about VetCareQR? We'd love to hear from you.</p>
+    </div>
+    
+    <div class="row">
+      <div class="col-lg-4 mb-4" data-aos="fade-right">
+        <div class="contact-info">
+          <h4 class="mb-4">Contact Information</h4>
+          
+          <div class="contact-item">
+            <div class="contact-icon">
+              <i class="bi bi-envelope"></i>
+            </div>
+            <div>
+              <h5>Email Us</h5>
+              <p class="text-muted mb-0">support@vetcareqr.com</p>
+            </div>
+          </div>
+          
+          <div class="contact-item">
+            <div class="contact-icon">
+              <i class="bi bi-telephone"></i>
+            </div>
+            <div>
+              <h5>Call Us</h5>
+              <p class="text-muted mb-0">+1 (555) 123-4567</p>
+            </div>
+          </div>
+          
+          <div class="contact-item">
+            <div class="contact-icon">
+              <i class="bi bi-clock"></i>
+            </div>
+            <div>
+              <h5>Business Hours</h5>
+              <p class="text-muted mb-0">Monday - Friday: 9:00 AM - 6:00 PM EST</p>
+            </div>
+          </div>
+
+          <div class="contact-item">
+            <div class="contact-icon">
+              <i class="bi bi-geo-alt"></i>
+            </div>
+            <div>
+              <h5>Visit Us</h5>
+              <p class="text-muted mb-0">123 Pet Care Ave, Suite 100<br>New York, NY 10001</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-8" data-aos="fade-left">
+        <div class="contact-form">
+          <h4 class="mb-4">Send us a Message</h4>
+          <form>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Full Name</label>
+                <input type="text" class="form-control" placeholder="Your name" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email Address</label>
+                <input type="email" class="form-control" placeholder="Your email" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Subject</label>
+                <input type="text" class="form-control" placeholder="Subject of your message" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Message</label>
+                <textarea class="form-control" rows="5" placeholder="How can we help you?" required></textarea>
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-pink w-100">
+                  <i class="bi bi-send me-2"></i>Send Message
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-4 mb-4 mb-lg-0">
+        <h4 class="mb-3"><i class="bi bi-qr-code me-2"></i>VetCareQR</h4>
+        <p class="text-muted">Revolutionizing pet healthcare through QR technology and predictive analytics for a healthier pet community.</p>
+        <div class="d-flex gap-3">
+          <a href="#" class="text-pink-dark"><i class="bi bi-facebook" style="font-size: 1.2rem;"></i></a>
+          <a href="#" class="text-pink-dark"><i class="bi bi-twitter" style="font-size: 1.2rem;"></i></a>
+          <a href="#" class="text-pink-dark"><i class="bi bi-instagram" style="font-size: 1.2rem;"></i></a>
+          <a href="#" class="text-pink-dark"><i class="bi bi-linkedin" style="font-size: 1.2rem;"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
+        <h5 class="mb-3">Quick Links</h5>
+        <ul class="list-unstyled">
+          <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Home</a></li>
+          <li class="mb-2"><a href="#about" class="text-muted text-decoration-none">About</a></li>
+          <li class="mb-2"><a href="#features" class="text-muted text-decoration-none">Features</a></li>
+          <li class="mb-2"><a href="#research" class="text-muted text-decoration-none">Research</a></li>
+        </ul>
+      </div>
+      <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
+        <h5 class="mb-3">Support</h5>
+        <ul class="list-unstyled">
+          <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Help Center</a></li>
+          <li class="mb-2"><a href="#" class="text-muted text-decoration-none">FAQs</a></li>
+          <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Privacy Policy</a></li>
+          <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Terms of Service</a></li>
+        </ul>
+      </div>
+      <div class="col-lg-4 col-md-4">
+        <h5 class="mb-3">Newsletter</h5>
+        <p class="text-muted mb-3">Subscribe to get updates on new features and pet healthcare tips.</p>
+        <div class="input-group">
+          <input type="email" class="form-control" placeholder="Your email address">
+          <button class="btn btn-pink" type="button">Subscribe</button>
+        </div>
+      </div>
+    </div>
+    <hr class="my-4">
+    <div class="row align-items-center">
+      <div class="col-md-6">
+        <p class="text-muted mb-0">© 2023 VetCareQR. All rights reserved.</p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <p class="text-muted mb-0">Made with <i class="bi bi-heart-fill text-pink-dark"></i> for pets everywhere</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
 <!-- Scroll to top button -->
 <div class="scroll-top" id="scrollTop">
   <i class="bi bi-chevron-up"></i>
 </div>
 
+<!-- Include your modals and JavaScript here -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
 <script>
@@ -1422,9 +1282,6 @@
     }
     
     setInterval(nextSlide, 5000);
-
-    // Create particles
-    createParticles();
 
     // Navbar scroll effect
     window.addEventListener('scroll', function() {
@@ -1467,157 +1324,6 @@
         }
       });
     });
-  });
-
-  // Create floating particles
-  function createParticles() {
-    const particlesContainer = document.getElementById('particles');
-    const particleCount = 15;
-    
-    for (let i = 0; i < particleCount; i++) {
-      const particle = document.createElement('div');
-      particle.className = 'particle';
-      
-      // Random properties
-      const size = Math.random() * 60 + 10;
-      const posX = Math.random() * 100;
-      const posY = Math.random() * 100;
-      const duration = Math.random() * 30 + 20;
-      const delay = Math.random() * 5;
-      
-      particle.style.width = `${size}px`;
-      particle.style.height = `${size}px`;
-      particle.style.left = `${posX}%`;
-      particle.style.top = `${posY}%`;
-      particle.style.animationDuration = `${duration}s`;
-      particle.style.animationDelay = `${delay}s`;
-      
-      particlesContainer.appendChild(particle);
-    }
-  }
-
-  // Role Selection Functions
-  let selectedRole = null;
-
-  function showRoleModal() {
-    document.getElementById('roleModal').classList.add('active');
-    
-    // Reset selection
-    selectedRole = null;
-    document.getElementById('continueBtn').classList.remove('active');
-    
-    // Remove active class from all cards
-    document.querySelectorAll('.role-card').forEach(card => {
-      card.classList.remove('active');
-    });
-  }
-
-  function selectRole(role) {
-    // Remove active class from all cards
-    document.querySelectorAll('.role-card').forEach(card => {
-      card.classList.remove('active');
-    });
-    
-    // Add active class to clicked card
-    event.currentTarget.classList.add('active');
-    
-    // Set selected role
-    selectedRole = role;
-    
-    // Enable continue button
-    document.getElementById('continueBtn').classList.add('active');
-  }
-
-  function handleContinue() {
-    if (!selectedRole) {
-      alert('Please select a role first!');
-      return;
-    }
-    
-    // Hide role modal
-    document.getElementById('roleModal').classList.remove('active');
-    
-    if (selectedRole === 'user') {
-      // Redirect pet owners to login.php
-      window.location.href = 'login.php';
-      return;
-    }
-    
-    // Show verification modal for professionals
-    showVerificationModal();
-  }
-
-  function showVerificationModal() {
-    const roleTitle = document.getElementById('verificationTitle');
-    const roleSubtitle = document.getElementById('verificationSubtitle');
-    const roleBadge = document.getElementById('verificationRole');
-    const adminCodeGroup = document.getElementById('adminCodeGroup');
-    
-    if (selectedRole === 'veterinarian') {
-      roleTitle.textContent = 'Professional Verification Required';
-      roleSubtitle.textContent = 'Please provide your credentials to verify your identity as a veterinarian';
-      roleBadge.textContent = 'Veterinarian Verification';
-      adminCodeGroup.style.display = 'none';
-    } else if (selectedRole === 'admin') {
-      roleTitle.textContent = 'Administrator Access';
-      roleSubtitle.textContent = 'Please provide administrator credentials to access the system';
-      roleBadge.textContent = 'Administrator Verification';
-      adminCodeGroup.style.display = 'block';
-    }
-    
-    document.getElementById('verificationModal').classList.add('active');
-  }
-
-  function handleVerification(event) {
-    event.preventDefault();
-    
-    // Get form values
-    const licenseNumber = document.getElementById('licenseNumber').value;
-    const clinicName = document.getElementById('clinicName').value;
-    const adminCode = document.getElementById('adminCode') ? document.getElementById('adminCode').value : '';
-    
-    // Basic validation
-    if (!licenseNumber || !clinicName) {
-      alert('Please fill in all required fields.');
-      return;
-    }
-    
-    if (selectedRole === 'admin' && !adminCode) {
-      alert('Please enter the administrator access code.');
-      return;
-    }
-    
-    // Redirect based on role after verification
-    if (selectedRole === 'veterinarian') {
-      // Redirect to veterinarian login
-      window.location.href = 'login_vet.php';
-    } else if (selectedRole === 'admin') {
-      // Redirect to admin login
-      window.location.href = 'login_admin.php';
-    }
-  }
-
-  function backToRoleSelection() {
-    document.getElementById('verificationModal').classList.remove('active');
-    showRoleModal();
-  }
-
-  function hideVerificationModal() {
-    document.getElementById('verificationModal').classList.remove('active');
-  }
-
-  // Close modals when clicking outside
-  document.addEventListener('click', function(event) {
-    const roleModal = document.getElementById('roleModal');
-    const verificationModal = document.getElementById('verificationModal');
-    
-    if (event.target === roleModal) {
-      roleModal.classList.remove('active');
-    }
-    
-    if (event.target === verificationModal) {
-      verificationModal.classList.remove('active');
-    }
   });
 </script>
 </body>
