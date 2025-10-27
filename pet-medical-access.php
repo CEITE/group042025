@@ -1,5 +1,5 @@
 <?php
-// pet-medical-access.php - REAL-TIME ACCESS AFTER APPROVAL
+// pet-medical-access.php - FIXED APPROVAL FLOW
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -11,6 +11,7 @@ $pet_name = isset($_GET['pet_name']) ? htmlspecialchars($_GET['pet_name']) : 'Un
 $request_id = isset($_GET['request_id']) ? intval($_GET['request_id']) : 0;
 $token = isset($_GET['token']) ? $_GET['token'] : '';
 $check_approval = isset($_GET['check_approval']) ? intval($_GET['check_approval']) : 0;
+$vet_session = isset($_GET['vet_session']) ? $_GET['vet_session'] : '';
 
 // Initialize variables
 $pet_data = null;
@@ -18,6 +19,9 @@ $medical_records = [];
 $is_authenticated = false;
 $auth_error = '';
 $access_request = null;
+$request_success = false;
+$submitted_request_id = null;
+$success_message = '';
 
 // Function to send email notification
 function sendAccessRequestEmail($owner_email, $owner_name, $pet_name, $vet_email, $vet_clinic, $request_id, $token) {
@@ -81,6 +85,48 @@ function sendAccessRequestEmail($owner_email, $owner_name, $pet_name, $vet_email
     return mail($owner_email, $subject, $message, $headers);
 }
 
+// Handle AJAX approval check
+if (isset($_GET['check_approval']) && !empty($_GET['check_approval'])) {
+    header('Content-Type: application/json');
+    
+    $check_request_id = intval($_GET['check_approval']);
+    
+    try {
+        include("conn.php");
+        
+        $stmt = $conn->prepare("
+            SELECT request_id, session_id, status 
+            FROM vet_access_requests 
+            WHERE request_id = ? AND status = 'approved'
+        ");
+        $stmt->bind_param("i", $check_request_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $request_data = $result->fetch_assoc();
+        $stmt->close();
+        
+        if ($request_data && $request_data['status'] === 'approved') {
+            echo json_encode([
+                'approved' => true,
+                'vet_session' => $request_data['session_id'],
+                'request_id' => $request_data['request_id']
+            ]);
+        } else {
+            echo json_encode([
+                'approved' => false,
+                'message' => 'Not approved yet'
+            ]);
+        }
+        exit();
+    } catch (Exception $e) {
+        echo json_encode([
+            'approved' => false, 
+            'error' => $e->getMessage()
+        ]);
+        exit();
+    }
+}
+
 // Handle access request approval/rejection
 if (isset($_GET['action']) && $request_id > 0) {
     try {
@@ -88,7 +134,7 @@ if (isset($_GET['action']) && $request_id > 0) {
         
         // Verify request exists and is still pending
         $stmt = $conn->prepare("
-            SELECT r.*, p.name as pet_name, u.name as owner_name, u.email as owner_email 
+            SELECT r.*, p.name as pet_name, p.pet_id, u.name as owner_name, u.email as owner_email 
             FROM vet_access_requests r 
             JOIN pets p ON r.pet_id = p.pet_id 
             JOIN users u ON p.user_id = u.user_id 
@@ -112,15 +158,25 @@ if (isset($_GET['action']) && $request_id > 0) {
                     // Update the request with session ID and approve it
                     $stmt = $conn->prepare("
                         UPDATE vet_access_requests 
-                        SET status = 'approved', approved_at = NOW(), session_id = ?, expires_at = ?, access_granted = TRUE
+                        SET status = 'approved', 
+                            approved_at = NOW(), 
+                            session_id = ?, 
+                            expires_at = ?,
+                            access_granted = TRUE
                         WHERE request_id = ?
                     ");
                     $stmt->bind_param("ssi", $session_id, $expires_at, $request_id);
-                    $stmt->execute();
-                    $stmt->close();
                     
-                    // Show success message to owner
-                    $success_message = "Access has been approved. The veterinarian can now access the medical records.";
+                    if ($stmt->execute()) {
+                        $success_message = "Access has been approved. The veterinarian can now access the medical records.";
+                        
+                        // Store pet_id for display
+                        $pet_id = $request_data['pet_id'];
+                        $pet_name = $request_data['pet_name'];
+                    } else {
+                        $success_message = "Error approving request.";
+                    }
+                    $stmt->close();
                     
                 } elseif ($_GET['action'] === 'reject') {
                     // Reject the request
@@ -135,59 +191,54 @@ if (isset($_GET['action']) && $request_id > 0) {
                     
                     $success_message = "Access request has been rejected.";
                 }
+            } else {
+                $success_message = "Invalid security token.";
             }
+        } else {
+            $success_message = "Request not found or already processed.";
         }
     } catch (Exception $e) {
         error_log("Access request handling error: " . $e->getMessage());
+        $success_message = "Error processing request: " . $e->getMessage();
     }
 }
 
-// Check if this is a vet checking for approval status
-if ($check_approval > 0) {
+// Check if vet is accessing with valid session ID
+if (!empty($vet_session)) {
     try {
         include("conn.php");
         
-        // Check if the request has been approved
+        // Verify vet session is valid and not expired
         $stmt = $conn->prepare("
-            SELECT r.*, p.name as pet_name 
+            SELECT r.*, p.name as pet_name, p.pet_id
             FROM vet_access_requests r 
             JOIN pets p ON r.pet_id = p.pet_id 
-            WHERE r.request_id = ? AND r.status = 'approved' AND r.access_granted = TRUE
+            WHERE r.session_id = ? AND r.status = 'approved' AND r.expires_at > NOW()
         ");
-        $stmt->bind_param("i", $check_approval);
+        $stmt->bind_param("s", $vet_session);
         $stmt->execute();
-        $approved_request = $stmt->get_result()->fetch_assoc();
+        $session_data = $stmt->get_result()->fetch_assoc();
         $stmt->close();
         
-        if ($approved_request) {
-            // Create session for the vet
+        if ($session_data) {
+            // Valid vet session - create session for VET
             $_SESSION['vet_authenticated'] = true;
-            $_SESSION['vet_email'] = $approved_request['vet_email'];
-            $_SESSION['vet_clinic'] = $approved_request['vet_clinic'];
+            $_SESSION['vet_email'] = $session_data['vet_email'];
+            $_SESSION['vet_clinic'] = $session_data['vet_clinic'];
             $_SESSION['access_time'] = time();
-            $_SESSION['approved_request'] = true;
+            $_SESSION['vet_session_id'] = $vet_session;
             $is_authenticated = true;
             
             // Set pet data
-            $pet_id = $approved_request['pet_id'];
-            $pet_name = $approved_request['pet_name'];
-            
-            // Mark as accessed
-            $stmt = $conn->prepare("UPDATE vet_access_requests SET access_granted = FALSE WHERE request_id = ?");
-            $stmt->bind_param("i", $check_approval);
-            $stmt->execute();
-            $stmt->close();
-            
-            // Redirect to medical records
-            header("Location: ?pet_id=" . $pet_id . "&pet_name=" . urlencode($pet_name));
-            exit();
+            $pet_id = $session_data['pet_id'];
+            $pet_name = $session_data['pet_name'];
         }
     } catch (Exception $e) {
-        error_log("Approval check error: " . $e->getMessage());
+        error_log("Vet session verification error: " . $e->getMessage());
     }
 }
 
-// Check if vet is already authenticated
+// Check if vet is already authenticated via session
 if (isset($_SESSION['vet_authenticated']) && $_SESSION['vet_authenticated'] === true) {
     // Check session timeout (2 hours)
     if (isset($_SESSION['access_time']) && (time() - $_SESSION['access_time']) > 7200) {
@@ -195,6 +246,9 @@ if (isset($_SESSION['vet_authenticated']) && $_SESSION['vet_authenticated'] === 
         header("Location: ?pet_id=" . $pet_id . "&pet_name=" . urlencode($pet_name));
         exit();
     }
+    
+    // Update access time
+    $_SESSION['access_time'] = time();
     $is_authenticated = true;
 }
 
@@ -229,35 +283,42 @@ if (isset($_POST['request_access']) && !$is_authenticated) {
                 
                 $stmt = $conn->prepare("
                     INSERT INTO vet_access_requests 
-                    (pet_id, vet_email, vet_clinic, vet_phone, access_code, expires_at, ip_address, user_agent) 
+                    (pet_id, vet_email, vet_clinic, vet_phone, reason, ip_address, user_agent, expires_at) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ");
-                $access_code = bin2hex(random_bytes(8));
-                $stmt->bind_param("isssssss", $pet_id, $vet_email, $vet_clinic, $vet_phone, $access_code, $expires_at, $ip_address, $user_agent);
-                $stmt->execute();
-                $request_id = $conn->insert_id;
-                $stmt->close();
+                $stmt->bind_param("isssssss", $pet_id, $vet_email, $vet_clinic, $vet_phone, $reason, $ip_address, $user_agent, $expires_at);
                 
-                // Generate security token
-                $token = md5($request_id . $vet_email . 'secret_salt');
-                
-                // Send email to pet owner if notifications are enabled
-                if ($pet_owner_data['notify_email']) {
-                    $email_sent = sendAccessRequestEmail(
-                        $pet_owner_data['owner_email'],
-                        $pet_owner_data['owner_name'],
-                        $pet_owner_data['name'],
-                        $vet_email,
-                        $vet_clinic,
-                        $request_id,
-                        $token
-                    );
+                if ($stmt->execute()) {
+                    $request_id = $conn->insert_id;
+                    $stmt->close();
+                    
+                    // Generate security token
+                    $token = md5($request_id . $vet_email . 'secret_salt');
+                    
+                    // Send email to pet owner if notifications are enabled
+                    if ($pet_owner_data['notify_email']) {
+                        $email_sent = sendAccessRequestEmail(
+                            $pet_owner_data['owner_email'],
+                            $pet_owner_data['owner_name'],
+                            $pet_owner_data['name'],
+                            $vet_email,
+                            $vet_clinic,
+                            $request_id,
+                            $token
+                        );
+                    }
+                    
+                    $request_success = true;
+                    $submitted_request_id = $request_id;
+                    $success_message = "Access request sent to the pet owner. Waiting for approval...";
+                } else {
+                    $auth_error = "Failed to create access request.";
                 }
-                
-                $request_success = true;
-                $submitted_request_id = $request_id;
-                $success_message = "Access request sent to the pet owner. Waiting for approval...";
+            } else {
+                $auth_error = "Pet not found or invalid pet ID.";
             }
+        } else {
+            $auth_error = "Please fill in all required fields.";
         }
     } catch (Exception $e) {
         $auth_error = "Error processing request: " . $e->getMessage();
@@ -266,43 +327,41 @@ if (isset($_POST['request_access']) && !$is_authenticated) {
 }
 
 // Fetch pet data and medical records if authenticated
-if ($is_authenticated) {
+if ($is_authenticated && $pet_id > 0) {
     try {
         include("conn.php");
         
         // Fetch pet data
-        if ($pet_id > 0) {
-            $stmt = $conn->prepare("
-                SELECT p.*, u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone
-                FROM pets p 
-                LEFT JOIN users u ON p.user_id = u.user_id 
-                WHERE p.pet_id = ?
-            ");
-            if ($stmt) {
-                $stmt->bind_param("i", $pet_id);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                if ($result) {
-                    $pet_data = $result->fetch_assoc();
-                }
-                $stmt->close();
+        $stmt = $conn->prepare("
+            SELECT p.*, u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone
+            FROM pets p 
+            LEFT JOIN users u ON p.user_id = u.user_id 
+            WHERE p.pet_id = ?
+        ");
+        if ($stmt) {
+            $stmt->bind_param("i", $pet_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($result) {
+                $pet_data = $result->fetch_assoc();
             }
-            
-            // Fetch medical records
-            $stmt = $conn->prepare("
-                SELECT * FROM pet_medical_records 
-                WHERE pet_id = ? 
-                ORDER BY record_date DESC
-            ");
-            if ($stmt) {
-                $stmt->bind_param("i", $pet_id);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                if ($result) {
-                    $medical_records = $result->fetch_all(MYSQLI_ASSOC);
-                }
-                $stmt->close();
+            $stmt->close();
+        }
+        
+        // Fetch medical records
+        $stmt = $conn->prepare("
+            SELECT * FROM pet_medical_records 
+            WHERE pet_id = ? 
+            ORDER BY record_date DESC
+        ");
+        if ($stmt) {
+            $stmt->bind_param("i", $pet_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($result) {
+                $medical_records = $result->fetch_all(MYSQLI_ASSOC);
             }
+            $stmt->close();
         }
     } catch (Exception $e) {
         error_log("Pet data fetch error: " . $e->getMessage());
@@ -340,6 +399,7 @@ if ($is_authenticated) {
             align-items: center;
             justify-content: center;
             padding: 2rem;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         }
         
         .auth-card {
@@ -374,6 +434,21 @@ if ($is_authenticated) {
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
+        
+        .medical-record-card {
+            border-left: 4px solid var(--pink-dark);
+            margin-bottom: 1rem;
+        }
+        
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -386,21 +461,98 @@ if ($is_authenticated) {
             </div>
             <h2 class="text-success mb-3">Request Processed</h2>
             <p class="mb-4"><?php echo $success_message; ?></p>
-            <a href="?pet_id=<?php echo $pet_id; ?>&pet_name=<?php echo urlencode($pet_name); ?>" class="btn btn-primary">
-                Return to Access Page
-            </a>
+            <p class="text-muted small">You can close this window.</p>
         </div>
     </div>
     
     <?php elseif ($is_authenticated): ?>
     <!-- MEDICAL RECORDS SECTION (Veterinarian Access After Approval) -->
-    <!-- Your existing medical records display code goes here -->
     <div class="container py-5">
-        <div class="alert alert-success">
-            <i class="fas fa-check-circle me-2"></i>
-            Access granted! You can now view <?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?>'s medical records.
+        <!-- Vet Info Bar -->
+        <div class="alert alert-success d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-check-circle me-2"></i>
+                Access granted! You can now view <?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?>'s medical records.
+            </div>
+            <div class="text-muted small">
+                <i class="fas fa-user-md me-1"></i>
+                <?php echo htmlspecialchars($_SESSION['vet_email']); ?> | 
+                <?php echo htmlspecialchars($_SESSION['vet_clinic']); ?>
+            </div>
         </div>
-        <!-- Include all your medical records display sections -->
+        
+        <!-- Pet Information -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="card-title mb-0">
+                            <i class="fas fa-paw me-2"></i>
+                            Medical Records for <?php echo htmlspecialchars($pet_data['name'] ?? $pet_name); ?>
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <?php if ($pet_data): ?>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Pet Information</h5>
+                                <p><strong>Name:</strong> <?php echo htmlspecialchars($pet_data['name']); ?></p>
+                                <p><strong>Species:</strong> <?php echo htmlspecialchars($pet_data['species'] ?? 'Not specified'); ?></p>
+                                <p><strong>Breed:</strong> <?php echo htmlspecialchars($pet_data['breed'] ?? 'Not specified'); ?></p>
+                                <p><strong>Date of Birth:</strong> <?php echo !empty($pet_data['date_of_birth']) ? date('F j, Y', strtotime($pet_data['date_of_birth'])) : 'Not specified'; ?></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Owner Information</h5>
+                                <p><strong>Owner:</strong> <?php echo htmlspecialchars($pet_data['owner_name'] ?? 'Not specified'); ?></p>
+                                <p><strong>Email:</strong> <?php echo htmlspecialchars($pet_data['owner_email'] ?? 'Not specified'); ?></p>
+                                <p><strong>Phone:</strong> <?php echo htmlspecialchars($pet_data['owner_phone'] ?? 'Not specified'); ?></p>
+                            </div>
+                        </div>
+                        <?php else: ?>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Pet information not found.
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Medical Records -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h4 class="card-title mb-0">
+                            <i class="fas fa-file-medical me-2"></i>
+                            Medical History
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <?php if (!empty($medical_records)): ?>
+                            <?php foreach ($medical_records as $record): ?>
+                            <div class="card medical-record-card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title"><?php echo htmlspecialchars($record['record_type']); ?></h5>
+                                    <p class="card-text"><?php echo nl2br(htmlspecialchars($record['description'])); ?></p>
+                                    <div class="d-flex justify-content-between text-muted small">
+                                        <span><i class="fas fa-calendar me-1"></i> <?php echo date('F j, Y', strtotime($record['record_date'])); ?></span>
+                                        <span><i class="fas fa-user-md me-1"></i> <?php echo htmlspecialchars($record['veterinarian'] ?? 'Unknown Vet'); ?></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="text-center py-4">
+                                <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No medical records found for this pet.</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <?php elseif (isset($submitted_request_id)): ?>
@@ -421,34 +573,62 @@ if ($is_authenticated) {
             
             <p class="text-muted small mb-4">
                 <i class="fas fa-sync-alt me-1"></i>
-                Auto-refreshing every 5 seconds...
+                Auto-refreshing every 3 seconds...
             </p>
             
             <div class="alert alert-info">
                 <i class="fas fa-info-circle me-2"></i>
-                You can close this page and return later. You'll need to scan the QR code again to check approval status.
+                Please keep this page open. It will automatically redirect when approved.
+            </div>
+            
+            <!-- Manual approval link for testing -->
+            <div class="debug-info">
+                <strong>Debug Info:</strong><br>
+                Request ID: <?php echo $submitted_request_id; ?><br>
+                Pet ID: <?php echo $pet_id; ?><br>
+                <button class="btn btn-sm btn-outline-secondary mt-2" onclick="manualCheck()">Manual Check</button>
             </div>
         </div>
     </div>
     
     <script>
-        // Auto-check for approval every 5 seconds
+        // Auto-check for approval every 3 seconds
         function checkApproval() {
-            fetch('?check_approval=<?php echo $submitted_request_id; ?>')
-                .then(response => response.text())
+            console.log('Checking approval for request: <?php echo $submitted_request_id; ?>');
+            
+            fetch('?check_approval=<?php echo $submitted_request_id; ?>&t=' + new Date().getTime())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    // If approved, the page will redirect automatically
-                    // If not approved, continue waiting
-                    setTimeout(checkApproval, 5000);
+                    console.log('Approval check response:', data);
+                    
+                    if (data.approved && data.vet_session) {
+                        console.log('Approved! Redirecting...');
+                        // Redirect to medical records with vet session
+                        window.location.href = '?vet_session=' + data.vet_session + '&pet_id=<?php echo $pet_id; ?>&pet_name=<?php echo urlencode($pet_name); ?>';
+                    } else {
+                        console.log('Not approved yet, checking again in 3 seconds...');
+                        // Continue waiting
+                        setTimeout(checkApproval, 3000);
+                    }
                 })
                 .catch(error => {
                     console.error('Error checking approval:', error);
-                    setTimeout(checkApproval, 5000);
+                    setTimeout(checkApproval, 3000);
                 });
         }
         
-        // Start checking for approval
-        setTimeout(checkApproval, 5000);
+        function manualCheck() {
+            console.log('Manual check triggered');
+            checkApproval();
+        }
+        
+        // Start checking for approval after 1 second
+        setTimeout(checkApproval, 1000);
     </script>
     
     <?php elseif (!$is_authenticated): ?>
