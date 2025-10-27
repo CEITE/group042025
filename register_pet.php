@@ -1081,7 +1081,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         <div class="card mb-3">
                             <div class="card-header bg-pink-light">
                                 <h6 class="mb-0">
-                                    <i class="fas fa-calendar-check me-2"></i>Important Medical Dates & Reminders
+                                    <i class="fas fa-calendar-check me-2"></i>Important Medical Dates 
                                 </h6>
                             </div>
                             <div class="card-body">
@@ -1097,7 +1097,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     
                                     <div class="form-group">
                                         <label for="rabies_vaccine_date" class="form-label required">
-                                            <i class="fas fa-syringe"></i>Rabies Vaccine Date
+                                            <i class="fas fa-syringe"></i>Last Vaccine Date
                                         </label>
                                         <input type="date" class="form-control" id="rabies_vaccine_date" name="rabies_vaccine_date" 
                                                value="<?php echo $_POST['rabies_vaccine_date'] ?? ''; ?>" required>
@@ -1727,3 +1727,4 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
