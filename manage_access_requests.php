@@ -9,46 +9,6 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Handle approve/reject actions
-if (isset($_GET['action']) && isset($_GET['request_id'])) {
-    $request_id = intval($_GET['request_id']);
-    $action = $_GET['action'];
-    
-    $status = $action === 'approve' ? 'approved' : 'rejected';
-    
-    $update_stmt = $conn->prepare("
-        UPDATE vet_access_requests 
-        SET status = ?, approved_at = NOW(), approved_by = ? 
-        WHERE request_id = ? AND status = 'pending'
-    ");
-    $update_stmt->bind_param("sii", $status, $user_id, $request_id);
-    
-    if ($update_stmt->execute()) {
-        $_SESSION['message'] = "Request " . $status . " successfully.";
-        
-        // Send notification email to veterinarian
-        if ($status === 'approved') {
-            $req_stmt = $conn->prepare("
-                SELECT r.*, p.name as pet_name 
-                FROM vet_access_requests r 
-                JOIN pets p ON r.pet_id = p.pet_id 
-                WHERE r.request_id = ?
-            ");
-            $req_stmt->bind_param("i", $request_id);
-            $req_stmt->execute();
-            $request_data = $req_stmt->get_result()->fetch_assoc();
-            
-            if ($request_data) {
-                sendVetNotificationEmail($request_data, 'approved');
-            }
-        }
-    }
-    $update_stmt->close();
-    
-    header("Location: manage_access_requests.php");
-    exit();
-}
-
 // Fetch pending access requests for user's pets
 $requests_stmt = $conn->prepare("
     SELECT r.*, p.name as pet_name 
@@ -73,55 +33,6 @@ $history_stmt = $conn->prepare("
 $history_stmt->bind_param("i", $user_id);
 $history_stmt->execute();
 $access_history = $history_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
-// Function to send notification to veterinarian
-function sendVetNotificationEmail($request, $status) {
-    $to = $request['vet_email'];
-    $subject = "Medical Records Access Request " . ucfirst($status);
-    
-    $current_domain = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
-    
-    if ($status == 'approved') {
-        $access_url = $current_domain . "/pet-medical-records.php?pet_id=" . $request['pet_id'] . "&token=" . $request['access_key'];
-        $body = "
-            <p>Your request to access the medical records of <strong>{$request['pet_name']}</strong> has been <strong>approved</strong>.</p>
-            <p>You can now access the complete medical records using the link below:</p>
-            <p style='text-align: center;'>
-                <a href='{$access_url}' style='background: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>
-                    Access Medical Records
-                </a>
-            </p>
-        ";
-    } else {
-        $body = "
-            <p>Your request to access the medical records of <strong>{$request['pet_name']}</strong> has been <strong>rejected</strong>.</p>
-        ";
-    }
-    
-    $message = "
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body { font-family: Arial, sans-serif; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        </style>
-    </head>
-    <body>
-        <div class='container'>
-            <h2>Access Request " . ucfirst($status) . "</h2>
-            {$body}
-        </div>
-    </body>
-    </html>
-    ";
-    
-    $headers = "MIME-Version: 1.0" . "\r\n";
-    $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-    $headers .= "From: PetMedQR <noreply@petmedqr.com>" . "\r\n";
-    
-    mail($to, $subject, $message, $headers);
-}
 ?>
 
 <!DOCTYPE html>
@@ -129,19 +40,10 @@ function sendVetNotificationEmail($request, $status) {
 <head>
     <title>Manage Access Requests</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container mt-4">
-        <h2><i class="fas fa-shield-alt me-2"></i>Medical Records Access Requests</h2>
-        
-        <?php if (isset($_SESSION['message'])): ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <?php echo $_SESSION['message']; ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            <?php unset($_SESSION['message']); ?>
-        <?php endif; ?>
+        <h2>Medical Records Access Requests</h2>
         
         <!-- Pending Requests -->
         <div class="card mt-4">
@@ -162,10 +64,15 @@ function sendVetNotificationEmail($request, $status) {
                                 <p class="mb-1"><strong>Requested:</strong> <?php echo date('M j, Y g:i A', strtotime($request['request_time'])); ?></p>
                             </div>
                             <div class="col-md-4 text-end">
-                                <a href="manage_access_requests.php?request_id=<?php echo $request['request_id']; ?>&action=approve" class="btn btn-success btn-sm">
+                                <?php
+                                $token = md5($request['request_id'] . $request['vet_email'] . 'secret_salt');
+                                $approve_url = "pet-medical-access.php?request_id=" . $request['request_id'] . "&token=" . $token . "&action=approve";
+                                $reject_url = "pet-medical-access.php?request_id=" . $request['request_id'] . "&token=" . $token . "&action=reject";
+                                ?>
+                                <a href="<?php echo $approve_url; ?>" class="btn btn-success btn-sm">
                                     <i class="fas fa-check me-1"></i>Approve
                                 </a>
-                                <a href="manage_access_requests.php?request_id=<?php echo $request['request_id']; ?>&action=reject" class="btn btn-danger btn-sm">
+                                <a href="<?php echo $reject_url; ?>" class="btn btn-danger btn-sm">
                                     <i class="fas fa-times me-1"></i>Reject
                                 </a>
                             </div>
@@ -212,7 +119,5 @@ function sendVetNotificationEmail($request, $status) {
             </div>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
