@@ -183,7 +183,7 @@
     transform: translateY(-2px);
   }
   
-  /* Role Selection Modal */
+  /* Role Selection Modal - FIXED SCROLLING */
   .role-modal {
     position: fixed;
     top: 0;
@@ -199,6 +199,8 @@
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
+    overflow-y: auto; /* ADDED THIS */
+    padding: 20px 0; /* ADDED THIS */
   }
   .role-modal.active {
     opacity: 1;
@@ -212,6 +214,7 @@
     max-width: 800px;
     width: 90%;
     text-align: center;
+    margin: auto; /* ADDED THIS */
   }
   .role-title {
     font-weight: 800;
@@ -316,7 +319,7 @@
     box-shadow: 0 6px 20px rgba(191, 59, 120, 0.5);
   }
 
-  /* Verification Modal */
+  /* Verification Modal - FIXED SCROLLING */
   .verification-modal {
     position: fixed;
     top: 0;
@@ -332,6 +335,8 @@
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
+    overflow-y: auto; /* ADDED THIS */
+    padding: 20px 0; /* ADDED THIS */
   }
   .verification-modal.active {
     opacity: 1;
@@ -345,6 +350,7 @@
     max-width: 500px;
     width: 90%;
     text-align: center;
+    margin: auto; /* ADDED THIS */
   }
   .verification-title {
     font-weight: 800;
@@ -742,6 +748,7 @@
   </div>
 </div>
 
+<!-- Rest of your HTML content remains the same -->
 <nav class="navbar navbar-expand-lg sticky-top">
   <div class="container">
     <a class="navbar-brand" href="#">
@@ -860,8 +867,6 @@
   </div>
 </section>
 
-<!-- Rest of your content sections... -->
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
 <script>
@@ -890,12 +895,12 @@
     setInterval(nextSlide, 5000);
   });
 
-  // Role Selection Functions
+  // Role Selection Functions - REMOVED body overflow hidden
   let selectedRole = null;
 
   function showRoleModal() {
     document.getElementById('roleModal').classList.add('active');
-    document.body.style.overflow = 'hidden';
+    // REMOVED: document.body.style.overflow = 'hidden';
     
     // Reset selection
     selectedRole = null;
@@ -976,7 +981,7 @@
 
   function hideVerificationModal() {
     document.getElementById('verificationModal').classList.remove('active');
-    document.body.style.overflow = 'auto';
+    // REMOVED: document.body.style.overflow = 'auto';
   }
 
   // Close modals when clicking outside
@@ -986,12 +991,10 @@
     
     if (event.target === roleModal) {
       roleModal.classList.remove('active');
-      document.body.style.overflow = 'auto';
     }
     
     if (event.target === verificationModal) {
       verificationModal.classList.remove('active');
-      document.body.style.overflow = 'auto';
     }
   });
 </script>
