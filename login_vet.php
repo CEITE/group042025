@@ -2,29 +2,32 @@
 session_start();
 include("conn.php");
 
-// Initialize variables
-$errors = [];
+// Redirect if already logged in
+if (isset($_SESSION['user_id'])) {
+    header("Location: vet_dashboard.php");
+    exit();
+}
 
-// Check if form is submitted
+// Handle login
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
-    $password = trim($_POST['password'] ?? '');
+    $email = trim($_POST['email']);
+    $password = $_POST['password'];
     
-    // Validate inputs
-    if (empty($email)) {
-        $errors[] = "Email address is required";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "Please enter a valid email address";
+    // Validation
+    $errors = [];
+    
+    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = "Valid email is required";
     }
     
     if (empty($password)) {
         $errors[] = "Password is required";
     }
     
-    // If no errors, attempt login
     if (empty($errors)) {
-        // Check if user exists
-        $stmt = $conn->prepare("SELECT user_id, name, email, password, role, profile_picture FROM users WHERE email = ?");
+        // Check if user exists and is a vet
+        $query = "SELECT user_id, name, email, password, role, profile_picture FROM users WHERE email = ? AND role = 'vet'";
+        $stmt = $conn->prepare($query);
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -32,28 +35,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result->num_rows === 1) {
             $user = $result->fetch_assoc();
             
-            // Verify password (assuming plain text for now - you should use password_hash() in production)
-            if ($password === $user['password']) { // Change this to password_verify() if using hashed passwords
-                // Login successful - set session variables
+            // Verify password
+            if (password_verify($password, $user['password'])) {
+                // Set session variables
                 $_SESSION['user_id'] = $user['user_id'];
-                $_SESSION['role'] = $user['role'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['email'] = $user['email'];
+                $_SESSION['role'] = $user['role'];
                 $_SESSION['profile_picture'] = $user['profile_picture'];
                 
-                // Redirect based on role
-                if ($user['role'] === 'vet') {
-                    header("Location: vet_dashboard.php"); // This should go to dashboard!
-                    exit();
-                } else {
-                    header("Location: user_dashboard.php");
-                    exit();
-                }
+                // FIXED: Removed last_login update since column doesn't exist
+                // You can add this column later if needed with:
+                // ALTER TABLE users ADD COLUMN last_login DATETIME;
+                
+                $_SESSION['success'] = "Welcome back, Dr. " . $user['name'] . "!";
+                header("Location: vet_dashboard.php");
+                exit();
             } else {
                 $errors[] = "Invalid email or password";
             }
         } else {
-            $errors[] = "Invalid email or password";
+            $errors[] = "Invalid email or password, or account is not a veterinarian account";
         }
     }
 }
@@ -555,3 +557,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </script>
 </body>
 </html>
+
