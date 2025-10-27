@@ -316,6 +316,116 @@
     box-shadow: 0 6px 20px rgba(191, 59, 120, 0.5);
   }
 
+  /* Verification Modal */
+  .verification-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 248, 252, 0.95);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+  }
+  .verification-modal.active {
+    opacity: 1;
+    visibility: visible;
+  }
+  .verification-container {
+    background: white;
+    border-radius: 24px;
+    padding: 3rem;
+    box-shadow: 0 20px 60px rgba(191, 59, 120, 0.2);
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+  }
+  .verification-title {
+    font-weight: 800;
+    color: var(--pink-dark);
+    margin-bottom: 1rem;
+    font-size: 2rem;
+  }
+  .verification-subtitle {
+    color: #5d6370;
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+  }
+  .form-group {
+    margin-bottom: 1.5rem;
+    text-align: left;
+  }
+  .form-label {
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  .form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+  }
+  .form-control:focus {
+    border-color: var(--pink-dark);
+    box-shadow: 0 0 0 3px rgba(191, 59, 120, 0.1);
+    outline: none;
+  }
+  .verification-badge {
+    background: rgba(191, 59, 120, 0.1);
+    color: var(--pink-dark);
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    font-weight: 600;
+  }
+  .btn-group {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  .btn-back {
+    background: #f3f4f6;
+    color: #374151;
+    border: none;
+    border-radius: 50px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    flex: 1;
+  }
+  .btn-back:hover {
+    background: #e5e7eb;
+  }
+  .btn-verify {
+    background: var(--pink-dark);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    flex: 1;
+    box-shadow: 0 4px 14px rgba(191, 59, 120, 0.4);
+  }
+  .btn-verify:hover {
+    background: var(--pink-darker);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(191, 59, 120, 0.5);
+  }
+
   /* Feature Highlights */
   .feature-highlights {
     display: flex;
@@ -481,6 +591,12 @@
     .role-title {
       font-size: 2rem;
     }
+    .verification-container {
+      padding: 2rem;
+    }
+    .btn-group {
+      flex-direction: column;
+    }
   }
 
   /* Animation for page elements */
@@ -578,9 +694,47 @@
       </div>
     </div>
     
-    <button class="role-continue-btn" id="continueBtn" onclick="continueToLogin()">
+    <button class="role-continue-btn" id="continueBtn" onclick="handleRoleSelection()">
       Continue to Login
     </button>
+  </div>
+</div>
+
+<!-- Verification Modal -->
+<div class="verification-modal" id="verificationModal">
+  <div class="verification-container">
+    <div class="verification-badge" id="verificationBadge">
+      <i class="bi bi-shield-check"></i>
+      <span id="verificationRole">Veterinarian Verification</span>
+    </div>
+    <h2 class="verification-title" id="verificationTitle">Professional Verification Required</h2>
+    <p class="verification-subtitle" id="verificationSubtitle">Please provide your credentials to verify your identity as a veterinarian</p>
+    
+    <form id="verificationForm">
+      <div class="form-group">
+        <label for="licenseNumber" class="form-label">License Number</label>
+        <input type="text" class="form-control" id="licenseNumber" placeholder="Enter your professional license number" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="clinicName" class="form-label">Clinic/Hospital Name</label>
+        <input type="text" class="form-control" id="clinicName" placeholder="Enter your clinic or hospital name" required>
+      </div>
+      
+      <div class="form-group" id="adminCodeGroup" style="display: none;">
+        <label for="adminCode" class="form-label">Administrator Access Code</label>
+        <input type="password" class="form-control" id="adminCode" placeholder="Enter administrator access code" required>
+      </div>
+      
+      <div class="btn-group">
+        <button type="button" class="btn btn-back" onclick="backToRoleSelection()">
+          <i class="bi bi-arrow-left me-2"></i>Back
+        </button>
+        <button type="submit" class="btn btn-verify">
+          <i class="bi bi-shield-check me-2"></i>Verify & Continue
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -724,18 +878,25 @@
           <p>Leveraging QR codes for instant access to medical records enables faster treatment decisions during emergencies, reducing response time by 65%.</p>
         </div>
       </div>
+      <div class="col-md-6" data-aos="fade-up" data
+        </div>
+      </div>
       <div class="col-md-6" data-aos="fade-up" data-aos-delay="300">
         <div class="research-card">
-          <h5>Data Privacy Compliance</h5>
-          <p>Our system adheres to data privacy regulations, ensuring all pet and owner information is securely handled with end-to-end encryption.</p>
+          <h5>Data Security & Privacy</h5>
+          <p>Implemented robust encryption protocols and access controls to ensure pet medical data remains secure while maintaining accessibility for authorized veterinarians.</p>
         </div>
       </div>
       <div class="col-md-6" data-aos="fade-up" data-aos-delay="400">
         <div class="research-card">
-          <h5>Agile Development</h5>
-          <p>We followed an Agile methodology with iterative development cycles to ensure the system meets user needs effectively and can adapt to changing requirements.</p>
+          <h5>Predictive Analytics</h5>
+          <p>Our system analyzes vaccination schedules, breed-specific health risks, and regional disease patterns to provide proactive healthcare recommendations.</p>
         </div>
       </div>
+    </div>
+    
+    <div class="text-center mt-5" data-aos="fade-up">
+      <a href="#" class="btn btn-outline-pink">View Full Research Paper</a>
     </div>
   </div>
 </section>
@@ -744,228 +905,329 @@
 <section id="team" class="section">
   <div class="container">
     <div class="text-center mb-5" data-aos="fade-up">
-      <h2 class="section-title">Development Team</h2>
-      <p class="section-subtitle">The talented individuals behind VetCareQR</p>
-    </div>
-    <div class="row justify-content-center">
-      <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="100">
-        <div class="team-card">
-          <div class="team-content">
-            <img src="https://placehold.co/120x120/ffd6e7/bf3b78?text=A" alt="Aira L. Alimorom" class="team-img mb-3">
-            <h5 class="card-title">Aira L. Alimorom</h5>
-            <p class="card-text">Developer & Researcher</p>
-            <div class="mt-3">
-              <a href="#" class="text-decoration-none me-2"><i class="bi bi-linkedin"></i></a>
-              <a href="#" class="text-decoration-none"><i class="bi bi-envelope"></i></a>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="200">
-        <div class="team-card">
-          <div class="team-content">
-            <img src="https://placehold.co/120x120/ffd6e7/bf3b78?text=R" alt="Regina R. Narbarte" class="team-img mb-3">
-            <h5 class="card-title">Regina R. Narbarte</h5>
-            <p class="card-text">Developer & Researcher</p>
-            <div class="mt-3">
-              <a href="#" class="text-decoration-none me-2"><i class="bi bi-linkedin"></i></a>
-              <a href="#" class="text-decoration-none"><i class="bi bi-envelope"></i></a>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="300">
-        <div class="team-card">
-          <div class="team-content">
-            <img src="https://placehold.co/120x120/ffd6e7/bf3b78?text=P" alt="Prof. Alexander G. Avendaño" class="team-img mb-3">
-            <h5 class="card-title">Prof. Alexander G. Avendaño</h5>
-            <p class="card-text">Project Adviser</p>
-            <div class="mt-3">
-              <a href="#" class="text-decoration-none me-2"><i class="bi bi-linkedin"></i></a>
-              <a href="#" class="text-decoration-none"><i class="bi bi-envelope"></i></a>
-            </div>
-          </div>
-        </div>
-      </div>
+      <h2 class="section-title">Our Team</h2>
+      <p class="section-subtitle">Meet the dedicated professionals behind VetCareQR</p>
     </div>
     
-    <div class="text-center mt-5" data-aos="fade-up">
-      <p class="lead">Bachelor of Information and Technology</p>
-      <p>Asia Technological School of Science and Arts</p>
+    <div class="row g-4">
+      <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+        <div class="team-card">
+          <div class="team-content">
+            <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80" alt="Sarah Johnson" class="team-img">
+            <h4 class="mt-3">Sarah Johnson</h4>
+            <p class="text-pink-dark mb-2">Lead Veterinarian & Project Manager</p>
+            <p class="text-muted">DVM with 12+ years of clinical experience and passion for veterinary technology innovation.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+        <div class="team-card">
+          <div class="team-content">
+            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80" alt="Michael Chen" class="team-img">
+            <h4 class="mt-3">Michael Chen</h4>
+            <p class="text-pink-dark mb-2">Data Scientist & ML Engineer</p>
+            <p class="text-muted">PhD in Computer Science specializing in predictive analytics and machine learning applications.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+        <div class="team-card">
+          <div class="team-content">
+            <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80" alt="Emily Rodriguez" class="team-img">
+            <h4 class="mt-3">Emily Rodriguez</h4>
+            <p class="text-pink-dark mb-2">Full-Stack Developer</p>
+            <p class="text-muted">Software engineer with expertise in web applications, QR technology, and database management.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
 <!-- Contact section -->
 <section id="contact" class="section contact-section">
-  <div class="container text-center" data-aos="fade-up">
-    <p class="mb-4 lead">Contact us for assistance or to schedule a demonstration.</p>
-    <a class="btn btn-pink btn-lg me-3" href="mailto:support@vetcareqr.com">
-      <i class="bi bi-envelope me-2"></i>Email Support
-    </a>
-    <a class="btn btn-outline-pink btn-lg" href="tel:+631234567890">
-      <i class="bi bi-telephone me-2"></i>Call Now
-    </a>
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-lg-6" data-aos="fade-right">
+        <h2 class="section-title">Get In Touch</h2>
+        <p class="section-subtitle">Have questions about VetCareQR? We'd love to hear from you.</p>
+        
+        <div class="d-flex align-items-start mb-4">
+          <div class="feature-icon-wrapper me-3" style="width: 50px; height: 50px;">
+            <i class="bi bi-envelope"></i>
+          </div>
+          <div>
+            <h5>Email Us</h5>
+            <p class="text-muted mb-0">support@vetcareqr.com</p>
+          </div>
+        </div>
+        
+        <div class="d-flex align-items-start mb-4">
+          <div class="feature-icon-wrapper me-3" style="width: 50px; height: 50px;">
+            <i class="bi bi-telephone"></i>
+          </div>
+          <div>
+            <h5>Call Us</h5>
+            <p class="text-muted mb-0">+1 (555) 123-4567</p>
+          </div>
+        </div>
+        
+        <div class="d-flex align-items-start">
+          <div class="feature-icon-wrapper me-3" style="width: 50px; height: 50px;">
+            <i class="bi bi-clock"></i>
+          </div>
+          <div>
+            <h5>Business Hours</h5>
+            <p class="text-muted mb-0">Monday - Friday: 9:00 AM - 6:00 PM EST</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-6" data-aos="fade-left" data-aos-delay="200">
+        <div class="feature-card">
+          <form>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="name" class="form-label">Full Name</label>
+                <input type="text" class="form-control" id="name" placeholder="Your name" required>
+              </div>
+              <div class="col-md-6">
+                <label for="email" class="form-label">Email Address</label>
+                <input type="email" class="form-control" id="email" placeholder="Your email" required>
+              </div>
+              <div class="col-12">
+                <label for="subject" class="form-label">Subject</label>
+                <input type="text" class="form-control" id="subject" placeholder="Subject of your message" required>
+              </div>
+              <div class="col-12">
+                <label for="message" class="form-label">Message</label>
+                <textarea class="form-control" id="message" rows="4" placeholder="How can we help you?" required></textarea>
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-pink w-100">Send Message</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
-<footer class="py-5">
+<!-- Footer -->
+<footer>
   <div class="container">
     <div class="row">
       <div class="col-lg-4 mb-4 mb-lg-0">
-        <h5 class="mb-3"><i class="bi bi-qr-code me-2"></i>VetCareQR</h5>
-        <p>Modern Pet Healthcare Management System</p>
-        <p>Asia Technological School of Science and Arts</p>
+        <h4 class="mb-3"><i class="bi bi-qr-code me-2"></i>VetCareQR</h4>
+        <p class="text-muted">Revolutionizing pet healthcare through QR technology and predictive analytics for a healthier pet community.</p>
+        <div class="d-flex gap-3">
+          <a href="#" class="text-pink-dark"><i class="bi bi-facebook" style="font-size: 1.2rem;"></i></a>
+          <a href="#" class="text-pink-dark"><i class="bi bi-twitter" style="font-size: 1.2rem;"></i></a>
+          <a href="#" class="text-pink-dark"><i class="bi bi-instagram" style="font-size: 1.2rem;"></i></a>
+          <a href="#" class="text-pink-dark"><i class="bi bi-linkedin" style="font-size: 1.2rem;"></i></a>
+        </div>
       </div>
-      <div class="col-lg-4 mb-4 mb-lg-0">
+      <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
         <h5 class="mb-3">Quick Links</h5>
         <ul class="list-unstyled">
-          <li><a href="front_page.php" class="text-decoration-none text-dark">Home</a></li>
-          <li><a href="about.php" class="text-decoration-none text-dark">About</a></li>
-          <li><a href="#features" class="text-decoration-none text-dark">Features</a></li>
-          <li><a href="#contact" class="text-decoration-none text-dark">Contact</a></li>
+          <li class="mb-2"><a href="front_page.php" class="text-muted text-decoration-none">Home</a></li>
+          <li class="mb-2"><a href="about.php" class="text-muted text-decoration-none">About</a></li>
+          <li class="mb-2"><a href="#features" class="text-muted text-decoration-none">Features</a></li>
+          <li class="mb-2"><a href="#research" class="text-muted text-decoration-none">Research</a></li>
         </ul>
       </div>
-      <div class="col-lg-4">
-        <h5 class="mb-3">Connect With Us</h5>
-        <div class="d-flex gap-3">
-          <a href="#" class="text-decoration-none text-dark"><i class="bi bi-facebook fs-4"></i></a>
-          <a href="#" class="text-decoration-none text-dark"><i class="bi bi-twitter fs-4"></i></a>
-          <a href="#" class="text-decoration-none text-dark"><i class="bi bi-instagram fs-4"></i></a>
-          <a href="#" class="text-decoration-none text-dark"><i class="bi bi-linkedin fs-4"></i></a>
+      <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
+        <h5 class="mb-3">Support</h5>
+        <ul class="list-unstyled">
+          <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Help Center</a></li>
+          <li class="mb-2"><a href="#" class="text-muted text-decoration-none">FAQs</a></li>
+          <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Privacy Policy</a></li>
+          <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Terms of Service</a></li>
+        </ul>
+      </div>
+      <div class="col-lg-4 col-md-4">
+        <h5 class="mb-3">Newsletter</h5>
+        <p class="text-muted mb-3">Subscribe to get updates on new features and pet healthcare tips.</p>
+        <div class="input-group">
+          <input type="email" class="form-control" placeholder="Your email address">
+          <button class="btn btn-pink" type="button">Subscribe</button>
         </div>
       </div>
     </div>
     <hr class="my-4">
-    <div class="text-center">
-      <small class="text-muted">© 2025 VetCareQR. All rights reserved</small>
+    <div class="row align-items-center">
+      <div class="col-md-6">
+        <p class="text-muted mb-0">© 2023 VetCareQR. All rights reserved.</p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <p class="text-muted mb-0">Made with <i class="bi bi-heart-fill text-pink-dark"></i> for pets everywhere</p>
+      </div>
     </div>
   </div>
 </footer>
 
 <!-- Scroll to top button -->
 <div class="scroll-top" id="scrollTop">
-  <i class="bi bi-arrow-up"></i>
+  <i class="bi bi-chevron-up"></i>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
 <script>
-  // Initialize AOS
+  // Initialize AOS (Animate On Scroll)
   AOS.init({
     duration: 800,
-    easing: 'ease-in-out',
-    once: true
+    once: true,
+    offset: 100
   });
 
-  // Role Selection Functionality
-  let selectedRole = null;
-  const roleCards = document.querySelectorAll('.role-card');
-  const continueBtn = document.getElementById('continueBtn');
-  const roleModal = document.getElementById('roleModal');
-
-  roleCards.forEach(card => {
-    card.addEventListener('click', function() {
-      // Remove active class from all cards
-      roleCards.forEach(c => c.classList.remove('active'));
-      
-      // Add active class to clicked card
-      this.classList.add('active');
-      
-      // Set selected role
-      selectedRole = this.getAttribute('data-role');
-      
-      // Enable continue button
-      continueBtn.classList.add('active');
-    });
-  });
-
-  function continueToLogin() {
-    if (selectedRole) {
-      // Store the selected role in sessionStorage
-      sessionStorage.setItem('selectedRole', selectedRole);
-      
-      // Redirect to login page with role parameter
-      window.location.href = `login.php?role=${selectedRole}`;
-    }
-  }
-
-  function showRoleModal() {
-    roleModal.classList.add('active');
-  }
-
-  // Hide role modal if user clicks outside
-  roleModal.addEventListener('click', function(e) {
-    if (e.target === roleModal) {
-      roleModal.classList.remove('active');
-    }
-  });
-
-  // Background Slideshow
+  // Hero Slideshow
   let currentSlide = 0;
   const slides = document.querySelectorAll('.slide');
   
-  function nextSlide() {
-    slides[currentSlide].classList.remove('active');
-    currentSlide = (currentSlide + 1) % slides.length;
+  function showSlide(n) {
+    slides.forEach(slide => slide.classList.remove('active'));
+    currentSlide = (n + slides.length) % slides.length;
     slides[currentSlide].classList.add('active');
+  }
+  
+  function nextSlide() {
+    showSlide(currentSlide + 1);
   }
   
   // Change slide every 5 seconds
   setInterval(nextSlide, 5000);
-
-  // Enable tooltips
-  document.addEventListener('DOMContentLoaded', function () {
-    const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
-    
-    // Smooth scrolling for navigation links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        const targetId = this.getAttribute('href');
-        if (targetId === '#') return;
-        
-        const targetElement = document.querySelector(targetId);
-        if (targetElement) {
-          window.scrollTo({
-            top: targetElement.offsetTop - 80,
-            behavior: 'smooth'
-          });
-          
-          // Update URL without scrolling
-          history.pushState(null, null, targetId);
-        }
-      });
+  
+  // Role Selection Modal
+  let selectedRole = null;
+  
+  function showRoleModal() {
+    document.getElementById('roleModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  
+  function hideRoleModal() {
+    document.getElementById('roleModal').classList.remove('active');
+    document.body.style.overflow = 'auto';
+  }
+  
+  function hideVerificationModal() {
+    document.getElementById('verificationModal').classList.remove('active');
+    document.body.style.overflow = 'auto';
+  }
+  
+  // Role selection
+  document.querySelectorAll('.role-card').forEach(card => {
+    card.addEventListener('click', function() {
+      document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
+      this.classList.add('active');
+      selectedRole = this.getAttribute('data-role');
+      
+      const continueBtn = document.getElementById('continueBtn');
+      continueBtn.classList.add('active');
+      continueBtn.disabled = false;
     });
+  });
+  
+  function handleRoleSelection() {
+    if (!selectedRole) return;
     
-    // Scroll to top button functionality
-    const scrollTopButton = document.getElementById('scrollTop');
-    window.addEventListener('scroll', () => {
-      if (window.pageYOffset > 300) {
-        scrollTopButton.classList.add('active');
-      } else {
-        scrollTopButton.classList.remove('active');
+    hideRoleModal();
+    
+    // Update verification modal based on role
+    const roleTitle = document.getElementById('verificationTitle');
+    const roleSubtitle = document.getElementById('verificationSubtitle');
+    const roleBadge = document.getElementById('verificationRole');
+    const adminCodeGroup = document.getElementById('adminCodeGroup');
+    
+    switch(selectedRole) {
+      case 'user':
+        // Redirect pet owners directly to login
+        window.location.href = 'login.php?role=user';
+        return;
+      case 'veterinarian':
+        roleTitle.textContent = 'Professional Verification Required';
+        roleSubtitle.textContent = 'Please provide your credentials to verify your identity as a veterinarian';
+        roleBadge.textContent = 'Veterinarian Verification';
+        adminCodeGroup.style.display = 'none';
+        break;
+      case 'admin':
+        roleTitle.textContent = 'Administrator Access';
+        roleSubtitle.textContent = 'Please provide administrator credentials to access the system';
+        roleBadge.textContent = 'Administrator Verification';
+        adminCodeGroup.style.display = 'block';
+        break;
+    }
+    
+    // Show verification modal for professionals
+    document.getElementById('verificationModal').classList.add('active');
+  }
+  
+  function backToRoleSelection() {
+    hideVerificationModal();
+    showRoleModal();
+  }
+  
+  // Verification form submission
+  document.getElementById('verificationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // In a real application, you would verify credentials with a server
+    // For demo purposes, we'll simulate successful verification
+    
+    let redirectUrl = 'login.php';
+    if (selectedRole === 'veterinarian') {
+      redirectUrl += '?role=veterinarian';
+    } else if (selectedRole === 'admin') {
+      redirectUrl += '?role=admin';
+    }
+    
+    // Redirect to login page
+    window.location.href = redirectUrl;
+  });
+  
+  // Scroll to top functionality
+  const scrollTopBtn = document.getElementById('scrollTop');
+  
+  window.addEventListener('scroll', function() {
+    if (window.pageYOffset > 300) {
+      scrollTopBtn.classList.add('active');
+    } else {
+      scrollTopBtn.classList.remove('active');
+    }
+  });
+  
+  scrollTopBtn.addEventListener('click', function() {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  });
+  
+  // Smooth scrolling for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+      e.preventDefault();
+      
+      const targetId = this.getAttribute('href');
+      if (targetId === '#') return;
+      
+      const targetElement = document.querySelector(targetId);
+      if (targetElement) {
+        window.scrollTo({
+          top: targetElement.offsetTop - 80,
+          behavior: 'smooth'
+        });
       }
     });
-    
-    scrollTopButton.addEventListener('click', () => {
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
-    });
-    
-    // Navbar background on scroll
-    window.addEventListener('scroll', function() {
-      if (window.scrollY > 50) {
-        document.querySelector('.navbar').style.background = 'rgba(255, 248, 252, 0.98)';
-        document.querySelector('.navbar').style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
-      } else {
-        document.querySelector('.navbar').style.background = 'rgba(255, 248, 252, 0.95)';
-        document.querySelector('.navbar').style.boxShadow = 'none';
-      }
-    });
+  });
+  
+  // Auto-show role modal on page load (for demo purposes)
+  // In production, you might want to remove this or conditionally show it
+  window.addEventListener('load', function() {
+    // Uncomment the line below to automatically show the role modal on page load
+    // setTimeout(showRoleModal, 1000);
   });
 </script>
 </body>
