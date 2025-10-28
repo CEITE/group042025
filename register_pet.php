@@ -17,6 +17,24 @@ $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
+// Define breed options
+$dog_breeds = [
+    "Labrador Retriever", "German Shepherd", "Golden Retriever", "French Bulldog", "Bulldog",
+    "Poodle", "Beagle", "Rottweiler", "Yorkshire Terrier", "Boxer", "Dachshund", "Siberian Husky",
+    "Great Dane", "Doberman Pinscher", "Australian Shepherd", "Cavalier King Charles Spaniel",
+    "Shih Tzu", "Boston Terrier", "Pomeranian", "Havanese", "Shetland Sheepdog", "Brittany",
+    "English Springer Spaniel", "Cocker Spaniel", "Border Collie", "Chihuahua", "Pembroke Welsh Corgi",
+    "Miniature Schnauzer", "Maltese", "Mixed Breed", "Other"
+];
+
+$cat_breeds = [
+    "Domestic Shorthair", "Domestic Longhair", "Siamese", "Persian", "Maine Coon", "Ragdoll",
+    "Bengal", "British Shorthair", "Abyssinian", "Scottish Fold", "Sphynx", "Russian Blue",
+    "American Shorthair", "Exotic Shorthair", "Birman", "Oriental Shorthair", "Burmese",
+    "Tonkinese", "Himalayan", "Norwegian Forest Cat", "Devon Rex", "Cornish Rex", "Turkish Angora",
+    "Mixed Breed", "Other"
+];
+
 // ✅ Handle pet registration
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     // Collect and sanitize form data
@@ -871,7 +889,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 <label for="species" class="form-label required">
                                     <i class="fas fa-paw"></i>Species
                                 </label>
-                                <select class="form-select" id="species" name="species" required>
+                                <select class="form-select" id="species" name="species" required onchange="updateBreedOptions()">
                                     <option value="">Select Species</option>
                                     <option value="dog" <?php echo ($_POST['species'] ?? '') == 'dog' ? 'selected' : ''; ?>>🐕 Dog</option>
                                     <option value="cat" <?php echo ($_POST['species'] ?? '') == 'cat' ? 'selected' : ''; ?>>🐈 Cat</option>
@@ -884,9 +902,11 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                             <label for="breed" class="form-label required">
                                 <i class="fas fa-dna"></i>Breed
                             </label>
-                            <input type="text" class="form-control" id="breed" name="breed" 
-                                   placeholder="e.g., Golden Retriever, Siamese, etc." maxlength="100" value="<?php echo $_POST['breed'] ?? ''; ?>">
-                            <div class="form-text">If known, specify your pet's breed</div>
+                            <select class="form-select" id="breed" name="breed" required>
+                                <option value="">Select Breed</option>
+                                <!-- Breed options will be populated by JavaScript based on species selection -->
+                            </select>
+                            <div class="form-text">Select your pet's breed from the list</div>
                         </div>
                         
                         <div class="form-actions">
@@ -1057,7 +1077,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                             </div>
                             <div class="card-body">
                                 <div class="form-group">
-                                    <label for="previousConditions" class="form-label required">
+                                    <label for="previousConditions" class="form-label">
                                         <i class="fas fa-file-medical"></i>Previous Medical Conditions
                                     </label>
                                     <textarea class="form-control" id="previousConditions" name="previousConditions" 
@@ -1067,7 +1087,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="vaccinationHistory" class="form-label required">
+                                    <label for="vaccinationHistory" class="form-label">
                                         <i class="fas fa-syringe"></i>Vaccination History
                                     </label>
                                     <textarea class="form-control" id="vaccinationHistory" name="vaccinationHistory" 
@@ -1077,7 +1097,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="surgicalHistory" class="form-label required">
+                                    <label for="surgicalHistory" class="form-label">
                                         <i class="fas fa-procedures"></i>Surgical History
                                     </label>
                                     <textarea class="form-control" id="surgicalHistory" name="surgicalHistory" 
@@ -1086,7 +1106,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="medicationHistory" class="form-label required">
+                                    <label for="medicationHistory" class="form-label">
                                         <i class="fas fa-pills"></i>Previous Medications
                                     </label>
                                     <textarea class="form-control" id="medicationHistory" name="medicationHistory" 
@@ -1103,7 +1123,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
 
                                 <div class="form-group" id="existingRecordsDetails" style="display: none;">
-                                    <label for="recordsLocation" class="form-label required">
+                                    <label for="recordsLocation" class="form-label">
                                         <i class="fas fa-clinic-medical"></i>Records Location
                                     </label>
                                     <input type="text" class="form-control" id="recordsLocation" name="recordsLocation" 
@@ -1115,7 +1135,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         </div>
                         
                         <div class="form-group">
-                            <label for="vetContact" class="form-label required">
+                            <label for="vetContact" class="form-label">
                                 <i class="fas fa-user-md"></i>Current Veterinarian Contact
                             </label>
                             <input type="text" class="form-control" id="vetContact" name="vetContact" 
@@ -1250,6 +1270,10 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script>
+        // Breed data
+        const dogBreeds = <?php echo json_encode($dog_breeds); ?>;
+        const catBreeds = <?php echo json_encode($cat_breeds); ?>;
+        
         let currentStep = 1;
         const totalSteps = 4;
         
@@ -1304,6 +1328,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             if (step === 1) {
                 const petName = document.getElementById('petName').value.trim();
                 const species = document.getElementById('species').value;
+                const breed = document.getElementById('breed').value;
                 
                 if (!petName) {
                     errorMessage = 'Please enter your pet\'s name';
@@ -1313,6 +1338,10 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                     errorMessage = 'Please select your pet\'s species';
                     document.getElementById('species').focus();
                     isValid = false;
+                } else if (!breed) {
+                    errorMessage = 'Please select your pet\'s breed';
+                    document.getElementById('breed').focus();
+                    isValid = false;
                 }
             }
             
@@ -1321,6 +1350,36 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             }
             
             return isValid;
+        }
+        
+        function updateBreedOptions() {
+            const species = document.getElementById('species').value;
+            const breedSelect = document.getElementById('breed');
+            
+            // Clear existing options except the first one
+            breedSelect.innerHTML = '<option value="">Select Breed</option>';
+            
+            if (species === 'dog') {
+                dogBreeds.forEach(breed => {
+                    const option = document.createElement('option');
+                    option.value = breed;
+                    option.textContent = breed;
+                    breedSelect.appendChild(option);
+                });
+            } else if (species === 'cat') {
+                catBreeds.forEach(breed => {
+                    const option = document.createElement('option');
+                    option.value = breed;
+                    option.textContent = breed;
+                    breedSelect.appendChild(option);
+                });
+            }
+            
+            // Set the selected breed if it exists in POST data
+            const selectedBreed = "<?php echo $_POST['breed'] ?? ''; ?>";
+            if (selectedBreed) {
+                breedSelect.value = selectedBreed;
+            }
         }
         
         function updateReviewSection() {
@@ -1431,6 +1490,9 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             if (spayNeuterCheckbox.checked) {
                 spayNeuterDateDiv.style.display = 'block';
             }
+            
+            // Initialize breed options based on selected species
+            updateBreedOptions();
         });
         
         // Form submission
@@ -1490,6 +1552,14 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         });
         
         document.getElementById('species').addEventListener('change', function() {
+            if (!this.value) {
+                this.style.borderColor = '#ef4444';
+            } else {
+                this.style.borderColor = '#e5e7eb';
+            }
+        });
+        
+        document.getElementById('breed').addEventListener('change', function() {
             if (!this.value) {
                 this.style.borderColor = '#ef4444';
             } else {
