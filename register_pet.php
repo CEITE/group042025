@@ -74,11 +74,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
         }
     }
 
-    // Validate required fields
-    if (empty($petName) || empty($species) || empty($breed) || empty($age) || empty($gender) || empty($color) || empty($weight) || empty($medicalNotes) || empty($last_vet_visit) || empty($rabies_vaccine_date) || empty($dhpp_vaccine_date) || empty($vetContact)) {
-        $_SESSION['error'] = "❌ Please fill in all required fields marked with *.";
-    } else if (!isset($_POST['is_spayed_neutered']) || !isset($_POST['hasExistingRecords'])) {
-        $_SESSION['error'] = "❌ Please check all required checkboxes.";
+    // ✅ ENHANCED VALIDATION WITH SPECIFIC ERROR TRACKING
+    $missing_fields = [];
+    
+    // Check required fields
+    if (empty($petName)) $missing_fields[] = "Pet Name";
+    if (empty($species)) $missing_fields[] = "Species";
+    if (empty($breed)) $missing_fields[] = "Breed";
+    if (empty($age)) $missing_fields[] = "Age";
+    if (empty($gender)) $missing_fields[] = "Gender";
+    if (empty($color)) $missing_fields[] = "Color/Markings";
+    if (empty($weight)) $missing_fields[] = "Weight";
+    if (empty($medicalNotes)) $missing_fields[] = "Current Medical Notes & Allergies";
+    if (empty($last_vet_visit)) $missing_fields[] = "Last Vet Visit";
+    if (empty($rabies_vaccine_date)) $missing_fields[] = "Rabies Vaccine Date";
+    if (empty($dhpp_vaccine_date)) $missing_fields[] = "DHPP/FVRCP Vaccine Date";
+    if (empty($vetContact)) $missing_fields[] = "Current Veterinarian Contact";
+    
+    // Check required checkboxes
+    if (!isset($_POST['is_spayed_neutered'])) $missing_fields[] = "Spayed/Neutered Status";
+    if (!isset($_POST['hasExistingRecords'])) $missing_fields[] = "Existing Medical Records";
+    
+    if (!empty($missing_fields)) {
+        $_SESSION['error'] = "❌ Please fill in all required fields. Missing: " . implode(', ', $missing_fields);
     } else {
         try {
             // Generate unique QR code filename
@@ -87,100 +105,145 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             // Convert species to lowercase to match ENUM('dog', 'cat')
             $species_lower = strtolower($species);
             
-            // INSERT statement
-            $stmt = $conn->prepare("
-                INSERT INTO pets (
-                    user_id, name, species, breed, age, color, weight, 
-                    birth_date, gender, medical_notes, vet_contact, 
-                    previous_conditions, vaccination_history, surgical_history, 
-                    medication_history, has_existing_records, records_location,
-                    last_vet_visit, rabies_vaccine_date,
-                    dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
-                    qr_code, profile_picture
-                ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-
-            $bind_result = $stmt->bind_param("isssisdssssssssisssisss", 
-                $user_id, 
-                $petName, 
-                $species_lower,
-                $breed, 
-                $age, 
-                $color, 
-                $weight, 
-                $birthDate, 
-                $gender, 
-                $medicalNotes, 
-                $vetContact,
-                $previousConditions,
-                $vaccinationHistory,
-                $surgicalHistory,
-                $medicationHistory,
-                $hasExistingRecords,
-                $recordsLocation,
-                $last_vet_visit,
-                $rabies_vaccine_date,
-                $dhpp_vaccine_date,
-                $is_spayed_neutered,
-                $spay_neuter_date,
-                $qrCodeFilename,
-                $profilePicture
-            );
+            // ✅ DEBUG: Check table structure
+            $debug_info = [];
             
-            if (!$bind_result) {
-                throw new Exception("Bind failed: " . $stmt->error);
+            // Get actual table columns
+            $result = $conn->query("DESCRIBE pets");
+            $table_columns = [];
+            while ($row = $result->fetch_assoc()) {
+                $table_columns[] = $row['Field'];
             }
+            $actual_column_count = count($table_columns);
+            $debug_info['table_columns'] = $table_columns;
+            $debug_info['actual_column_count'] = $actual_column_count;
             
-            if ($stmt->execute()) {
-                $pet_id = $stmt->insert_id;
+            // INSERT statement columns
+            $insert_columns = [
+                'user_id', 'name', 'species', 'breed', 'age', 'color', 'weight', 
+                'birth_date', 'gender', 'medical_notes', 'vet_contact', 
+                'previous_conditions', 'vaccination_history', 'surgical_history', 
+                'medication_history', 'has_existing_records', 'records_location',
+                'last_vet_visit', 'rabies_vaccine_date',
+                'dhpp_vaccine_date', 'is_spayed_neutered', 'spay_neuter_date',
+                'qr_code', 'profile_picture'
+            ];
+            $insert_column_count = count($insert_columns);
+            $debug_info['insert_columns'] = $insert_columns;
+            $debug_info['insert_column_count'] = $insert_column_count;
+            
+            // Check for missing columns
+            $missing_columns = array_diff($insert_columns, $table_columns);
+            $debug_info['missing_columns'] = $missing_columns;
+            
+            if (!empty($missing_columns)) {
+                error_log("Missing columns in pets table: " . implode(', ', $missing_columns));
+                $_SESSION['error'] = "Database configuration error. Please contact administrator.";
+                // Log detailed debug info
+                error_log("Debug Info: " . print_r($debug_info, true));
+            } else {
+                // INSERT statement
+                $stmt = $conn->prepare("
+                    INSERT INTO pets (
+                        user_id, name, species, breed, age, color, weight, 
+                        birth_date, gender, medical_notes, vet_contact, 
+                        previous_conditions, vaccination_history, surgical_history, 
+                        medication_history, has_existing_records, records_location,
+                        last_vet_visit, rabies_vaccine_date,
+                        dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
+                        qr_code, profile_picture
+                    ) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+
+                if (!$stmt) {
+                    throw new Exception("Prepare failed: " . $conn->error);
+                }
                 
-                // Generate direct link to view this pet's medical record
-                $qrURL = "https://group042025.ceitesystems.com/view_pet_record.php?pet_id=" . $pet_id;
-
-                // Generate the actual QR code image
-                require_once 'phpqrcode/qrlib.php';
-
-                $qrDir = 'qrcodes/';
-                if (!is_dir($qrDir)) mkdir($qrDir, 0755, true);
-
-                $qrPath = $qrDir . 'qr_' . $pet_id . '.png';
-                QRcode::png($qrURL, $qrPath, QR_ECLEVEL_L, 4);
-
-                // Generate QR data with enhanced medical history
-                $qrData = generateQRData(
-                    $user_id, $pet_id, $petName, $species, $breed, $age, 
-                    $color, $weight, $birthDate, $gender, $medicalNotes, 
-                    $vetContact, $previousConditions, $vaccinationHistory, 
-                    $surgicalHistory, $medicationHistory, 
-                    $last_vet_visit, $rabies_vaccine_date,
-                    $dhpp_vaccine_date, $is_spayed_neutered, $spay_neuter_date,
-                    $user['name'], $user['email']
+                $bind_result = $stmt->bind_param("isssisdssssssssisssisss", 
+                    $user_id, 
+                    $petName, 
+                    $species_lower,
+                    $breed, 
+                    $age, 
+                    $color, 
+                    $weight, 
+                    $birthDate, 
+                    $gender, 
+                    $medicalNotes, 
+                    $vetContact,
+                    $previousConditions,
+                    $vaccinationHistory,
+                    $surgicalHistory,
+                    $medicationHistory,
+                    $hasExistingRecords,
+                    $recordsLocation,
+                    $last_vet_visit,
+                    $rabies_vaccine_date,
+                    $dhpp_vaccine_date,
+                    $is_spayed_neutered,
+                    $spay_neuter_date,
+                    $qrCodeFilename,
+                    $profilePicture
                 );
                 
-                // Update the pet record with the QR code path and data
-                $updateStmt = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
-                $updateStmt->bind_param("ssi", $qrPath, $qrData, $pet_id);
-                $updateStmt->execute();
-                $updateStmt->close();
+                if (!$bind_result) {
+                    throw new Exception("Bind failed: " . $stmt->error);
+                }
                 
-                $_SESSION['success'] = "🎉 Pet '$petName' has been successfully registered! QR code has been generated.";
-                $_SESSION['new_pet_id'] = $pet_id;
-                $_SESSION['new_pet_data'] = $qrData;
-                $_SESSION['new_pet_name'] = $petName;
+                if ($stmt->execute()) {
+                    $pet_id = $stmt->insert_id;
+                    
+                    // Generate direct link to view this pet's medical record
+                    $qrURL = "https://group042025.ceitesystems.com/view_pet_record.php?pet_id=" . $pet_id;
+
+                    // Generate the actual QR code image
+                    require_once 'phpqrcode/qrlib.php';
+
+                    $qrDir = 'qrcodes/';
+                    if (!is_dir($qrDir)) mkdir($qrDir, 0755, true);
+
+                    $qrPath = $qrDir . 'qr_' . $pet_id . '.png';
+                    QRcode::png($qrURL, $qrPath, QR_ECLEVEL_L, 4);
+
+                    // Generate QR data with enhanced medical history
+                    $qrData = generateQRData(
+                        $user_id, $pet_id, $petName, $species, $breed, $age, 
+                        $color, $weight, $birthDate, $gender, $medicalNotes, 
+                        $vetContact, $previousConditions, $vaccinationHistory, 
+                        $surgicalHistory, $medicationHistory, 
+                        $last_vet_visit, $rabies_vaccine_date,
+                        $dhpp_vaccine_date, $is_spayed_neutered, $spay_neuter_date,
+                        $user['name'], $user['email']
+                    );
+                    
+                    // Update the pet record with the QR code path and data
+                    $updateStmt = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
+                    $updateStmt->bind_param("ssi", $qrPath, $qrData, $pet_id);
+                    $updateStmt->execute();
+                    $updateStmt->close();
+                    
+                    $_SESSION['success'] = "🎉 Pet '$petName' has been successfully registered! QR code has been generated.";
+                    $_SESSION['new_pet_id'] = $pet_id;
+                    $_SESSION['new_pet_data'] = $qrData;
+                    $_SESSION['new_pet_name'] = $petName;
+                    
+                    // Redirect to success page
+                    header("Location: register_pet.php?success=1");
+                    exit();
+                    
+                } else {
+                    throw new Exception("Failed to register pet: " . $stmt->error);
+                }
                 
-                // Redirect to success page
-                header("Location: register_pet.php?success=1");
-                exit();
-                
-            } else {
-                throw new Exception("Failed to register pet: " . $stmt->error);
+                $stmt->close();
             }
-            
-            $stmt->close();
             
         } catch (Exception $e) {
             $_SESSION['error'] = "Database error: " . $e->getMessage();
+            // Log detailed error for debugging
+            error_log("Registration Error: " . $e->getMessage());
+            error_log("Debug Info: " . print_r($debug_info ?? [], true));
         }
     }
 }
@@ -838,6 +901,9 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                     if (isset($missing_columns) && !empty($missing_columns)) {
                         echo "<div><strong>Missing Columns:</strong> " . implode(', ', $missing_columns) . "</div>";
                     }
+                    if (isset($missing_fields) && !empty($missing_fields)) {
+                        echo "<div><strong>Missing Form Fields:</strong> " . implode(', ', $missing_fields) . "</div>";
+                    }
                     ?>
                     <div><small>Check your server error logs for complete debug details.</small></div>
                 </div>
@@ -1066,7 +1132,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         <div class="card mb-3">
                             <div class="card-header bg-pink-light">
                                 <h6 class="mb-0">
-                                    <i class="fas fa-calendar-check me-2"></i>Important Medical Dates 
+                                    <i class="fas fa-calendar-check me-2"></i>Important Medical Dates
                                 </h6>
                             </div>
                             <div class="card-body">
@@ -1101,7 +1167,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label class="form-label required">
+                                        <label class="form-label">
                                             <i class="fas fa-stethoscope"></i>Spayed/Neutered Status
                                         </label>
                                         <div class="form-check mb-2 required-checkbox" id="spayedNeuteredCheckbox">
@@ -1173,7 +1239,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
 
                                 <div class="form-group">
-                                    <label class="form-label required">
+                                    <label class="form-label">
                                         <i class="fas fa-clipboard-list"></i>Existing Medical Records
                                     </label>
                                     <div class="form-check mb-2 required-checkbox" id="existingRecordsCheckbox">
@@ -1712,5 +1778,3 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
-
-
