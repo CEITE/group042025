@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VetCareQR — Pet Healthcare System with QR Integration</title>
-    <meta name="description" content="VetCareQR is a web-based medical record system with QR code integration and predictive analytics for pet healthcare management.">
+    <title>VetCare — Pet Healthcare System with QR Integration</title>
+    <meta name="description" content="VetCare is a web-based medical record system with QR code integration and predictive analytics for pet healthcare management.">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
@@ -1373,7 +1373,7 @@
 <!-- Role Selection Modal -->
 <div class="role-modal" id="roleModal">
     <div class="role-container">
-        <h1 class="role-title">Welcome to VetCareQR</h1>
+        <h1 class="role-title">Welcome to VetCare</h1>
         <p class="role-subtitle">Please select your role to continue</p>
         
         <div class="role-cards">
@@ -1468,7 +1468,7 @@
 <nav class="navbar navbar-expand-lg sticky-top">
     <div class="container">
         <a class="navbar-brand" href="#">
-            <i class="bi bi-qr-code"></i>VetCareQR
+            <i class="bi bi-qr-code"></i>VetCare
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
@@ -1518,7 +1518,7 @@
             <div class="col-lg-6 hero-content" data-aos="fade-right">
                 <span class="hero-badge"><i class="bi bi-star-fill me-2"></i>Modern Pet Healthcare</span>
                 <h1>Smart Pet Healthcare Management with <span class="text-pink-dark">QR Technology</span></h1>
-                <p class="hero-subtitle">VetCareQR revolutionizes pet healthcare with QR-based medical records, predictive analytics, and real-time risk monitoring for healthier pet communities.</p>
+                <p class="hero-subtitle">VetCare revolutionizes pet healthcare with QR-based medical records, predictive analytics, and real-time risk monitoring for healthier pet communities.</p>
 
                 <div class="cta-group">
                     <a class="btn btn-pink" href="#">Get Started Free</a>
@@ -1565,9 +1565,9 @@
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-6" data-aos="fade-right">
-                <h2 class="section-title text-start">About VetCareQR</h2>
+                <h2 class="section-title text-start">About VetCare</h2>
                 <p class="lead mb-4">Transforming pet healthcare through innovative technology and compassionate care.</p>
-                <p class="mb-4">VetCareQR is a comprehensive pet healthcare management system that leverages QR code technology and predictive analytics to provide seamless medical record access and proactive health monitoring.</p>
+                <p class="mb-4">VetCare is a comprehensive pet healthcare management system that leverages QR code technology and predictive analytics to provide seamless medical record access and proactive health monitoring.</p>
                 <p class="mb-5">Our mission is to bridge the gap between pet owners, veterinarians, and emergency care providers through instant, secure access to vital medical information when it matters most.</p>
                 
                 <div class="stats">
@@ -1587,7 +1587,7 @@
             </div>
             <div class="col-lg-6" data-aos="fade-left">
                 <div class="about-content">
-                    <h4 class="mb-4">Why Choose VetCareQR?</h4>
+                    <h4 class="mb-4">Why Choose VetCare?</h4>
                     <div class="research-card mb-3">
                         <h5><i class="bi bi-lightning-fill text-warning me-2"></i>Instant Access</h5>
                         <p class="mb-0">QR codes provide immediate access to medical records during emergencies.</p>
@@ -1610,7 +1610,7 @@
 <section id="features" class="section">
     <div class="container">
         <div class="text-center mb-5" data-aos="fade-up">
-            <h2 class="section-title">How VetCareQR Works</h2>
+            <h2 class="section-title">How VetCare Works</h2>
             <p class="section-subtitle">Our innovative system combines QR technology with predictive analytics to revolutionize pet healthcare management</p>
         </div>
         <div class="row g-4">
@@ -1730,7 +1730,7 @@
     <div class="container">
         <div class="text-center mb-5" data-aos="fade-up">
             <h2 class="section-title">Get In Touch</h2>
-            <p class="section-subtitle">Have questions about VetCareQR? We'd love to hear from you.</p>
+            <p class="section-subtitle">Have questions about VetCare? We'd love to hear from you.</p>
         </div>
         
         <div class="row">
@@ -1744,7 +1744,7 @@
                         </div>
                         <div>
                             <h5>Email Us</h5>
-                            <p class="text-muted mb-0">support@vetcareqr.com</p>
+                            <p class="text-muted mb-0">support@vetcare.com</p>
                         </div>
                     </div>
                     
@@ -1819,7 +1819,7 @@
     <div class="container">
         <div class="row">
             <div class="col-lg-4 mb-4 mb-lg-0">
-                <h4 class="mb-3"><i class="bi bi-qr-code me-2"></i>VetCareQR</h4>
+                <h4 class="mb-3"><i class="bi bi-qr-code me-2"></i>VetCare</h4>
                 <p class="text-muted">Revolutionizing pet healthcare through QR technology and predictive analytics for a healthier pet community.</p>
                 <div class="d-flex gap-3">
                     <a href="#" class="text-pink-dark"><i class="bi bi-facebook" style="font-size: 1.2rem;"></i></a>
@@ -1858,7 +1858,7 @@
         <hr class="my-4">
         <div class="row align-items-center">
             <div class="col-md-6">
-                <p class="text-muted mb-0">© 2023 VetCareQR. All rights reserved.</p>
+                <p class="text-muted mb-0">© 2023 VetCare. All rights reserved.</p>
             </div>
             <div class="col-md-6 text-md-end">
                 <p class="text-muted mb-0">Made with <i class="bi bi-heart-fill text-pink-dark"></i> for pets everywhere</p>
@@ -2080,3 +2080,4 @@
 </script>
 </body>
 </html>
+
