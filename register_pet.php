@@ -881,7 +881,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         </div>
                         
                         <div class="form-group">
-                            <label for="breed" class="form-label">
+                            <label for="breed" class="form-label required">
                                 <i class="fas fa-dna"></i>Breed
                             </label>
                             <input type="text" class="form-control" id="breed" name="breed" 
@@ -906,7 +906,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         
                         <div class="form-grid">
                             <div class="form-group">
-                                <label for="age" class="form-label">
+                                <label for="age" class="form-label required">
                                     <i class="fas fa-birthday-cake"></i>Age (years)
                                 </label>
                                 <input type="number" class="form-control" id="age" name="age" 
@@ -915,7 +915,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                             </div>
                             
                             <div class="form-group">
-                                <label for="gender" class="form-label">
+                                <label for="gender" class="form-label required">
                                     <i class="fas fa-venus-mars"></i>Gender
                                 </label>
                                 <select class="form-select" id="gender" name="gender">
@@ -928,7 +928,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         
                         <div class="form-grid">
                             <div class="form-group">
-                                <label for="color" class="form-label">
+                                <label for="color" class="form-label required">
                                     <i class="fas fa-paint-brush"></i>Color/Markings
                                 </label>
                                 <input type="text" class="form-control" id="color" name="color" 
@@ -937,7 +937,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                             </div>
                             
                             <div class="form-group">
-                                <label for="weight" class="form-label">
+                                <label for="weight" class="form-label required">
                                     <i class="fas fa-weight"></i>Weight (kg)
                                 </label>
                                 <input type="number" class="form-control" id="weight" name="weight" 
@@ -947,7 +947,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         </div>
                         
                         <div class="form-group">
-                            <label for="birthDate" class="form-label">
+                            <label for="birthDate" class="form-label required">
                                 <i class="fas fa-calendar"></i>Birth Date
                             </label>
                             <input type="date" class="form-control" id="birthDate" name="birthDate" value="<?php echo $_POST['birthDate'] ?? ''; ?>">
@@ -991,7 +991,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                             <div class="card-body">
                                 <div class="form-grid">
                                     <div class="form-group">
-                                        <label for="last_vet_visit" class="form-label">
+                                        <label for="last_vet_visit" class="form-label required">
                                             <i class="fas fa-calendar-alt"></i>Last Vet Visit
                                         </label>
                                         <input type="date" class="form-control" id="last_vet_visit" name="last_vet_visit" 
@@ -1011,7 +1011,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 
                                 <div class="form-grid">
                                     <div class="form-group">
-                                        <label for="rabies_vaccine_date" class="form-label">
+                                        <label for="rabies_vaccine_date" class="form-label required">
                                             <i class="fas fa-syringe"></i>Rabies Vaccine Date
                                         </label>
                                         <input type="date" class="form-control" id="rabies_vaccine_date" name="rabies_vaccine_date" 
@@ -1020,7 +1020,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label for="dhpp_vaccine_date" class="form-label">
+                                        <label for="dhpp_vaccine_date" class="form-label required">
                                             <i class="fas fa-syringe"></i>DHPP/FVRCP Vaccine Date
                                         </label>
                                         <input type="date" class="form-control" id="dhpp_vaccine_date" name="dhpp_vaccine_date" 
@@ -1057,7 +1057,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                             </div>
                             <div class="card-body">
                                 <div class="form-group">
-                                    <label for="previousConditions" class="form-label">
+                                    <label for="previousConditions" class="form-label required">
                                         <i class="fas fa-file-medical"></i>Previous Medical Conditions
                                     </label>
                                     <textarea class="form-control" id="previousConditions" name="previousConditions" 
@@ -1067,7 +1067,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="vaccinationHistory" class="form-label">
+                                    <label for="vaccinationHistory" class="form-label required">
                                         <i class="fas fa-syringe"></i>Vaccination History
                                     </label>
                                     <textarea class="form-control" id="vaccinationHistory" name="vaccinationHistory" 
@@ -1077,7 +1077,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="surgicalHistory" class="form-label">
+                                    <label for="surgicalHistory" class="form-label required">
                                         <i class="fas fa-procedures"></i>Surgical History
                                     </label>
                                     <textarea class="form-control" id="surgicalHistory" name="surgicalHistory" 
@@ -1086,7 +1086,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="medicationHistory" class="form-label">
+                                    <label for="medicationHistory" class="form-label required">
                                         <i class="fas fa-pills"></i>Previous Medications
                                     </label>
                                     <textarea class="form-control" id="medicationHistory" name="medicationHistory" 
@@ -1103,7 +1103,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
 
                                 <div class="form-group" id="existingRecordsDetails" style="display: none;">
-                                    <label for="recordsLocation" class="form-label">
+                                    <label for="recordsLocation" class="form-label required">
                                         <i class="fas fa-clinic-medical"></i>Records Location
                                     </label>
                                     <input type="text" class="form-control" id="recordsLocation" name="recordsLocation" 
@@ -1115,7 +1115,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                         </div>
                         
                         <div class="form-group">
-                            <label for="vetContact" class="form-label">
+                            <label for="vetContact" class="form-label required">
                                 <i class="fas fa-user-md"></i>Current Veterinarian Contact
                             </label>
                             <input type="text" class="form-control" id="vetContact" name="vetContact" 
