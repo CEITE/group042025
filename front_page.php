@@ -1705,7 +1705,7 @@
             <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
                 <div class="team-card">
                     <!-- REPLACE WITH ALEXANDER'S LOCAL IMAGE -->
-                    <img src="images/alexander-avendano.jpg" alt="Prof. Alexander G. Avendaño" class="team-img">
+                    <img src="images/alex-avendano.jpg" alt="Prof. Alexander G. Avendaño" class="team-img">
                     <div class="team-content">
                         <h4>Prof. Alexander G. Avendaño</h4>
                         <p class="team-role">Advisory</p>
@@ -2083,3 +2083,4 @@
 </script>
 </body>
 </html>
+
