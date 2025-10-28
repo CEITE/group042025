@@ -41,7 +41,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     
     // Structured medical fields
     $last_vet_visit = !empty($_POST['last_vet_visit']) ? $_POST['last_vet_visit'] : null;
-    $next_vet_visit = !empty($_POST['next_vet_visit']) ? $_POST['next_vet_visit'] : null;
     $rabies_vaccine_date = !empty($_POST['rabies_vaccine_date']) ? $_POST['rabies_vaccine_date'] : null;
     $dhpp_vaccine_date = !empty($_POST['dhpp_vaccine_date']) ? $_POST['dhpp_vaccine_date'] : null;
     $is_spayed_neutered = isset($_POST['is_spayed_neutered']) ? 1 : 0;
@@ -108,23 +107,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 $color, $weight, $birthDate, $gender, $medicalNotes, 
                 $vetContact, $previousConditions, $vaccinationHistory, 
                 $surgicalHistory, $medicationHistory, 
-                $last_vet_visit, $next_vet_visit, $rabies_vaccine_date,
+                $last_vet_visit, $rabies_vaccine_date,
                 $dhpp_vaccine_date, $is_spayed_neutered, $spay_neuter_date,
                 $user['name'], $user['email']
             );
             
-            // ✅ CORRECTED: INSERT statement that matches EXACT table structure
+            // ✅ CORRECTED: INSERT statement that matches EXACT table structure (24 columns)
             $sql = "
                 INSERT INTO pets (
                     user_id, name, species, breed, age, color, weight, 
                     birth_date, gender, medical_notes, vet_contact, 
                     previous_conditions, vaccination_history, surgical_history, 
                     medication_history, has_existing_records, records_location,
-                    last_vet_visit, next_vet_visit, rabies_vaccine_date,
+                    last_vet_visit, rabies_vaccine_date,
                     dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
                     qr_code, qr_code_data, profile_picture
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ";
             
             $stmt = $conn->prepare($sql);
@@ -133,8 +132,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 throw new Exception("Prepare failed: " . $conn->error);
             }
             
-            // ✅ CORRECTED: 25 parameters in bind_param (matches 25 columns we're inserting)
-            $bind_result = $stmt->bind_param("isssisdssssssssisssssissss", 
+            // ✅ CORRECTED: 24 parameters in bind_param (matches 24 columns we're inserting)
+            $bind_result = $stmt->bind_param("isssisdssssssssisssissss", 
                 $user_id, 
                 $petName, 
                 $species_lower,
@@ -153,7 +152,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 $hasExistingRecords,
                 $recordsLocation,
                 $last_vet_visit,
-                $next_vet_visit,
                 $rabies_vaccine_date,
                 $dhpp_vaccine_date,
                 $is_spayed_neutered,
@@ -211,7 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
 }
 
 // Enhanced function to generate QR code data with medical history
-function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $previousConditions = '', $vaccinationHistory = '', $surgicalHistory = '', $medicationHistory = '', $last_vet_visit = '', $next_vet_visit = '', $rabies_vaccine_date = '', $dhpp_vaccine_date = '', $is_spayed_neutered = '', $spay_neuter_date = '', $ownerName = '', $ownerEmail = '') {
+function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $previousConditions = '', $vaccinationHistory = '', $surgicalHistory = '', $medicationHistory = '', $last_vet_visit = '', $rabies_vaccine_date = '', $dhpp_vaccine_date = '', $is_spayed_neutered = '', $spay_neuter_date = '', $ownerName = '', $ownerEmail = '') {
     $data = "PET MEDICAL RECORD - PETMEDQR\n";
     $data .= "================================\n\n";
     
@@ -230,7 +228,6 @@ function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $co
     $data .= "IMPORTANT MEDICAL DATES:\n";
     $data .= "------------------------\n";
     if ($last_vet_visit) $data .= "Last Vet Visit: " . date('M j, Y', strtotime($last_vet_visit)) . "\n";
-    if ($next_vet_visit) $data .= "Next Vet Visit: " . date('M j, Y', strtotime($next_vet_visit)) . "\n";
     if ($rabies_vaccine_date) $data .= "Rabies Vaccine: " . date('M j, Y', strtotime($rabies_vaccine_date)) . "\n";
     if ($dhpp_vaccine_date) $data .= "DHPP/FVRCP Vaccine: " . date('M j, Y', strtotime($dhpp_vaccine_date)) . "\n";
     if ($is_spayed_neutered) $data .= "Spayed/Neutered: Yes" . ($spay_neuter_date ? " (" . date('M j, Y', strtotime($spay_neuter_date)) . ")" : "") . "\n";
@@ -284,7 +281,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Your existing CSS styles remain exactly the same */
         :root {
             --pink: #ffd6e7;
             --pink-2: #f7c5e0;
@@ -959,12 +955,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label class="form-label" for="next_vet_visit">Next Scheduled Visit</label>
-                                    <input type="date" class="form-control" id="next_vet_visit" name="next_vet_visit" 
-                                           value="<?php echo $_POST['next_vet_visit'] ?? ''; ?>">
-                                </div>
-                                
-                                <div class="form-group">
                                     <label class="form-label required" for="rabies_vaccine_date">Rabies Vaccine Date</label>
                                     <input type="date" class="form-control" id="rabies_vaccine_date" name="rabies_vaccine_date" required 
                                            value="<?php echo $_POST['rabies_vaccine_date'] ?? ''; ?>">
@@ -1116,7 +1106,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                                     <div class="row">
                                         <div class="col-md-6">
                                             <p><strong>Last Vet Visit:</strong> <span id="review_last_vet_visit"></span></p>
-                                            <p><strong>Next Vet Visit:</strong> <span id="review_next_vet_visit"></span></p>
                                             <p><strong>Rabies Vaccine:</strong> <span id="review_rabies_vaccine_date"></span></p>
                                             <p><strong>DHPP/FVRCP Vaccine:</strong> <span id="review_dhpp_vaccine_date"></span></p>
                                         </div>
@@ -1231,7 +1220,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             
             // Medical Information
             document.getElementById('review_last_vet_visit').textContent = formatDate(document.getElementById('last_vet_visit').value) || 'Not provided';
-            document.getElementById('review_next_vet_visit').textContent = formatDate(document.getElementById('next_vet_visit').value) || 'Not provided';
             document.getElementById('review_rabies_vaccine_date').textContent = formatDate(document.getElementById('rabies_vaccine_date').value) || 'Not provided';
             document.getElementById('review_dhpp_vaccine_date').textContent = formatDate(document.getElementById('dhpp_vaccine_date').value) || 'Not provided';
             document.getElementById('review_is_spayed_neutered').textContent = document.getElementById('is_spayed_neutered').checked ? 'Yes' : 'No';
