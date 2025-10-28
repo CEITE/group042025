@@ -188,37 +188,29 @@
             background-position: center;
             background-repeat: no-repeat;
             transform: scale(1.1);
-            filter: brightness(0.5);
+            filter: brightness(0.6);
         }
 
         .slide.active {
             opacity: 1;
             transform: scale(1);
-            filter: brightness(0.6);
+            filter: brightness(0.7);
         }
 
         .slide-1 {
-            background-image: url('https://www.google.com/url?sa=i&url=https%3A%2F%2Fstock.adobe.com%2Fsearch%2Fimages%3Fk%3Dcats%2Band%2Bdogs&psig=AOvVaw1bHbcctifXyZ0jrr0XPjpu&ust=1761712049385000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCNCzkP6GxpADFQAAAAAdAAAAABAE');
+            background-image: url('https://as2.ftcdn.net/v2/jpg/02/69/47/89/1000_F_269478900_EEEXPJa7ohrxraL6L6V2GlmltteALheQ.jpg');
         }
 
         .slide-2 {
-            background-image: url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2043&q=80');
+            background-image: url('https://as1.ftcdn.net/v2/jpg/06/04/54/70/1000_F_604547093_FmuK2VH2Gq5zoXzeJkygDsejsUxXZaOg.jpg');
         }
 
         .slide-3 {
-            background-image: url('https://images.unsplash.com/photo-1552053831-71594a27632d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2062&q=80');
+            background-image: url('https://as1.ftcdn.net/v2/jpg/06/40/77/70/1000_F_640777038_MZdcqwcQeRnlPtRRWP4oNT6oBhFJmXY0.jpg');
         }
 
         .slide-4 {
-            background-image: url('https://images.unsplash.com/photo-1583337130417-3346a1be7dee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1964&q=80');
-        }
-
-        .slide-5 {
-            background-image: url('https://images.unsplash.com/photo-1574145112594-3e0b8a483d0c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
-        }
-
-        .slide-6 {
-            background-image: url('https://images.unsplash.com/photo-1583511655826-05700d52f4c9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2068&q=80');
+            background-image: url('https://as2.ftcdn.net/v2/jpg/02/84/36/59/1000_F_284365935_RQAZNpqkgzIyCRWibM3a3t2tgwWpkHP1.jpg');
         }
 
         .slide-nav {
@@ -290,7 +282,7 @@
             margin-bottom: 1.5rem;
             color: var(--white);
             font-size: 3.5rem;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
         }
 
         .hero-subtitle {
@@ -298,7 +290,7 @@
             color: var(--white);
             margin-bottom: 2.5rem;
             line-height: 1.7;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
             font-weight: 400;
         }
 
@@ -1503,8 +1495,6 @@
         <div class="slide slide-2"></div>
         <div class="slide slide-3"></div>
         <div class="slide slide-4"></div>
-        <div class="slide slide-5"></div>
-        <div class="slide slide-6"></div>
         
         <!-- Navigation arrows -->
         <button class="slide-arrow prev" onclick="prevSlide()">
@@ -1520,8 +1510,6 @@
             <div class="slide-dot" onclick="goToSlide(1)"></div>
             <div class="slide-dot" onclick="goToSlide(2)"></div>
             <div class="slide-dot" onclick="goToSlide(3)"></div>
-            <div class="slide-dot" onclick="goToSlide(4)"></div>
-            <div class="slide-dot" onclick="goToSlide(5)"></div>
         </div>
     </div>
     
@@ -2092,4 +2080,3 @@
 </script>
 </body>
 </html>
-
