@@ -1693,28 +1693,34 @@
         <div class="row g-4">
             <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
                 <div class="team-card">
-                    <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" alt="Ms.Aira L. Alimorom" class="team-img">
+                    <!-- REPLACE WITH AIRA'S LOCAL IMAGE -->
+                    <img src="images/aira.jpg" alt="Ms. Aira L. Alimorom" class="team-img">
                     <div class="team-content">
-                        <h4>Ms.Aira L. Alimorom</h4>
+                        <h4>Ms. Aira L. Alimorom</h4>
                         <p class="team-role">Project Manager and Programmer</p>
+                        <p>Lead developer and project coordinator with expertise in system architecture and QR technology implementation.</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
                 <div class="team-card">
-                    <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" alt="Prof.Alexander G. Avendaño" class="team-img">
+                    <!-- REPLACE WITH ALEXANDER'S LOCAL IMAGE -->
+                    <img src="images/alexander-avendano.jpg" alt="Prof. Alexander G. Avendaño" class="team-img">
                     <div class="team-content">
-                        <h4>Prof.Alexander G. Avendaño</h4>
+                        <h4>Prof. Alexander G. Avendaño</h4>
                         <p class="team-role">Advisory</p>
+                        <p>Provides strategic guidance and industry expertise to ensure project success and innovation.</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
                 <div class="team-card">
-                    <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" alt="Ms.Regina R. Narbarte" class="team-img">
+                    <!-- REPLACE WITH REGINA'S LOCAL IMAGE -->
+                    <img src="images/red.jpg" alt="Ms. Regina R. Narbarte" class="team-img">
                     <div class="team-content">
                         <h4>Ms. Regina R. Narbarte</h4>
                         <p class="team-role">Document Lead</p>
+                        <p>Oversees project documentation, research compilation, and ensures comprehensive project records.</p>
                     </div>
                 </div>
             </div>
@@ -2077,5 +2083,3 @@
 </script>
 </body>
 </html>
-
-
