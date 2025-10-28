@@ -198,7 +198,7 @@
         }
 
         .slide-1 {
-            background-image: url('https://images.unsplash.com/photo-1543852786-1cf6624b9987?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+            background-image: url('https://www.google.com/url?sa=i&url=https%3A%2F%2Fstock.adobe.com%2Fsearch%2Fimages%3Fk%3Dcats%2Band%2Bdogs&psig=AOvVaw1bHbcctifXyZ0jrr0XPjpu&ust=1761712049385000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCNCzkP6GxpADFQAAAAAdAAAAABAE');
         }
 
         .slide-2 {
@@ -2092,3 +2092,4 @@
 </script>
 </body>
 </html>
+
