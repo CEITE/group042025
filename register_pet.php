@@ -102,46 +102,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             $species_lower = strtolower($species);
             
             // ✅ UPDATED: INSERT statement - REMOVED next_vet_visit
-            $stmt = $conn->prepare("
-                INSERT INTO pets (
-                    user_id, name, species, breed, age, color, weight, 
-                    birth_date, gender, medical_notes, vet_contact, 
-                    previous_conditions, vaccination_history, surgical_history, 
-                    medication_history, has_existing_records, records_location,
-                    last_vet_visit, rabies_vaccine_date,
-                    dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
-                    qr_code, profile_picture
-                ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
+           $stmt = $conn->prepare("
+            INSERT INTO pets (
+                user_id, name, species, breed, age, color, weight, 
+                birth_date, gender, medical_notes, vet_contact, 
+                previous_conditions, vaccination_history, surgical_history, 
+                medication_history, has_existing_records, records_location,
+                last_vet_visit, rabies_vaccine_date,           -- REMOVED next_vet_visit
+                dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
+                qr_code, profile_picture
+            ) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)  -- 22 params now
+        ");
 
             // ✅ UPDATED: 23 parameters in bind_param (removed next_vet_visit)
-            $bind_result = $stmt->bind_param("isssisdssssssssisssisss", 
-                $user_id, 
-                $petName, 
-                $species_lower,
-                $breed, 
-                $age, 
-                $color, 
-                $weight, 
-                $birthDate, 
-                $gender, 
-                $medicalNotes, 
-                $vetContact,
-                $previousConditions,
-                $vaccinationHistory,
-                $surgicalHistory,
-                $medicationHistory,
-                $hasExistingRecords,
-                $recordsLocation,
-                $last_vet_visit,
-                $rabies_vaccine_date,
-                $dhpp_vaccine_date,
-                $is_spayed_neutered,
-                $spay_neuter_date,
-                $qrCodeFilename,
-                $profilePicture
-            );
+            $bind_result = $stmt->bind_param("isssisdssssssssisssisss",  // REMOVED one 's' for next_vet_visit
+    $user_id, 
+    $petName, 
+    $species_lower,
+    $breed, 
+    $age, 
+    $color, 
+    $weight, 
+    $birthDate, 
+    $gender, 
+    $medicalNotes, 
+    $vetContact,
+    $previousConditions,
+    $vaccinationHistory,
+    $surgicalHistory,
+    $medicationHistory,
+    $hasExistingRecords,
+    $recordsLocation,
+    $last_vet_visit,
+    $rabies_vaccine_date,
+    $dhpp_vaccine_date,
+    $is_spayed_neutered,
+    $spay_neuter_date,
+    $qrCodeFilename,
+    $profilePicture
+);
             
             if (!$bind_result) {
                 throw new Exception("Bind failed: " . $stmt->error);
@@ -1769,3 +1769,4 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
