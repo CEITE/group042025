@@ -39,150 +39,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
     $hasExistingRecords = isset($_POST['hasExistingRecords']) ? 1 : 0;
     $recordsLocation = trim($_POST['recordsLocation'] ?? '');
     
-    // NEW: Structured medical fields
-    $last_vet_visit = !empty($_POST['last_vet_visit']) ? $_POST['last_vet_visit'] : null;
-    $rabies_vaccine_date = !empty($_POST['rabies_vaccine_date']) ? $_POST['rabies_vaccine_date'] : null;
-    $dhpp_vaccine_date = !empty($_POST['dhpp_vaccine_date']) ? $_POST['dhpp_vaccine_date'] : null;
-    $is_spayed_neutered = isset($_POST['is_spayed_neutered']) ? 1 : 0;
-    $spay_neuter_date = !empty($_POST['spay_neuter_date']) ? $_POST['spay_neuter_date'] : null;
-    
-    // Profile picture handling
-    $profilePicture = null;
-    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = 'uploads/pet_profile_pictures/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-        
-        $fileExtension = pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION);
-        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        if (in_array(strtolower($fileExtension), $allowedExtensions)) {
-            // Generate unique filename
-            $profilePicture = 'pet_' . uniqid() . '_' . time() . '.' . $fileExtension;
-            $uploadPath = $uploadDir . $profilePicture;
-            
-            // Move uploaded file
-            if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $uploadPath)) {
-                // File uploaded successfully
-            } else {
-                $_SESSION['error'] = "❌ Failed to upload profile picture.";
-                $profilePicture = null;
-            }
-        } else {
-            $_SESSION['error'] = "❌ Invalid file type. Please upload JPG, JPEG, PNG, GIF, or WebP images only.";
-        }
-    }
-
-    // ✅ ENHANCED VALIDATION WITH SPECIFIC ERROR TRACKING
-    $missing_fields = [];
-    
-    // Check required fields
-    if (empty($petName)) $missing_fields[] = "Pet Name";
-    if (empty($species)) $missing_fields[] = "Species";
-    if (empty($breed)) $missing_fields[] = "Breed";
-    if (empty($age)) $missing_fields[] = "Age";
-    if (empty($gender)) $missing_fields[] = "Gender";
-    if (empty($color)) $missing_fields[] = "Color/Markings";
-    if (empty($weight)) $missing_fields[] = "Weight";
-    if (empty($medicalNotes)) $missing_fields[] = "Current Medical Notes & Allergies";
-    if (empty($last_vet_visit)) $missing_fields[] = "Last Vet Visit";
-    if (empty($rabies_vaccine_date)) $missing_fields[] = "Rabies Vaccine Date";
-    if (empty($dhpp_vaccine_date)) $missing_fields[] = "DHPP/FVRCP Vaccine Date";
-    if (empty($vetContact)) $missing_fields[] = "Current Veterinarian Contact";
-    
-    if (!empty($missing_fields)) {
-        $_SESSION['error'] = "❌ Please fill in all required fields. Missing: " . implode(', ', $missing_fields);
-    } else {
-        try {
-            // Generate unique QR code filename
-            $qrCodeFilename = 'qr_' . uniqid() . '_' . time() . '.svg';
-            
-            // Convert species to lowercase to match ENUM('dog', 'cat')
-            $species_lower = strtolower($species);
-            
-            // ✅ UPDATED: INSERT statement - REMOVED next_vet_visit
-           $stmt = $conn->prepare("
-            INSERT INTO pets (
-                user_id, name, species, breed, age, color, weight, 
-                birth_date, gender, medical_notes, vet_contact, 
-                previous_conditions, vaccination_history, surgical_history, 
-                medication_history, has_existing_records, records_location,
-                last_vet_visit, rabies_vaccine_date,           -- REMOVED next_vet_visit
-                dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
-                qr_code, profile_picture
-            ) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)  -- 22 params now
-        ");
-
-            // ✅ UPDATED: 23 parameters in bind_param (removed next_vet_visit)
-            $bind_result = $stmt->bind_param("isssisdssssssssisssisss",  // REMOVED one 's' for next_vet_visit
-    $user_id, 
-    $petName, 
-    $species_lower,
-    $breed, 
-    $age, 
-    $color, 
-    $weight, 
-    $birthDate, 
-    $gender, 
-    $medicalNotes, 
-    $vetContact,
-    $previousConditions,
-    $vaccinationHistory,
-    $surgicalHistory,
-    $medicationHistory,
-    $hasExistingRecords,
-    $recordsLocation,
-    $last_vet_visit,
-    $rabies_vaccine_date,
-    $dhpp_vaccine_date,
-    $is_spayed_neutered,
-    $spay_neuter_date,
-    $qrCodeFilename,
-    $profilePicture
-);
-            
-            if (!$bind_result) {
-                throw new Exception("Bind failed: " . $stmt->error);
-            }
-            
-            if ($stmt->execute()) {
-                $pet_id = $stmt->insert_id;
-                
-                // ✅ Generate direct link to view this pet's medical record
-                $qrURL = "https://group042025.ceitesystems.com/view_pet_record.php?pet_id=" . $pet_id;
-
-                // ✅ Generate the actual QR code image
-                require_once 'phpqrcode/qrlib.php';
-
-                $qrDir = 'qrcodes/';
-                if (!is_dir($qrDir)) mkdir($qrDir, 0755, true);
-
-                $qrPath = $qrDir . 'qr_' . $pet_id . '.png';
-                QRcode::png($qrURL, $qrPath, QR_ECLEVEL_L, 4);
-// ✅ Handle pet registration
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
-    // Collect and sanitize form data
-    $petName = trim($_POST['petName'] ?? '');
-    $species = trim($_POST['species'] ?? '');
-    $breed = trim($_POST['breed'] ?? '');
-    $age = !empty($_POST['age']) ? intval($_POST['age']) : 0;
-    $color = trim($_POST['color'] ?? '');
-    $weight = !empty($_POST['weight']) ? floatval($_POST['weight']) : null;
-    $birthDate = !empty($_POST['birthDate']) ? $_POST['birthDate'] : null;
-    $gender = trim($_POST['gender'] ?? '');
-    $medicalNotes = trim($_POST['medicalNotes'] ?? '');
-    $vetContact = trim($_POST['vetContact'] ?? '');
-    
-    // Medical history fields
-    $previousConditions = trim($_POST['previousConditions'] ?? '');
-    $vaccinationHistory = trim($_POST['vaccinationHistory'] ?? '');
-    $surgicalHistory = trim($_POST['surgicalHistory'] ?? '');
-    $medicationHistory = trim($_POST['medicationHistory'] ?? '');
-    $hasExistingRecords = isset($_POST['hasExistingRecords']) ? 1 : 0;
-    $recordsLocation = trim($_POST['recordsLocation'] ?? '');
-    
     // Structured medical fields
     $last_vet_visit = !empty($_POST['last_vet_visit']) ? $_POST['last_vet_visit'] : null;
     $next_vet_visit = !empty($_POST['next_vet_visit']) ? $_POST['next_vet_visit'] : null;
@@ -246,24 +102,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             // Convert species to lowercase to match ENUM('dog', 'cat')
             $species_lower = strtolower($species);
             
-            // ✅ CORRECTED: INSERT statement that matches EXACT table structure
-            $stmt = $conn->prepare("
-                INSERT INTO pets (
-                    user_id, name, species, breed, age, color, weight, 
-                    birth_date, gender, medical_notes, vet_contact, 
-                    previous_conditions, vaccination_history, surgical_history, 
-                    medication_history, has_existing_records, records_location,
-                    last_vet_visit, next_vet_visit, rabies_vaccine_date,
-                    dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
-                    qr_code, qr_code_data, profile_picture
-                ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-
-            if (!$stmt) {
-                throw new Exception("Prepare failed: " . $conn->error);
-            }
-            
             // Generate QR data first (we need it for the insert)
             $qrData = generateQRData(
                 $user_id, 0, $petName, $species, $breed, $age, 
@@ -274,6 +112,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
                 $dhpp_vaccine_date, $is_spayed_neutered, $spay_neuter_date,
                 $user['name'], $user['email']
             );
+            
+            // ✅ CORRECTED: INSERT statement that matches EXACT table structure
+            $sql = "
+                INSERT INTO pets (
+                    user_id, name, species, breed, age, color, weight, 
+                    birth_date, gender, medical_notes, vet_contact, 
+                    previous_conditions, vaccination_history, surgical_history, 
+                    medication_history, has_existing_records, records_location,
+                    last_vet_visit, next_vet_visit, rabies_vaccine_date,
+                    dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
+                    qr_code, qr_code_data, profile_picture
+                ) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ";
+            
+            $stmt = $conn->prepare($sql);
+
+            if (!$stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
             
             // ✅ CORRECTED: 25 parameters in bind_param (matches 25 columns we're inserting)
             $bind_result = $stmt->bind_param("isssisdssssssssisssssissss", 
@@ -347,49 +205,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
             
         } catch (Exception $e) {
             $_SESSION['error'] = "Database error: " . $e->getMessage();
-        }
-    }
-}
-                // Generate QR data with enhanced medical history
-                $qrData = generateQRData(
-                    $user_id, $pet_id, $petName, $species, $breed, $age, 
-                    $color, $weight, $birthDate, $gender, $medicalNotes, 
-                    $vetContact, $previousConditions, $vaccinationHistory, 
-                    $surgicalHistory, $medicationHistory, 
-                    $last_vet_visit, $rabies_vaccine_date,
-                    $dhpp_vaccine_date, $is_spayed_neutered, $spay_neuter_date,
-                    $user['name'], $user['email']
-                );
-                
-                // Update the pet record with the QR code path and data
-                $updateStmt = $conn->prepare("UPDATE pets SET qr_code = ?, qr_code_data = ? WHERE pet_id = ?");
-                $updateStmt->bind_param("ssi", $qrPath, $qrData, $pet_id);
-                $updateStmt->execute();
-                $updateStmt->close();
-                
-                $_SESSION['success'] = "🎉 Pet '$petName' has been successfully registered! QR code has been generated.";
-                $_SESSION['new_pet_id'] = $pet_id;
-                $_SESSION['new_pet_data'] = $qrData;
-                $_SESSION['new_pet_name'] = $petName;
-                
-                // Redirect to success page
-                header("Location: register_pet.php?success=1");
-                exit();
-                
-            } else {
-                throw new Exception("Failed to register pet: " . $stmt->error);
-            }
-            
-            $stmt->close();
-            
-        } catch (Exception $e) {
-            $_SESSION['error'] = "Database error: " . $e->getMessage();
+            error_log("Registration Error: " . $e->getMessage());
         }
     }
 }
 
 // Enhanced function to generate QR code data with medical history
-function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $previousConditions = '', $vaccinationHistory = '', $surgicalHistory = '', $medicationHistory = '', $last_vet_visit = '', $rabies_vaccine_date = '', $dhpp_vaccine_date = '', $is_spayed_neutered = '', $spay_neuter_date = '', $ownerName = '', $ownerEmail = '') {
+function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $color, $weight, $birthDate, $gender, $medicalNotes, $vetContact, $previousConditions = '', $vaccinationHistory = '', $surgicalHistory = '', $medicationHistory = '', $last_vet_visit = '', $next_vet_visit = '', $rabies_vaccine_date = '', $dhpp_vaccine_date = '', $is_spayed_neutered = '', $spay_neuter_date = '', $ownerName = '', $ownerEmail = '') {
     $data = "PET MEDICAL RECORD - PETMEDQR\n";
     $data .= "================================\n\n";
     
@@ -408,6 +230,7 @@ function generateQRData($user_id, $pet_id, $petName, $species, $breed, $age, $co
     $data .= "IMPORTANT MEDICAL DATES:\n";
     $data .= "------------------------\n";
     if ($last_vet_visit) $data .= "Last Vet Visit: " . date('M j, Y', strtotime($last_vet_visit)) . "\n";
+    if ($next_vet_visit) $data .= "Next Vet Visit: " . date('M j, Y', strtotime($next_vet_visit)) . "\n";
     if ($rabies_vaccine_date) $data .= "Rabies Vaccine: " . date('M j, Y', strtotime($rabies_vaccine_date)) . "\n";
     if ($dhpp_vaccine_date) $data .= "DHPP/FVRCP Vaccine: " . date('M j, Y', strtotime($dhpp_vaccine_date)) . "\n";
     if ($is_spayed_neutered) $data .= "Spayed/Neutered: Yes" . ($spay_neuter_date ? " (" . date('M j, Y', strtotime($spay_neuter_date)) . ")" : "") . "\n";
@@ -461,7 +284,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Your existing CSS remains the same */
+        /* Your existing CSS styles remain exactly the same */
         :root {
             --pink: #ffd6e7;
             --pink-2: #f7c5e0;
@@ -840,6 +663,12 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             border-left: 4px solid #ef4444;
         }
         
+        .alert-info {
+            background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+            color: #1e3a8a;
+            border-left: 4px solid #3b82f6;
+        }
+        
         .bg-pink-light {
             background: var(--pink-light);
         }
@@ -910,22 +739,6 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             text-align: center;
             margin-bottom: 1rem;
         }
-
-        /* Debug info styles */
-        .debug-info {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            padding: 1rem;
-            margin: 1rem 0;
-            font-family: monospace;
-            font-size: 0.875rem;
-        }
-        
-        .debug-info h6 {
-            color: #6c757d;
-            margin-bottom: 0.5rem;
-        }
     </style>
 </head>
 <body>
@@ -993,969 +806,498 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
                     <?php unset($_SESSION['error']); ?>
                 <?php endif; ?>
 
-                <!-- Debug Information (visible during development) -->
-                <?php if (isset($_POST['register_pet']) && isset($_SESSION['error'])): ?>
-                <div class="debug-info">
-                    <h6>Debug Information:</h6>
-                    <?php
-                    if (isset($missing_fields) && !empty($missing_fields)) {
-                        echo "<div><strong>Missing Form Fields:</strong> " . implode(', ', $missing_fields) . "</div>";
-                    }
-                    ?>
-                    <div><small>Check your server error logs for complete debug details.</small></div>
-                </div>
-                <?php endif; ?>
-                
-                <!-- Progress Steps -->
-                <div class="progress-steps">
-                    <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
-                    <div class="step active" data-step="1">
-                        <div class="step-icon">1</div>
-                        <div class="step-label">Basic Info</div>
+                <?php if ($showSuccess): ?>
+                    <!-- Success State -->
+                    <div class="success-state active">
+                        <div class="success-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <h2 class="mb-3">Registration Successful!</h2>
+                        <p class="mb-4">Your pet <strong><?php echo $_SESSION['new_pet_name']; ?></strong> has been successfully registered with PetMedQR.</p>
+                        
+                        <div class="qr-preview">
+                            <img src="qrcodes/qr_<?php echo $_SESSION['new_pet_id']; ?>.png" alt="QR Code" width="200" height="200">
+                        </div>
+                        
+                        <p class="mb-4">A unique QR code has been generated for your pet's medical records.</p>
+                        
+                        <div class="d-flex gap-2 justify-content-center flex-wrap">
+                            <a href="user_pet_profile.php" class="btn btn-prev">
+                                <i class="fas fa-paw"></i> View All Pets
+                            </a>
+                            <a href="register_pet.php" class="btn btn-submit">
+                                <i class="fas fa-plus"></i> Register Another Pet
+                            </a>
+                            <a href="dashboard.php" class="btn" style="background: var(--blue); color: white;">
+                                <i class="fas fa-home"></i> Dashboard
+                            </a>
+                        </div>
                     </div>
-                    <div class="step" data-step="2">
-                        <div class="step-icon">2</div>
-                        <div class="step-label">Details</div>
+                <?php else: ?>
+                    <!-- Multi-step Form -->
+                    <div class="form-header">
+                        <h1>Register New Pet</h1>
+                        <p>Complete all sections to create your pet's medical profile</p>
                     </div>
-                    <div class="step" data-step="3">
-                        <div class="step-icon">3</div>
-                        <div class="step-label">Medical</div>
-                    </div>
-                    <div class="step" data-step="4">
-                        <div class="step-icon">4</div>
-                        <div class="step-label">Review</div>
-                    </div>
-                </div>
-                
-                <?php if (!$showSuccess): ?>
-                <form id="petRegistrationForm" method="POST" enctype="multipart/form-data" novalidate>
-                    <input type="hidden" name="register_pet" value="1">
                     
-                    <!-- Step 1: Basic Information -->
-                    <div class="form-section active" id="step1">
-                        <div class="form-header">
-                            <h1><i class="fas fa-paw me-2"></i>Basic Information</h1>
-                            <p>Let's start with the essential details about your pet</p>
+                    <!-- Progress Steps -->
+                    <div class="progress-steps">
+                        <div class="progress-bar" id="progressBar" style="width: 25%;"></div>
+                        <div class="step active" data-step="1">
+                            <div class="step-icon">1</div>
+                            <div class="step-label">Basic Info</div>
                         </div>
-                        
-                        <!-- Profile Picture Upload -->
-                        <div class="form-group">
-                            <label for="profile_picture" class="form-label">
-                                <i class="fas fa-camera"></i>Profile Picture
-                            </label>
-                            <div class="profile-preview-container">
-                                <img id="profilePicturePreview" src="" alt="Profile Picture Preview" 
-                                     class="profile-picture-preview" style="display: none;">
-                            </div>
-                            <input type="file" class="form-control" id="profile_picture" name="profile_picture" 
-                                   accept="image/*" onchange="previewProfilePicture(this)">
-                            <div class="form-text">Upload a clear photo of your pet (JPG, JPEG, PNG, GIF, WebP - max 5MB)</div>
+                        <div class="step" data-step="2">
+                            <div class="step-icon">2</div>
+                            <div class="step-label">Medical Info</div>
                         </div>
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="petName" class="form-label required">
-                                    <i class="fas fa-tag"></i>Pet Name
-                                </label>
-                                <input type="text" class="form-control" id="petName" name="petName" required 
-                                       placeholder="Enter your pet's name" maxlength="100" value="<?php echo $_POST['petName'] ?? ''; ?>">
-                                <div class="form-text">What's your pet's name? This will be displayed on their QR code.</div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="species" class="form-label required">
-                                    <i class="fas fa-paw"></i>Species
-                                </label>
-                                <select class="form-select" id="species" name="species" required>
-                                    <option value="">Select Species</option>
-                                    <option value="dog" <?php echo ($_POST['species'] ?? '') == 'dog' ? 'selected' : ''; ?>>🐕 Dog</option>
-                                    <option value="cat" <?php echo ($_POST['species'] ?? '') == 'cat' ? 'selected' : ''; ?>>🐈 Cat</option>
-                                </select>
-                                <div class="form-text">What type of pet do you have?</div>
-                            </div>
+                        <div class="step" data-step="3">
+                            <div class="step-icon">3</div>
+                            <div class="step-label">History</div>
                         </div>
-                        
-                        <!-- ✅ UPDATED: Breed Selection with comprehensive options -->
-                        <div class="form-group">
-                            <label for="breed" class="form-label required">
-                                <i class="fas fa-dna"></i>Breed
-                            </label>
-                            <select class="form-select" id="breed" name="breed" required>
-                                <option value="">Select Breed</option>
-                                
-                                <!-- Dog Breeds -->
-                                <optgroup label="🐕 Dog Breeds">
-                                    <option value="Mixed Breed" <?php echo ($_POST['breed'] ?? '') == 'Mixed Breed' ? 'selected' : ''; ?>>Mixed Breed</option>
-                                    <option value="Affenpinscher" <?php echo ($_POST['breed'] ?? '') == 'Affenpinscher' ? 'selected' : ''; ?>>Affenpinscher</option>
-                                    <option value="Afghan Hound" <?php echo ($_POST['breed'] ?? '') == 'Afghan Hound' ? 'selected' : ''; ?>>Afghan Hound</option>
-                                    <option value="Airedale Terrier" <?php echo ($_POST['breed'] ?? '') == 'Airedale Terrier' ? 'selected' : ''; ?>>Airedale Terrier</option>
-                                    <option value="Akita" <?php echo ($_POST['breed'] ?? '') == 'Akita' ? 'selected' : ''; ?>>Akita</option>
-                                    <option value="Alaskan Malamute" <?php echo ($_POST['breed'] ?? '') == 'Alaskan Malamute' ? 'selected' : ''; ?>>Alaskan Malamute</option>
-                                    <option value="American Bulldog" <?php echo ($_POST['breed'] ?? '') == 'American Bulldog' ? 'selected' : ''; ?>>American Bulldog</option>
-                                    <option value="American Eskimo Dog" <?php echo ($_POST['breed'] ?? '') == 'American Eskimo Dog' ? 'selected' : ''; ?>>American Eskimo Dog</option>
-                                    <option value="American Foxhound" <?php echo ($_POST['breed'] ?? '') == 'American Foxhound' ? 'selected' : ''; ?>>American Foxhound</option>
-                                    <option value="American Pit Bull Terrier" <?php echo ($_POST['breed'] ?? '') == 'American Pit Bull Terrier' ? 'selected' : ''; ?>>American Pit Bull Terrier</option>
-                                    <option value="American Staffordshire Terrier" <?php echo ($_POST['breed'] ?? '') == 'American Staffordshire Terrier' ? 'selected' : ''; ?>>American Staffordshire Terrier</option>
-                                    <option value="Australian Cattle Dog" <?php echo ($_POST['breed'] ?? '') == 'Australian Cattle Dog' ? 'selected' : ''; ?>>Australian Cattle Dog</option>
-                                    <option value="Australian Shepherd" <?php echo ($_POST['breed'] ?? '') == 'Australian Shepherd' ? 'selected' : ''; ?>>Australian Shepherd</option>
-                                    <option value="Australian Terrier" <?php echo ($_POST['breed'] ?? '') == 'Australian Terrier' ? 'selected' : ''; ?>>Australian Terrier</option>
-                                    <option value="Basenji" <?php echo ($_POST['breed'] ?? '') == 'Basenji' ? 'selected' : ''; ?>>Basenji</option>
-                                    <option value="Basset Hound" <?php echo ($_POST['breed'] ?? '') == 'Basset Hound' ? 'selected' : ''; ?>>Basset Hound</option>
-                                    <option value="Beagle" <?php echo ($_POST['breed'] ?? '') == 'Beagle' ? 'selected' : ''; ?>>Beagle</option>
-                                    <option value="Bearded Collie" <?php echo ($_POST['breed'] ?? '') == 'Bearded Collie' ? 'selected' : ''; ?>>Bearded Collie</option>
-                                    <option value="Bedlington Terrier" <?php echo ($_POST['breed'] ?? '') == 'Bedlington Terrier' ? 'selected' : ''; ?>>Bedlington Terrier</option>
-                                    <option value="Bernese Mountain Dog" <?php echo ($_POST['breed'] ?? '') == 'Bernese Mountain Dog' ? 'selected' : ''; ?>>Bernese Mountain Dog</option>
-                                    <option value="Bichon Frise" <?php echo ($_POST['breed'] ?? '') == 'Bichon Frise' ? 'selected' : ''; ?>>Bichon Frise</option>
-                                    <option value="Black and Tan Coonhound" <?php echo ($_POST['breed'] ?? '') == 'Black and Tan Coonhound' ? 'selected' : ''; ?>>Black and Tan Coonhound</option>
-                                    <option value="Bloodhound" <?php echo ($_POST['breed'] ?? '') == 'Bloodhound' ? 'selected' : ''; ?>>Bloodhound</option>
-                                    <option value="Border Collie" <?php echo ($_POST['breed'] ?? '') == 'Border Collie' ? 'selected' : ''; ?>>Border Collie</option>
-                                    <option value="Border Terrier" <?php echo ($_POST['breed'] ?? '') == 'Border Terrier' ? 'selected' : ''; ?>>Border Terrier</option>
-                                    <option value="Borzoi" <?php echo ($_POST['breed'] ?? '') == 'Borzoi' ? 'selected' : ''; ?>>Borzoi</option>
-                                    <option value="Boston Terrier" <?php echo ($_POST['breed'] ?? '') == 'Boston Terrier' ? 'selected' : ''; ?>>Boston Terrier</option>
-                                    <option value="Bouvier des Flandres" <?php echo ($_POST['breed'] ?? '') == 'Bouvier des Flandres' ? 'selected' : ''; ?>>Bouvier des Flandres</option>
-                                    <option value="Boxer" <?php echo ($_POST['breed'] ?? '') == 'Boxer' ? 'selected' : ''; ?>>Boxer</option>
-                                    <option value="Briard" <?php echo ($_POST['breed'] ?? '') == 'Briard' ? 'selected' : ''; ?>>Briard</option>
-                                    <option value="Brittany" <?php echo ($_POST['breed'] ?? '') == 'Brittany' ? 'selected' : ''; ?>>Brittany</option>
-                                    <option value="Brussels Griffon" <?php echo ($_POST['breed'] ?? '') == 'Brussels Griffon' ? 'selected' : ''; ?>>Brussels Griffon</option>
-                                    <option value="Bull Terrier" <?php echo ($_POST['breed'] ?? '') == 'Bull Terrier' ? 'selected' : ''; ?>>Bull Terrier</option>
-                                    <option value="Bulldog" <?php echo ($_POST['breed'] ?? '') == 'Bulldog' ? 'selected' : ''; ?>>Bulldog</option>
-                                    <option value="Bullmastiff" <?php echo ($_POST['breed'] ?? '') == 'Bullmastiff' ? 'selected' : ''; ?>>Bullmastiff</option>
-                                    <option value="Cairn Terrier" <?php echo ($_POST['breed'] ?? '') == 'Cairn Terrier' ? 'selected' : ''; ?>>Cairn Terrier</option>
-                                    <option value="Cane Corso" <?php echo ($_POST['breed'] ?? '') == 'Cane Corso' ? 'selected' : ''; ?>>Cane Corso</option>
-                                    <option value="Cardigan Welsh Corgi" <?php echo ($_POST['breed'] ?? '') == 'Cardigan Welsh Corgi' ? 'selected' : ''; ?>>Cardigan Welsh Corgi</option>
-                                    <option value="Cavalier King Charles Spaniel" <?php echo ($_POST['breed'] ?? '') == 'Cavalier King Charles Spaniel' ? 'selected' : ''; ?>>Cavalier King Charles Spaniel</option>
-                                    <option value="Chesapeake Bay Retriever" <?php echo ($_POST['breed'] ?? '') == 'Chesapeake Bay Retriever' ? 'selected' : ''; ?>>Chesapeake Bay Retriever</option>
-                                    <option value="Chihuahua" <?php echo ($_POST['breed'] ?? '') == 'Chihuahua' ? 'selected' : ''; ?>>Chihuahua</option>
-                                    <option value="Chinese Crested" <?php echo ($_POST['breed'] ?? '') == 'Chinese Crested' ? 'selected' : ''; ?>>Chinese Crested</option>
-                                    <option value="Chinese Shar-Pei" <?php echo ($_POST['breed'] ?? '') == 'Chinese Shar-Pei' ? 'selected' : ''; ?>>Chinese Shar-Pei</option>
-                                    <option value="Chow Chow" <?php echo ($_POST['breed'] ?? '') == 'Chow Chow' ? 'selected' : ''; ?>>Chow Chow</option>
-                                    <option value="Clumber Spaniel" <?php echo ($_POST['breed'] ?? '') == 'Clumber Spaniel' ? 'selected' : ''; ?>>Clumber Spaniel</option>
-                                    <option value="Cocker Spaniel" <?php echo ($_POST['breed'] ?? '') == 'Cocker Spaniel' ? 'selected' : ''; ?>>Cocker Spaniel</option>
-                                    <option value="Collie" <?php echo ($_POST['breed'] ?? '') == 'Collie' ? 'selected' : ''; ?>>Collie</option>
-                                    <option value="Coton de Tulear" <?php echo ($_POST['breed'] ?? '') == 'Coton de Tulear' ? 'selected' : ''; ?>>Coton de Tulear</option>
-                                    <option value="Dachshund" <?php echo ($_POST['breed'] ?? '') == 'Dachshund' ? 'selected' : ''; ?>>Dachshund</option>
-                                    <option value="Dalmatian" <?php echo ($_POST['breed'] ?? '') == 'Dalmatian' ? 'selected' : ''; ?>>Dalmatian</option>
-                                    <option value="Dandie Dinmont Terrier" <?php echo ($_POST['breed'] ?? '') == 'Dandie Dinmont Terrier' ? 'selected' : ''; ?>>Dandie Dinmont Terrier</option>
-                                    <option value="Doberman Pinscher" <?php echo ($_POST['breed'] ?? '') == 'Doberman Pinscher' ? 'selected' : ''; ?>>Doberman Pinscher</option>
-                                    <option value="English Cocker Spaniel" <?php echo ($_POST['breed'] ?? '') == 'English Cocker Spaniel' ? 'selected' : ''; ?>>English Cocker Spaniel</option>
-                                    <option value="English Foxhound" <?php echo ($_POST['breed'] ?? '') == 'English Foxhound' ? 'selected' : ''; ?>>English Foxhound</option>
-                                    <option value="English Setter" <?php echo ($_POST['breed'] ?? '') == 'English Setter' ? 'selected' : ''; ?>>English Setter</option>
-                                    <option value="English Springer Spaniel" <?php echo ($_POST['breed'] ?? '') == 'English Springer Spaniel' ? 'selected' : ''; ?>>English Springer Spaniel</option>
-                                    <option value="English Toy Spaniel" <?php echo ($_POST['breed'] ?? '') == 'English Toy Spaniel' ? 'selected' : ''; ?>>English Toy Spaniel</option>
-                                    <option value="Eurasier" <?php echo ($_POST['breed'] ?? '') == 'Eurasier' ? 'selected' : ''; ?>>Eurasier</option>
-                                    <option value="Field Spaniel" <?php echo ($_POST['breed'] ?? '') == 'Field Spaniel' ? 'selected' : ''; ?>>Field Spaniel</option>
-                                    <option value="Finnish Lapphund" <?php echo ($_POST['breed'] ?? '') == 'Finnish Lapphund' ? 'selected' : ''; ?>>Finnish Lapphund</option>
-                                    <option value="Finnish Spitz" <?php echo ($_POST['breed'] ?? '') == 'Finnish Spitz' ? 'selected' : ''; ?>>Finnish Spitz</option>
-                                    <option value="French Bulldog" <?php echo ($_POST['breed'] ?? '') == 'French Bulldog' ? 'selected' : ''; ?>>French Bulldog</option>
-                                    <option value="German Pinscher" <?php echo ($_POST['breed'] ?? '') == 'German Pinscher' ? 'selected' : ''; ?>>German Pinscher</option>
-                                    <option value="German Shepherd" <?php echo ($_POST['breed'] ?? '') == 'German Shepherd' ? 'selected' : ''; ?>>German Shepherd</option>
-                                    <option value="German Shorthaired Pointer" <?php echo ($_POST['breed'] ?? '') == 'German Shorthaired Pointer' ? 'selected' : ''; ?>>German Shorthaired Pointer</option>
-                                    <option value="German Wirehaired Pointer" <?php echo ($_POST['breed'] ?? '') == 'German Wirehaired Pointer' ? 'selected' : ''; ?>>German Wirehaired Pointer</option>
-                                    <option value="Giant Schnauzer" <?php echo ($_POST['breed'] ?? '') == 'Giant Schnauzer' ? 'selected' : ''; ?>>Giant Schnauzer</option>
-                                    <option value="Glen of Imaal Terrier" <?php echo ($_POST['breed'] ?? '') == 'Glen of Imaal Terrier' ? 'selected' : ''; ?>>Glen of Imaal Terrier</option>
-                                    <option value="Golden Retriever" <?php echo ($_POST['breed'] ?? '') == 'Golden Retriever' ? 'selected' : ''; ?>>Golden Retriever</option>
-                                    <option value="Gordon Setter" <?php echo ($_POST['breed'] ?? '') == 'Gordon Setter' ? 'selected' : ''; ?>>Gordon Setter</option>
-                                    <option value="Great Dane" <?php echo ($_POST['breed'] ?? '') == 'Great Dane' ? 'selected' : ''; ?>>Great Dane</option>
-                                    <option value="Great Pyrenees" <?php echo ($_POST['breed'] ?? '') == 'Great Pyrenees' ? 'selected' : ''; ?>>Great Pyrenees</option>
-                                    <option value="Greater Swiss Mountain Dog" <?php echo ($_POST['breed'] ?? '') == 'Greater Swiss Mountain Dog' ? 'selected' : ''; ?>>Greater Swiss Mountain Dog</option>
-                                    <option value="Greyhound" <?php echo ($_POST['breed'] ?? '') == 'Greyhound' ? 'selected' : ''; ?>>Greyhound</option>
-                                    <option value="Harrier" <?php echo ($_POST['breed'] ?? '') == 'Harrier' ? 'selected' : ''; ?>>Harrier</option>
-                                    <option value="Havanese" <?php echo ($_POST['breed'] ?? '') == 'Havanese' ? 'selected' : ''; ?>>Havanese</option>
-                                    <option value="Ibizan Hound" <?php echo ($_POST['breed'] ?? '') == 'Ibizan Hound' ? 'selected' : ''; ?>>Ibizan Hound</option>
-                                    <option value="Icelandic Sheepdog" <?php echo ($_POST['breed'] ?? '') == 'Icelandic Sheepdog' ? 'selected' : ''; ?>>Icelandic Sheepdog</option>
-                                    <option value="Irish Setter" <?php echo ($_POST['breed'] ?? '') == 'Irish Setter' ? 'selected' : ''; ?>>Irish Setter</option>
-                                    <option value="Irish Terrier" <?php echo ($_POST['breed'] ?? '') == 'Irish Terrier' ? 'selected' : ''; ?>>Irish Terrier</option>
-                                    <option value="Irish Water Spaniel" <?php echo ($_POST['breed'] ?? '') == 'Irish Water Spaniel' ? 'selected' : ''; ?>>Irish Water Spaniel</option>
-                                    <option value="Irish Wolfhound" <?php echo ($_POST['breed'] ?? '') == 'Irish Wolfhound' ? 'selected' : ''; ?>>Irish Wolfhound</option>
-                                    <option value="Italian Greyhound" <?php echo ($_POST['breed'] ?? '') == 'Italian Greyhound' ? 'selected' : ''; ?>>Italian Greyhound</option>
-                                    <option value="Japanese Chin" <?php echo ($_POST['breed'] ?? '') == 'Japanese Chin' ? 'selected' : ''; ?>>Japanese Chin</option>
-                                    <option value="Keeshond" <?php echo ($_POST['breed'] ?? '') == 'Keeshond' ? 'selected' : ''; ?>>Keeshond</option>
-                                    <option value="Kerry Blue Terrier" <?php echo ($_POST['breed'] ?? '') == 'Kerry Blue Terrier' ? 'selected' : ''; ?>>Kerry Blue Terrier</option>
-                                    <option value="Komondor" <?php echo ($_POST['breed'] ?? '') == 'Komondor' ? 'selected' : ''; ?>>Komondor</option>
-                                    <option value="Kuvasz" <?php echo ($_POST['breed'] ?? '') == 'Kuvasz' ? 'selected' : ''; ?>>Kuvasz</option>
-                                    <option value="Labrador Retriever" <?php echo ($_POST['breed'] ?? '') == 'Labrador Retriever' ? 'selected' : ''; ?>>Labrador Retriever</option>
-                                    <option value="Lakeland Terrier" <?php echo ($_POST['breed'] ?? '') == 'Lakeland Terrier' ? 'selected' : ''; ?>>Lakeland Terrier</option>
-                                    <option value="Leonberger" <?php echo ($_POST['breed'] ?? '') == 'Leonberger' ? 'selected' : ''; ?>>Leonberger</option>
-                                    <option value="Lhasa Apso" <?php echo ($_POST['breed'] ?? '') == 'Lhasa Apso' ? 'selected' : ''; ?>>Lhasa Apso</option>
-                                    <option value="Maltese" <?php echo ($_POST['breed'] ?? '') == 'Maltese' ? 'selected' : ''; ?>>Maltese</option>
-                                    <option value="Manchester Terrier" <?php echo ($_POST['breed'] ?? '') == 'Manchester Terrier' ? 'selected' : ''; ?>>Manchester Terrier</option>
-                                    <option value="Mastiff" <?php echo ($_POST['breed'] ?? '') == 'Mastiff' ? 'selected' : ''; ?>>Mastiff</option>
-                                    <option value="Miniature Bull Terrier" <?php echo ($_POST['breed'] ?? '') == 'Miniature Bull Terrier' ? 'selected' : ''; ?>>Miniature Bull Terrier</option>
-                                    <option value="Miniature Pinscher" <?php echo ($_POST['breed'] ?? '') == 'Miniature Pinscher' ? 'selected' : ''; ?>>Miniature Pinscher</option>
-                                    <option value="Miniature Schnauzer" <?php echo ($_POST['breed'] ?? '') == 'Miniature Schnauzer' ? 'selected' : ''; ?>>Miniature Schnauzer</option>
-                                    <option value="Neapolitan Mastiff" <?php echo ($_POST['breed'] ?? '') == 'Neapolitan Mastiff' ? 'selected' : ''; ?>>Neapolitan Mastiff</option>
-                                    <option value="Newfoundland" <?php echo ($_POST['breed'] ?? '') == 'Newfoundland' ? 'selected' : ''; ?>>Newfoundland</option>
-                                    <option value="Norfolk Terrier" <?php echo ($_POST['breed'] ?? '') == 'Norfolk Terrier' ? 'selected' : ''; ?>>Norfolk Terrier</option>
-                                    <option value="Norwegian Buhund" <?php echo ($_POST['breed'] ?? '') == 'Norwegian Buhund' ? 'selected' : ''; ?>>Norwegian Buhund</option>
-                                    <option value="Norwegian Elkhound" <?php echo ($_POST['breed'] ?? '') == 'Norwegian Elkhound' ? 'selected' : ''; ?>>Norwegian Elkhound</option>
-                                    <option value="Norwegian Lundehund" <?php echo ($_POST['breed'] ?? '') == 'Norwegian Lundehund' ? 'selected' : ''; ?>>Norwegian Lundehund</option>
-                                    <option value="Norwich Terrier" <?php echo ($_POST['breed'] ?? '') == 'Norwich Terrier' ? 'selected' : ''; ?>>Norwich Terrier</option>
-                                    <option value="Nova Scotia Duck Tolling Retriever" <?php echo ($_POST['breed'] ?? '') == 'Nova Scotia Duck Tolling Retriever' ? 'selected' : ''; ?>>Nova Scotia Duck Tolling Retriever</option>
-                                    <option value="Old English Sheepdog" <?php echo ($_POST['breed'] ?? '') == 'Old English Sheepdog' ? 'selected' : ''; ?>>Old English Sheepdog</option>
-                                    <option value="Otterhound" <?php echo ($_POST['breed'] ?? '') == 'Otterhound' ? 'selected' : ''; ?>>Otterhound</option>
-                                    <option value="Papillon" <?php echo ($_POST['breed'] ?? '') == 'Papillon' ? 'selected' : ''; ?>>Papillon</option>
-                                    <option value="Parson Russell Terrier" <?php echo ($_POST['breed'] ?? '') == 'Parson Russell Terrier' ? 'selected' : ''; ?>>Parson Russell Terrier</option>
-                                    <option value="Pekingese" <?php echo ($_POST['breed'] ?? '') == 'Pekingese' ? 'selected' : ''; ?>>Pekingese</option>
-                                    <option value="Pembroke Welsh Corgi" <?php echo ($_POST['breed'] ?? '') == 'Pembroke Welsh Corgi' ? 'selected' : ''; ?>>Pembroke Welsh Corgi</option>
-                                    <option value="Petit Basset Griffon Vendéen" <?php echo ($_POST['breed'] ?? '') == 'Petit Basset Griffon Vendéen' ? 'selected' : ''; ?>>Petit Basset Griffon Vendéen</option>
-                                    <option value="Pharaoh Hound" <?php echo ($_POST['breed'] ?? '') == 'Pharaoh Hound' ? 'selected' : ''; ?>>Pharaoh Hound</option>
-                                    <option value="Plott" <?php echo ($_POST['breed'] ?? '') == 'Plott' ? 'selected' : ''; ?>>Plott</option>
-                                    <option value="Pointer" <?php echo ($_POST['breed'] ?? '') == 'Pointer' ? 'selected' : ''; ?>>Pointer</option>
-                                    <option value="Polish Lowland Sheepdog" <?php echo ($_POST['breed'] ?? '') == 'Polish Lowland Sheepdog' ? 'selected' : ''; ?>>Polish Lowland Sheepdog</option>
-                                    <option value="Pomeranian" <?php echo ($_POST['breed'] ?? '') == 'Pomeranian' ? 'selected' : ''; ?>>Pomeranian</option>
-                                    <option value="Poodle" <?php echo ($_POST['breed'] ?? '') == 'Poodle' ? 'selected' : ''; ?>>Poodle</option>
-                                    <option value="Portuguese Water Dog" <?php echo ($_POST['breed'] ?? '') == 'Portuguese Water Dog' ? 'selected' : ''; ?>>Portuguese Water Dog</option>
-                                    <option value="Pug" <?php echo ($_POST['breed'] ?? '') == 'Pug' ? 'selected' : ''; ?>>Pug</option>
-                                    <option value="Puli" <?php echo ($_POST['breed'] ?? '') == 'Puli' ? 'selected' : ''; ?>>Puli</option>
-                                    <option value="Pyrenean Shepherd" <?php echo ($_POST['breed'] ?? '') == 'Pyrenean Shepherd' ? 'selected' : ''; ?>>Pyrenean Shepherd</option>
-                                    <option value="Rat Terrier" <?php echo ($_POST['breed'] ?? '') == 'Rat Terrier' ? 'selected' : ''; ?>>Rat Terrier</option>
-                                    <option value="Redbone Coonhound" <?php echo ($_POST['breed'] ?? '') == 'Redbone Coonhound' ? 'selected' : ''; ?>>Redbone Coonhound</option>
-                                    <option value="Rhodesian Ridgeback" <?php echo ($_POST['breed'] ?? '') == 'Rhodesian Ridgeback' ? 'selected' : ''; ?>>Rhodesian Ridgeback</option>
-                                    <option value="Rottweiler" <?php echo ($_POST['breed'] ?? '') == 'Rottweiler' ? 'selected' : ''; ?>>Rottweiler</option>
-                                    <option value="Saint Bernard" <?php echo ($_POST['breed'] ?? '') == 'Saint Bernard' ? 'selected' : ''; ?>>Saint Bernard</option>
-                                    <option value="Saluki" <?php echo ($_POST['breed'] ?? '') == 'Saluki' ? 'selected' : ''; ?>>Saluki</option>
-                                    <option value="Samoyed" <?php echo ($_POST['breed'] ?? '') == 'Samoyed' ? 'selected' : ''; ?>>Samoyed</option>
-                                    <option value="Schipperke" <?php echo ($_POST['breed'] ?? '') == 'Schipperke' ? 'selected' : ''; ?>>Schipperke</option>
-                                    <option value="Scottish Deerhound" <?php echo ($_POST['breed'] ?? '') == 'Scottish Deerhound' ? 'selected' : ''; ?>>Scottish Deerhound</option>
-                                    <option value="Scottish Terrier" <?php echo ($_POST['breed'] ?? '') == 'Scottish Terrier' ? 'selected' : ''; ?>>Scottish Terrier</option>
-                                    <option value="Sealyham Terrier" <?php echo ($_POST['breed'] ?? '') == 'Sealyham Terrier' ? 'selected' : ''; ?>>Sealyham Terrier</option>
-                                    <option value="Shetland Sheepdog" <?php echo ($_POST['breed'] ?? '') == 'Shetland Sheepdog' ? 'selected' : ''; ?>>Shetland Sheepdog</option>
-                                    <option value="Shiba Inu" <?php echo ($_POST['breed'] ?? '') == 'Shiba Inu' ? 'selected' : ''; ?>>Shiba Inu</option>
-                                    <option value="Shih Tzu" <?php echo ($_POST['breed'] ?? '') == 'Shih Tzu' ? 'selected' : ''; ?>>Shih Tzu</option>
-                                    <option value="Siberian Husky" <?php echo ($_POST['breed'] ?? '') == 'Siberian Husky' ? 'selected' : ''; ?>>Siberian Husky</option>
-                                    <option value="Silky Terrier" <?php echo ($_POST['breed'] ?? '') == 'Silky Terrier' ? 'selected' : ''; ?>>Silky Terrier</option>
-                                    <option value="Skye Terrier" <?php echo ($_POST['breed'] ?? '') == 'Skye Terrier' ? 'selected' : ''; ?>>Skye Terrier</option>
-                                    <option value="Smooth Fox Terrier" <?php echo ($_POST['breed'] ?? '') == 'Smooth Fox Terrier' ? 'selected' : ''; ?>>Smooth Fox Terrier</option>
-                                    <option value="Soft Coated Wheaten Terrier" <?php echo ($_POST['breed'] ?? '') == 'Soft Coated Wheaten Terrier' ? 'selected' : ''; ?>>Soft Coated Wheaten Terrier</option>
-                                    <option value="Staffordshire Bull Terrier" <?php echo ($_POST['breed'] ?? '') == 'Staffordshire Bull Terrier' ? 'selected' : ''; ?>>Staffordshire Bull Terrier</option>
-                                    <option value="Standard Schnauzer" <?php echo ($_POST['breed'] ?? '') == 'Standard Schnauzer' ? 'selected' : ''; ?>>Standard Schnauzer</option>
-                                    <option value="Sussex Spaniel" <?php echo ($_POST['breed'] ?? '') == 'Sussex Spaniel' ? 'selected' : ''; ?>>Sussex Spaniel</option>
-                                    <option value="Swedish Vallhund" <?php echo ($_POST['breed'] ?? '') == 'Swedish Vallhund' ? 'selected' : ''; ?>>Swedish Vallhund</option>
-                                    <option value="Tibetan Mastiff" <?php echo ($_POST['breed'] ?? '') == 'Tibetan Mastiff' ? 'selected' : ''; ?>>Tibetan Mastiff</option>
-                                    <option value="Tibetan Spaniel" <?php echo ($_POST['breed'] ?? '') == 'Tibetan Spaniel' ? 'selected' : ''; ?>>Tibetan Spaniel</option>
-                                    <option value="Tibetan Terrier" <?php echo ($_POST['breed'] ?? '') == 'Tibetan Terrier' ? 'selected' : ''; ?>>Tibetan Terrier</option>
-                                    <option value="Toy Fox Terrier" <?php echo ($_POST['breed'] ?? '') == 'Toy Fox Terrier' ? 'selected' : ''; ?>>Toy Fox Terrier</option>
-                                    <option value="Treeing Walker Coonhound" <?php echo ($_POST['breed'] ?? '') == 'Treeing Walker Coonhound' ? 'selected' : ''; ?>>Treeing Walker Coonhound</option>
-                                    <option value="Vizsla" <?php echo ($_POST['breed'] ?? '') == 'Vizsla' ? 'selected' : ''; ?>>Vizsla</option>
-                                    <option value="Weimaraner" <?php echo ($_POST['breed'] ?? '') == 'Weimaraner' ? 'selected' : ''; ?>>Weimaraner</option>
-                                    <option value="Welsh Springer Spaniel" <?php echo ($_POST['breed'] ?? '') == 'Welsh Springer Spaniel' ? 'selected' : ''; ?>>Welsh Springer Spaniel</option>
-                                    <option value="Welsh Terrier" <?php echo ($_POST['breed'] ?? '') == 'Welsh Terrier' ? 'selected' : ''; ?>>Welsh Terrier</option>
-                                    <option value="West Highland White Terrier" <?php echo ($_POST['breed'] ?? '') == 'West Highland White Terrier' ? 'selected' : ''; ?>>West Highland White Terrier</option>
-                                    <option value="Whippet" <?php echo ($_POST['breed'] ?? '') == 'Whippet' ? 'selected' : ''; ?>>Whippet</option>
-                                    <option value="Wire Fox Terrier" <?php echo ($_POST['breed'] ?? '') == 'Wire Fox Terrier' ? 'selected' : ''; ?>>Wire Fox Terrier</option>
-                                    <option value="Wirehaired Pointing Griffon" <?php echo ($_POST['breed'] ?? '') == 'Wirehaired Pointing Griffon' ? 'selected' : ''; ?>>Wirehaired Pointing Griffon</option>
-                                    <option value="Xoloitzcuintli" <?php echo ($_POST['breed'] ?? '') == 'Xoloitzcuintli' ? 'selected' : ''; ?>>Xoloitzcuintli</option>
-                                    <option value="Yorkshire Terrier" <?php echo ($_POST['breed'] ?? '') == 'Yorkshire Terrier' ? 'selected' : ''; ?>>Yorkshire Terrier</option>
-                                    <option value="Other Dog Breed" <?php echo ($_POST['breed'] ?? '') == 'Other Dog Breed' ? 'selected' : ''; ?>>Other Dog Breed</option>
-                                </optgroup>
-                                
-                                <!-- Cat Breeds -->
-                                <optgroup label="🐈 Cat Breeds">
-                                    <option value="Mixed Breed" <?php echo ($_POST['breed'] ?? '') == 'Mixed Breed' ? 'selected' : ''; ?>>Mixed Breed</option>
-                                    <option value="Abyssinian" <?php echo ($_POST['breed'] ?? '') == 'Abyssinian' ? 'selected' : ''; ?>>Abyssinian</option>
-                                    <option value="American Bobtail" <?php echo ($_POST['breed'] ?? '') == 'American Bobtail' ? 'selected' : ''; ?>>American Bobtail</option>
-                                    <option value="American Curl" <?php echo ($_POST['breed'] ?? '') == 'American Curl' ? 'selected' : ''; ?>>American Curl</option>
-                                    <option value="American Shorthair" <?php echo ($_POST['breed'] ?? '') == 'American Shorthair' ? 'selected' : ''; ?>>American Shorthair</option>
-                                    <option value="American Wirehair" <?php echo ($_POST['breed'] ?? '') == 'American Wirehair' ? 'selected' : ''; ?>>American Wirehair</option>
-                                    <option value="Balinese" <?php echo ($_POST['breed'] ?? '') == 'Balinese' ? 'selected' : ''; ?>>Balinese</option>
-                                    <option value="Bengal" <?php echo ($_POST['breed'] ?? '') == 'Bengal' ? 'selected' : ''; ?>>Bengal</option>
-                                    <option value="Birman" <?php echo ($_POST['breed'] ?? '') == 'Birman' ? 'selected' : ''; ?>>Birman</option>
-                                    <option value="Bombay" <?php echo ($_POST['breed'] ?? '') == 'Bombay' ? 'selected' : ''; ?>>Bombay</option>
-                                    <option value="British Shorthair" <?php echo ($_POST['breed'] ?? '') == 'British Shorthair' ? 'selected' : ''; ?>>British Shorthair</option>
-                                    <option value="Burmese" <?php echo ($_POST['breed'] ?? '') == 'Burmese' ? 'selected' : ''; ?>>Burmese</option>
-                                    <option value="Burmilla" <?php echo ($_POST['breed'] ?? '') == 'Burmilla' ? 'selected' : ''; ?>>Burmilla</option>
-                                    <option value="Chartreux" <?php echo ($_POST['breed'] ?? '') == 'Chartreux' ? 'selected' : ''; ?>>Chartreux</option>
-                                    <option value="Chausie" <?php echo ($_POST['breed'] ?? '') == 'Chausie' ? 'selected' : ''; ?>>Chausie</option>
-                                    <option value="Cornish Rex" <?php echo ($_POST['breed'] ?? '') == 'Cornish Rex' ? 'selected' : ''; ?>>Cornish Rex</option>
-                                    <option value="Devon Rex" <?php echo ($_POST['breed'] ?? '') == 'Devon Rex' ? 'selected' : ''; ?>>Devon Rex</option>
-                                    <option value="Egyptian Mau" <?php echo ($_POST['breed'] ?? '') == 'Egyptian Mau' ? 'selected' : ''; ?>>Egyptian Mau</option>
-                                    <option value="European Burmese" <?php echo ($_POST['breed'] ?? '') == 'European Burmese' ? 'selected' : ''; ?>>European Burmese</option>
-                                    <option value="Exotic Shorthair" <?php echo ($_POST['breed'] ?? '') == 'Exotic Shorthair' ? 'selected' : ''; ?>>Exotic Shorthair</option>
-                                    <option value="Havana Brown" <?php echo ($_POST['breed'] ?? '') == 'Havana Brown' ? 'selected' : ''; ?>>Havana Brown</option>
-                                    <option value="Himalayan" <?php echo ($_POST['breed'] ?? '') == 'Himalayan' ? 'selected' : ''; ?>>Himalayan</option>
-                                    <option value="Japanese Bobtail" <?php echo ($_POST['breed'] ?? '') == 'Japanese Bobtail' ? 'selected' : ''; ?>>Japanese Bobtail</option>
-                                    <option value="Javanese" <?php echo ($_POST['breed'] ?? '') == 'Javanese' ? 'selected' : ''; ?>>Javanese</option>
-                                    <option value="Korat" <?php echo ($_POST['breed'] ?? '') == 'Korat' ? 'selected' : ''; ?>>Korat</option>
-                                    <option value="LaPerm" <?php echo ($_POST['breed'] ?? '') == 'LaPerm' ? 'selected' : ''; ?>>LaPerm</option>
-                                    <option value="Maine Coon" <?php echo ($_POST['breed'] ?? '') == 'Maine Coon' ? 'selected' : ''; ?>>Maine Coon</option>
-                                    <option value="Manx" <?php echo ($_POST['breed'] ?? '') == 'Manx' ? 'selected' : ''; ?>>Manx</option>
-                                    <option value="Norwegian Forest" <?php echo ($_POST['breed'] ?? '') == 'Norwegian Forest' ? 'selected' : ''; ?>>Norwegian Forest</option>
-                                    <option value="Ocicat" <?php echo ($_POST['breed'] ?? '') == 'Ocicat' ? 'selected' : ''; ?>>Ocicat</option>
-                                    <option value="Oriental" <?php echo ($_POST['breed'] ?? '') == 'Oriental' ? 'selected' : ''; ?>>Oriental</option>
-                                    <option value="Persian" <?php echo ($_POST['breed'] ?? '') == 'Persian' ? 'selected' : ''; ?>>Persian</option>
-                                    <option value="Pixiebob" <?php echo ($_POST['breed'] ?? '') == 'Pixiebob' ? 'selected' : ''; ?>>Pixiebob</option>
-                                    <option value="Ragamuffin" <?php echo ($_POST['breed'] ?? '') == 'Ragamuffin' ? 'selected' : ''; ?>>Ragamuffin</option>
-                                    <option value="Ragdoll" <?php echo ($_POST['breed'] ?? '') == 'Ragdoll' ? 'selected' : ''; ?>>Ragdoll</option>
-                                    <option value="Russian Blue" <?php echo ($_POST['breed'] ?? '') == 'Russian Blue' ? 'selected' : ''; ?>>Russian Blue</option>
-                                    <option value="Scottish Fold" <?php echo ($_POST['breed'] ?? '') == 'Scottish Fold' ? 'selected' : ''; ?>>Scottish Fold</option>
-                                    <option value="Selkirk Rex" <?php echo ($_POST['breed'] ?? '') == 'Selkirk Rex' ? 'selected' : ''; ?>>Selkirk Rex</option>
-                                    <option value="Siamese" <?php echo ($_POST['breed'] ?? '') == 'Siamese' ? 'selected' : ''; ?>>Siamese</option>
-                                    <option value="Siberian" <?php echo ($_POST['breed'] ?? '') == 'Siberian' ? 'selected' : ''; ?>>Siberian</option>
-                                    <option value="Singapura" <?php echo ($_POST['breed'] ?? '') == 'Singapura' ? 'selected' : ''; ?>>Singapura</option>
-                                    <option value="Snowshoe" <?php echo ($_POST['breed'] ?? '') == 'Snowshoe' ? 'selected' : ''; ?>>Snowshoe</option>
-                                    <option value="Somali" <?php echo ($_POST['breed'] ?? '') == 'Somali' ? 'selected' : ''; ?>>Somali</option>
-                                    <option value="Sphynx" <?php echo ($_POST['breed'] ?? '') == 'Sphynx' ? 'selected' : ''; ?>>Sphynx</option>
-                                    <option value="Tonkinese" <?php echo ($_POST['breed'] ?? '') == 'Tonkinese' ? 'selected' : ''; ?>>Tonkinese</option>
-                                    <option value="Turkish Angora" <?php echo ($_POST['breed'] ?? '') == 'Turkish Angora' ? 'selected' : ''; ?>>Turkish Angora</option>
-                                    <option value="Turkish Van" <?php echo ($_POST['breed'] ?? '') == 'Turkish Van' ? 'selected' : ''; ?>>Turkish Van</option>
-                                    <option value="Other Cat Breed" <?php echo ($_POST['breed'] ?? '') == 'Other Cat Breed' ? 'selected' : ''; ?>>Other Cat Breed</option>
-                                </optgroup>
-                            </select>
-                            <div class="form-text">Select your pet's breed from the list</div>
-                        </div>
-                        
-                        <div class="form-actions">
-                            <div></div> <!-- Spacer -->
-                            <button type="button" class="btn btn-next" onclick="nextStep(2)">
-                                Next <i class="fas fa-arrow-right"></i>
-                            </button>
+                        <div class="step" data-step="4">
+                            <div class="step-icon">4</div>
+                            <div class="step-label">Review</div>
                         </div>
                     </div>
                     
-                    <!-- Step 2: Physical Details -->
-                    <div class="form-section" id="step2">
-                        <div class="form-header">
-                            <h1><i class="fas fa-palette me-2"></i>Physical Details</h1>
-                            <p>Tell us more about your pet's appearance and characteristics</p>
-                        </div>
+                    <form id="petRegistrationForm" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="register_pet" value="1">
                         
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="age" class="form-label required">
-                                    <i class="fas fa-birthday-cake"></i>Age (years)
-                                </label>
-                                <input type="number" class="form-control" id="age" name="age" required
-                                       min="0" max="50" step="1" placeholder="e.g., 2" value="<?php echo $_POST['age'] ?? ''; ?>">
-                                <div class="form-text">Your pet's approximate age in years</div>
-                            </div>
+                        <!-- Step 1: Basic Information -->
+                        <div class="form-section active" id="step1">
+                            <h3 class="section-title">
+                                <i class="fas fa-info-circle"></i> Basic Information
+                            </h3>
                             
-                            <div class="form-group">
-                                <label for="gender" class="form-label required">
-                                    <i class="fas fa-venus-mars"></i>Gender
-                                </label>
-                                <select class="form-select" id="gender" name="gender" required>
-                                    <option value="">Select Gender</option>
-                                    <option value="Male" <?php echo ($_POST['gender'] ?? '') == 'Male' ? 'selected' : ''; ?>>Male</option>
-                                    <option value="Female" <?php echo ($_POST['gender'] ?? '') == 'Female' ? 'selected' : ''; ?>>Female</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="color" class="form-label required">
-                                    <i class="fas fa-paint-brush"></i>Color/Markings
-                                </label>
-                                <input type="text" class="form-control" id="color" name="color" required
-                                       placeholder="e.g., Brown with white spots" maxlength="50" value="<?php echo $_POST['color'] ?? ''; ?>">
-                                <div class="form-text">Describe your pet's color and distinctive markings</div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="weight" class="form-label required">
-                                    <i class="fas fa-weight"></i>Weight (kg)
-                                </label>
-                                <input type="number" class="form-control" id="weight" name="weight" required
-                                       min="0" step="0.1" placeholder="e.g., 5.2" value="<?php echo $_POST['weight'] ?? ''; ?>">
-                                <div class="form-text">Current weight in kilograms</div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="birthDate" class="form-label">
-                                <i class="fas fa-calendar"></i>Birth Date
-                            </label>
-                            <input type="date" class="form-control" id="birthDate" name="birthDate" value="<?php echo $_POST['birthDate'] ?? ''; ?>">
-                            <div class="form-text">If known, your pet's birth date</div>
-                        </div>
-                        
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-prev" onclick="prevStep(1)">
-                                <i class="fas fa-arrow-left"></i> Previous
-                            </button>
-                            <button type="button" class="btn btn-next" onclick="nextStep(3)">
-                                Next <i class="fas fa-arrow-right"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 3: Medical Information & History -->
-                    <div class="form-section" id="step3">
-                        <div class="form-header">
-                            <h1><i class="fas fa-heartbeat me-2"></i>Medical Information & History</h1>
-                            <p>Help us keep track of your pet's health needs and medical background</p>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="medicalNotes" class="form-label required">
-                                <i class="fas fa-notes-medical"></i>Current Medical Notes & Allergies
-                            </label>
-                            <textarea class="form-control" id="medicalNotes" name="medicalNotes" required
-                                      rows="3" placeholder="Any current medical conditions, allergies, medications, or special needs..." 
-                                      maxlength="500"><?php echo $_POST['medicalNotes'] ?? ''; ?></textarea>
-                            <div class="form-text">Current health issues that need immediate attention</div>
-                        </div>
-
-                        <!-- ✅ UPDATED: Structured Medical Dates Section - REMOVED Next Vet Visit -->
-                        <div class="card mb-3">
-                            <div class="card-header bg-pink-light">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-calendar-check me-2"></i>Important Medical Dates
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label for="last_vet_visit" class="form-label required">
-                                            <i class="fas fa-calendar-alt"></i>Last Vet Visit
-                                        </label>
-                                        <input type="date" class="form-control" id="last_vet_visit" name="last_vet_visit" required
-                                               value="<?php echo $_POST['last_vet_visit'] ?? ''; ?>">
-                                        <div class="form-text">Most recent veterinary appointment</div>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label for="rabies_vaccine_date" class="form-label required">
-                                            <i class="fas fa-syringe"></i>Rabies Vaccine Date
-                                        </label>
-                                        <input type="date" class="form-control" id="rabies_vaccine_date" name="rabies_vaccine_date" required
-                                               value="<?php echo $_POST['rabies_vaccine_date'] ?? ''; ?>">
-                                        <div class="form-text">Date of last rabies vaccination</div>
-                                    </div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label required" for="petName">Pet Name</label>
+                                    <input type="text" class="form-control" id="petName" name="petName" required 
+                                           placeholder="Enter pet's name" value="<?php echo $_POST['petName'] ?? ''; ?>">
                                 </div>
                                 
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label for="dhpp_vaccine_date" class="form-label required">
-                                            <i class="fas fa-syringe"></i>DHPP/FVRCP Vaccine Date
-                                        </label>
-                                        <input type="date" class="form-control" id="dhpp_vaccine_date" name="dhpp_vaccine_date" required
-                                               value="<?php echo $_POST['dhpp_vaccine_date'] ?? ''; ?>">
-                                        <div class="form-text">Core vaccine for dogs (DHPP) or cats (FVRCP)</div>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label class="form-label">
-                                            <i class="fas fa-stethoscope"></i>Spayed/Neutered Status
-                                        </label>
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="checkbox" id="is_spayed_neutered" name="is_spayed_neutered" value="1" 
-                                                   <?php echo isset($_POST['is_spayed_neutered']) ? 'checked' : ''; ?>>
-                                            <label class="form-check-label" for="is_spayed_neutered">
-                                                My pet is spayed/neutered
-                                            </label>
-                                        </div>
-                                        <div class="form-text">Please indicate if your pet is spayed or neutered</div>
-                                    </div>
+                                <div class="form-group">
+                                    <label class="form-label required" for="species">Species</label>
+                                    <select class="form-select" id="species" name="species" required>
+                                        <option value="">Select Species</option>
+                                        <option value="dog" <?php echo (($_POST['species'] ?? '') == 'dog') ? 'selected' : ''; ?>>Dog</option>
+                                        <option value="cat" <?php echo (($_POST['species'] ?? '') == 'cat') ? 'selected' : ''; ?>>Cat</option>
+                                        <option value="other" <?php echo (($_POST['species'] ?? '') == 'other') ? 'selected' : ''; ?>>Other</option>
+                                    </select>
                                 </div>
                                 
-                                <div class="form-group" id="spayNeuterDate" style="display: none;">
-                                    <label for="spay_neuter_date" class="form-label">
-                                        <i class="fas fa-calendar-day"></i>Spay/Neuter Date
+                                <div class="form-group">
+                                    <label class="form-label required" for="breed">Breed</label>
+                                    <input type="text" class="form-control" id="breed" name="breed" required 
+                                           placeholder="Enter breed" value="<?php echo $_POST['breed'] ?? ''; ?>">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label required" for="age">Age (years)</label>
+                                    <input type="number" class="form-control" id="age" name="age" min="0" max="30" step="0.5" required 
+                                           placeholder="Enter age" value="<?php echo $_POST['age'] ?? ''; ?>">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label required" for="gender">Gender</label>
+                                    <select class="form-select" id="gender" name="gender" required>
+                                        <option value="">Select Gender</option>
+                                        <option value="male" <?php echo (($_POST['gender'] ?? '') == 'male') ? 'selected' : ''; ?>>Male</option>
+                                        <option value="female" <?php echo (($_POST['gender'] ?? '') == 'female') ? 'selected' : ''; ?>>Female</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label required" for="color">Color/Markings</label>
+                                    <input type="text" class="form-control" id="color" name="color" required 
+                                           placeholder="Describe color and markings" value="<?php echo $_POST['color'] ?? ''; ?>">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label required" for="weight">Weight (kg)</label>
+                                    <input type="number" class="form-control" id="weight" name="weight" min="0" max="100" step="0.1" required 
+                                           placeholder="Enter weight" value="<?php echo $_POST['weight'] ?? ''; ?>">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="birthDate">Birth Date</label>
+                                    <input type="date" class="form-control" id="birthDate" name="birthDate" 
+                                           value="<?php echo $_POST['birthDate'] ?? ''; ?>">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="profile_picture">Profile Picture</label>
+                                <input type="file" class="form-control" id="profile_picture" name="profile_picture" 
+                                       accept="image/jpeg,image/png,image/gif,image/webp">
+                                <div class="form-text">Optional: Upload a clear photo of your pet (JPG, PNG, GIF, WebP)</div>
+                                <div class="profile-preview-container mt-2" id="profilePreview" style="display: none;">
+                                    <img id="profilePreviewImg" class="profile-picture-preview" src="" alt="Profile Preview">
+                                </div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <div></div> <!-- Empty div for spacing -->
+                                <button type="button" class="btn btn-next" onclick="nextStep(2)">
+                                    Next <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 2: Medical Information -->
+                        <div class="form-section" id="step2">
+                            <h3 class="section-title">
+                                <i class="fas fa-heartbeat"></i> Medical Information
+                            </h3>
+                            
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label required" for="last_vet_visit">Last Vet Visit</label>
+                                    <input type="date" class="form-control" id="last_vet_visit" name="last_vet_visit" required 
+                                           value="<?php echo $_POST['last_vet_visit'] ?? ''; ?>">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="next_vet_visit">Next Scheduled Visit</label>
+                                    <input type="date" class="form-control" id="next_vet_visit" name="next_vet_visit" 
+                                           value="<?php echo $_POST['next_vet_visit'] ?? ''; ?>">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label required" for="rabies_vaccine_date">Rabies Vaccine Date</label>
+                                    <input type="date" class="form-control" id="rabies_vaccine_date" name="rabies_vaccine_date" required 
+                                           value="<?php echo $_POST['rabies_vaccine_date'] ?? ''; ?>">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label required" for="dhpp_vaccine_date">DHPP/FVRCP Vaccine Date</label>
+                                    <input type="date" class="form-control" id="dhpp_vaccine_date" name="dhpp_vaccine_date" required 
+                                           value="<?php echo $_POST['dhpp_vaccine_date'] ?? ''; ?>">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="is_spayed_neutered">
+                                        <input type="checkbox" id="is_spayed_neutered" name="is_spayed_neutered" value="1" 
+                                               <?php echo (($_POST['is_spayed_neutered'] ?? '') == '1') ? 'checked' : ''; ?>>
+                                        Spayed/Neutered
                                     </label>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="spay_neuter_date">Spay/Neuter Date</label>
                                     <input type="date" class="form-control" id="spay_neuter_date" name="spay_neuter_date" 
                                            value="<?php echo $_POST['spay_neuter_date'] ?? ''; ?>">
-                                    <div class="form-text">Date when the procedure was performed</div>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Medical History Section -->
-                        <div class="card mb-3">
-                            <div class="card-header bg-pink-light">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-history me-2"></i>Medical History & Previous Records
-                                </h6>
+                            
+                            <div class="form-group">
+                                <label class="form-label required" for="medicalNotes">Current Medical Notes & Allergies</label>
+                                <textarea class="form-control" id="medicalNotes" name="medicalNotes" rows="4" required 
+                                          placeholder="Describe any current medical conditions, treatments, or allergies"><?php echo $_POST['medicalNotes'] ?? ''; ?></textarea>
                             </div>
-                            <div class="card-body">
-                                <div class="form-group">
-                                    <label for="previousConditions" class="form-label">
-                                        <i class="fas fa-file-medical"></i>Previous Medical Conditions
-                                    </label>
-                                    <textarea class="form-control" id="previousConditions" name="previousConditions" 
-                                              rows="3" placeholder="e.g., Past surgeries, illnesses, chronic conditions that are now resolved..." 
-                                              maxlength="500"><?php echo $_POST['previousConditions'] ?? ''; ?></textarea>
-                                    <div class="form-text">Any medical issues your pet has had in the past</div>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="vaccinationHistory" class="form-label">
-                                        <i class="fas fa-syringe"></i>Vaccination History
-                                    </label>
-                                    <textarea class="form-control" id="vaccinationHistory" name="vaccinationHistory" 
-                                              rows="3" placeholder="e.g., Rabies (2023), DHPP (2024), Last flea/tick treatment..." 
-                                              maxlength="500"><?php echo $_POST['vaccinationHistory'] ?? ''; ?></textarea>
-                                    <div class="form-text">List vaccinations and their dates if known</div>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="surgicalHistory" class="form-label">
-                                        <i class="fas fa-procedures"></i>Surgical History
-                                    </label>
-                                    <textarea class="form-control" id="surgicalHistory" name="surgicalHistory" 
-                                              rows="2" placeholder="e.g., Spayed/neutered date, other surgeries..." 
-                                              maxlength="300"><?php echo $_POST['surgicalHistory'] ?? ''; ?></textarea>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="medicationHistory" class="form-label">
-                                        <i class="fas fa-pills"></i>Previous Medications
-                                    </label>
-                                    <textarea class="form-control" id="medicationHistory" name="medicationHistory" 
-                                              rows="2" placeholder="e.g., Previous long-term medications, treatments..." 
-                                              maxlength="300"><?php echo $_POST['medicationHistory'] ?? ''; ?></textarea>
-                                </div>
-
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" id="hasExistingRecords" name="hasExistingRecords" value="1" 
-                                           <?php echo isset($_POST['hasExistingRecords']) ? 'checked' : ''; ?>>
-                                    <label class="form-check-label" for="hasExistingRecords">
-                                        <i class="fas fa-clipboard-list"></i> My pet has existing medical records at a veterinary clinic
-                                    </label>
-                                </div>
-
-                                <div class="form-group" id="existingRecordsDetails" style="display: none;">
-                                    <label for="recordsLocation" class="form-label">
-                                        <i class="fas fa-clinic-medical"></i>Records Location
-                                    </label>
-                                    <input type="text" class="form-control" id="recordsLocation" name="recordsLocation" 
-                                           placeholder="e.g., City Veterinary Hospital, Main Street Clinic..." 
-                                           value="<?php echo $_POST['recordsLocation'] ?? ''; ?>">
-                                    <div class="form-text">Where are your pet's previous records kept?</div>
-                                </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label required" for="vetContact">Current Veterinarian Contact</label>
+                                <textarea class="form-control" id="vetContact" name="vetContact" rows="3" required 
+                                          placeholder="Veterinarian name, clinic, phone number, and address"><?php echo $_POST['vetContact'] ?? ''; ?></textarea>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-prev" onclick="prevStep(1)">
+                                    <i class="fas fa-arrow-left"></i> Previous
+                                </button>
+                                <button type="button" class="btn btn-next" onclick="nextStep(3)">
+                                    Next <i class="fas fa-arrow-right"></i>
+                                </button>
                             </div>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="vetContact" class="form-label required">
-                                <i class="fas fa-user-md"></i>Current Veterinarian Contact
-                            </label>
-                            <input type="text" class="form-control" id="vetContact" name="vetContact" required
-                                   placeholder="e.g., Dr. Smith - City Vet Clinic (555-0123)" maxlength="100" value="<?php echo $_POST['vetContact'] ?? ''; ?>">
-                            <div class="form-text">Your current veterinarian's name and contact information</div>
-                        </div>
-                        
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-prev" onclick="prevStep(2)">
-                                <i class="fas fa-arrow-left"></i> Previous
-                            </button>
-                            <button type="button" class="btn btn-next" onclick="nextStep(4)">
-                                Next <i class="fas fa-arrow-right"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 4: Review & Submit -->
-                    <div class="form-section" id="step4">
-                        <div class="form-header">
-                            <h1><i class="fas fa-check-circle me-2"></i>Review & Submit</h1>
-                            <p>Please review all information before registering your pet</p>
-                        </div>
-                        
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Note:</strong> Fields marked with <span class="text-danger">*</span> are required.
-                        </div>
-                        
-                        <div class="card mb-4">
-                            <div class="card-body">
-                                <h6 class="card-title mb-3">Pet Information Summary</h6>
-                                
-                                <!-- Profile Picture in Review -->
-                                <div class="text-center mb-4">
-                                    <img id="reviewProfilePicture" src="" alt="Profile Picture" 
-                                         class="profile-picture-preview" style="display: none;">
-                                    <div id="noProfilePicture" class="text-muted">
-                                        <i class="fas fa-camera fa-2x mb-2"></i><br>
-                                        No profile picture uploaded
+                        <!-- Step 3: Medical History -->
+                        <div class="form-section" id="step3">
+                            <h3 class="section-title">
+                                <i class="fas fa-history"></i> Medical History
+                            </h3>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="previousConditions">Previous Medical Conditions</label>
+                                <textarea class="form-control" id="previousConditions" name="previousConditions" rows="3" 
+                                          placeholder="Any previous illnesses, surgeries, or chronic conditions"><?php echo $_POST['previousConditions'] ?? ''; ?></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="vaccinationHistory">Vaccination History</label>
+                                <textarea class="form-control" id="vaccinationHistory" name="vaccinationHistory" rows="3" 
+                                          placeholder="Complete vaccination history beyond required vaccines"><?php echo $_POST['vaccinationHistory'] ?? ''; ?></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="surgicalHistory">Surgical History</label>
+                                <textarea class="form-control" id="surgicalHistory" name="surgicalHistory" rows="3" 
+                                          placeholder="Any past surgeries with dates"><?php echo $_POST['surgicalHistory'] ?? ''; ?></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="medicationHistory">Medication History</label>
+                                <textarea class="form-control" id="medicationHistory" name="medicationHistory" rows="3" 
+                                          placeholder="Past and current medications"><?php echo $_POST['medicationHistory'] ?? ''; ?></textarea>
+                            </div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-header bg-pink-light">
+                                    Existing Medical Records
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-group">
+                                        <label class="form-label" for="hasExistingRecords">
+                                            <input type="checkbox" id="hasExistingRecords" name="hasExistingRecords" value="1" 
+                                                   <?php echo (($_POST['hasExistingRecords'] ?? '') == '1') ? 'checked' : ''; ?>>
+                                            I have existing paper/digital medical records for this pet
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label" for="recordsLocation">Location of Existing Records</label>
+                                        <input type="text" class="form-control" id="recordsLocation" name="recordsLocation" 
+                                               placeholder="Where are your existing records stored?" value="<?php echo $_POST['recordsLocation'] ?? ''; ?>">
+                                        <div class="form-text">Optional: Specify if you have records at a specific clinic or in digital format</div>
                                     </div>
                                 </div>
-                                
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <p><strong>Name:</strong> <span id="reviewName">-</span></p>
-                                        <p><strong>Species:</strong> <span id="reviewSpecies">-</span></p>
-                                        <p><strong>Breed:</strong> <span id="reviewBreed">-</span></p>
-                                        <p><strong>Age:</strong> <span id="reviewAge">-</span></p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <p><strong>Gender:</strong> <span id="reviewGender">-</span></p>
-                                        <p><strong>Color:</strong> <span id="reviewColor">-</span></p>
-                                        <p><strong>Weight:</strong> <span id="reviewWeight">-</span></p>
-                                        <p><strong>Birth Date:</strong> <span id="reviewBirthDate">-</span></p>
-                                    </div>
-                                </div>
-                                
-                                <div class="mt-3">
-                                    <h6 class="mb-2">Medical Dates:</h6>
-                                    <p><strong>Last Vet Visit:</strong> <span id="reviewLastVetVisit">-</span></p>
-                                    <p><strong>Rabies Vaccine:</strong> <span id="reviewRabiesVaccine">-</span></p>
-                                    <p><strong>DHPP Vaccine:</strong> <span id="reviewDhppVaccine">-</span></p>
-                                    <p><strong>Spayed/Neutered:</strong> <span id="reviewSpayedNeutered">-</span></p>
-                                    <p><strong>Spay/Neuter Date:</strong> <span id="reviewSpayNeuterDate">-</span></p>
-                                </div>
-                                
-                                <div class="mt-3">
-                                    <h6 class="mb-2">Medical History:</h6>
-                                    <p><strong>Current Medical Notes:</strong> <span id="reviewMedicalNotes">-</span></p>
-                                    <p><strong>Previous Conditions:</strong> <span id="reviewPreviousConditions">-</span></p>
-                                    <p><strong>Vaccination History:</strong> <span id="reviewVaccinationHistory">-</span></p>
-                                    <p><strong>Surgical History:</strong> <span id="reviewSurgicalHistory">-</span></p>
-                                    <p><strong>Medication History:</strong> <span id="reviewMedicationHistory">-</span></p>
-                                    <p><strong>Has Existing Records:</strong> <span id="reviewHasExistingRecords">-</span></p>
-                                    <p><strong>Records Location:</strong> <span id="reviewRecordsLocation">-</span></p>
-                                    <p><strong>Veterinarian:</strong> <span id="reviewVetContact">-</span></p>
-                                </div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-prev" onclick="prevStep(2)">
+                                    <i class="fas fa-arrow-left"></i> Previous
+                                </button>
+                                <button type="button" class="btn btn-next" onclick="nextStep(4)">
+                                    Next <i class="fas fa-arrow-right"></i>
+                                </button>
                             </div>
                         </div>
                         
-                        <div class="form-check mb-4">
-                            <input class="form-check-input" type="checkbox" id="confirmInfo" required>
-                            <label class="form-check-label" for="confirmInfo">
-                                I confirm that all information provided is accurate and complete
-                            </label>
+                        <!-- Step 4: Review & Submit -->
+                        <div class="form-section" id="step4">
+                            <h3 class="section-title">
+                                <i class="fas fa-clipboard-check"></i> Review & Submit
+                            </h3>
+                            
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Please review all information carefully before submitting. This will create your pet's permanent medical record.
+                            </div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-header bg-pink-light">
+                                    Basic Information Summary
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Pet Name:</strong> <span id="review_petName"></span></p>
+                                            <p><strong>Species:</strong> <span id="review_species"></span></p>
+                                            <p><strong>Breed:</strong> <span id="review_breed"></span></p>
+                                            <p><strong>Age:</strong> <span id="review_age"></span> years</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Gender:</strong> <span id="review_gender"></span></p>
+                                            <p><strong>Color:</strong> <span id="review_color"></span></p>
+                                            <p><strong>Weight:</strong> <span id="review_weight"></span> kg</p>
+                                            <p><strong>Birth Date:</strong> <span id="review_birthDate"></span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-header bg-pink-light">
+                                    Medical Information Summary
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Last Vet Visit:</strong> <span id="review_last_vet_visit"></span></p>
+                                            <p><strong>Next Vet Visit:</strong> <span id="review_next_vet_visit"></span></p>
+                                            <p><strong>Rabies Vaccine:</strong> <span id="review_rabies_vaccine_date"></span></p>
+                                            <p><strong>DHPP/FVRCP Vaccine:</strong> <span id="review_dhpp_vaccine_date"></span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Spayed/Neutered:</strong> <span id="review_is_spayed_neutered"></span></p>
+                                            <p><strong>Spay/Neuter Date:</strong> <span id="review_spay_neuter_date"></span></p>
+                                            <p><strong>Veterinarian:</strong> <span id="review_vetContact"></span></p>
+                                        </div>
+                                    </div>
+                                    <p><strong>Medical Notes:</strong> <span id="review_medicalNotes"></span></p>
+                                </div>
+                            </div>
+                            
+                            <div class="form-check mb-4">
+                                <input class="form-check-input" type="checkbox" id="confirmAccuracy" required>
+                                <label class="form-check-label" for="confirmAccuracy">
+                                    I confirm that all information provided is accurate to the best of my knowledge
+                                </label>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-prev" onclick="prevStep(3)">
+                                    <i class="fas fa-arrow-left"></i> Previous
+                                </button>
+                                <button type="submit" class="btn btn-submit" id="submitButton" disabled>
+                                    <i class="fas fa-paw"></i> Register Pet
+                                </button>
+                            </div>
                         </div>
-                        
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-prev" onclick="prevStep(3)">
-                                <i class="fas fa-arrow-left"></i> Previous
-                            </button>
-                            <button type="submit" class="btn btn-submit" id="submitBtn">
-                                <i class="fas fa-paw"></i> Register Pet
-                            </button>
-                        </div>
-                    </div>
-                </form>
-                <?php else: ?>
-                <!-- Success State -->
-                <div class="success-state active" id="successState">
-                    <div class="success-icon">
-                        <i class="fas fa-check"></i>
-                    </div>
-                    <h2>Registration Successful! 🎉</h2>
-                    <p class="text-muted mb-4">
-                        <strong><?php echo htmlspecialchars($_SESSION['new_pet_name'] ?? 'Your pet'); ?></strong> 
-                        has been registered successfully and a medical QR code has been generated.
-                    </p>
-                    
-                    <div class="qr-preview" id="successQrCode"></div>
-                    
-                    <div class="alert alert-info mt-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>Pet ID:</strong> PMQ-<?php echo str_pad($_SESSION['new_pet_id'] ?? '000000', 6, '0', STR_PAD_LEFT); ?> | 
-                        <strong>Registered:</strong> <?php echo date('M j, Y \a\t g:i A'); ?>
-                    </div>
-                    
-                    <div class="d-grid gap-2 col-md-8 mx-auto mt-4">
-                        <a href="user_pet_profile.php" class="btn btn-submit">
-                            <i class="fas fa-dog"></i> View My Pets
-                        </a>
-                        <a href="register_pet.php" class="btn btn-prev">
-                            <i class="fas fa-plus"></i> Register Another Pet
-                        </a>
-                    </div>
-                </div>
-                <?php 
-                // Clear success session data
-                unset($_SESSION['new_pet_id'], $_SESSION['new_pet_data'], $_SESSION['new_pet_name']);
-                endif; 
-                ?>
+                    </form>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let currentStep = 1;
-        const totalSteps = 4;
-        
-        function updateProgress() {
-            const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
-            document.getElementById('progressBar').style.width = `${progress}%`;
-            
-            // Update step indicators
-            document.querySelectorAll('.step').forEach((step, index) => {
-                const stepNumber = index + 1;
-                if (stepNumber < currentStep) {
-                    step.classList.add('completed');
-                    step.classList.remove('active');
-                } else if (stepNumber === currentStep) {
-                    step.classList.add('active');
-                    step.classList.remove('completed');
-                } else {
-                    step.classList.remove('active', 'completed');
+        // Form navigation
+        function nextStep(step) {
+            // Validate current step before proceeding
+            if (validateStep(step - 1)) {
+                document.querySelectorAll('.form-section').forEach(section => {
+                    section.classList.remove('active');
+                });
+                document.getElementById('step' + step).classList.add('active');
+                
+                document.querySelectorAll('.step').forEach(stepEl => {
+                    stepEl.classList.remove('active');
+                });
+                document.querySelector(`.step[data-step="${step}"]`).classList.add('active');
+                
+                // Update progress bar
+                const progress = (step / 4) * 100;
+                document.getElementById('progressBar').style.width = progress + '%';
+                
+                // If moving to review step, populate review fields
+                if (step === 4) {
+                    populateReviewFields();
                 }
-            });
+            }
         }
         
-        function showStep(stepNumber) {
+        function prevStep(step) {
             document.querySelectorAll('.form-section').forEach(section => {
                 section.classList.remove('active');
             });
-            document.getElementById(`step${stepNumber}`).classList.add('active');
-            currentStep = stepNumber;
-            updateProgress();
+            document.getElementById('step' + step).classList.add('active');
             
-            // Scroll to top of form
-            document.querySelector('.registration-form').scrollTo(0, 0);
+            document.querySelectorAll('.step').forEach(stepEl => {
+                stepEl.classList.remove('active');
+            });
+            document.querySelector(`.step[data-step="${step}"]`).classList.add('active');
+            
+            // Update progress bar
+            const progress = (step / 4) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
         }
         
-        function nextStep(next) {
-            if (validateStep(currentStep)) {
-                if (next === 4) {
-                    updateReviewSection();
-                }
-                showStep(next);
-            }
-        }
-        
-        function prevStep(prev) {
-            showStep(prev);
-        }
-        
+        // Step validation
         function validateStep(step) {
+            const currentStep = document.getElementById('step' + step);
+            const inputs = currentStep.querySelectorAll('input[required], select[required], textarea[required]');
+            
             let isValid = true;
-            let errorMessage = '';
-            
-            if (step === 1) {
-                const petName = document.getElementById('petName').value.trim();
-                const species = document.getElementById('species').value;
-                const breed = document.getElementById('breed').value;
-                
-                if (!petName) {
-                    errorMessage = 'Please enter your pet\'s name';
-                    document.getElementById('petName').focus();
+            inputs.forEach(input => {
+                if (!input.value.trim()) {
+                    input.classList.add('is-invalid');
                     isValid = false;
-                } else if (!species) {
-                    errorMessage = 'Please select your pet\'s species';
-                    document.getElementById('species').focus();
-                    isValid = false;
-                } else if (!breed) {
-                    errorMessage = 'Please select your pet\'s breed';
-                    document.getElementById('breed').focus();
-                    isValid = false;
+                } else {
+                    input.classList.remove('is-invalid');
                 }
-            }
+            });
             
-            if (step === 2) {
-                const age = document.getElementById('age').value.trim();
-                const gender = document.getElementById('gender').value;
-                const color = document.getElementById('color').value.trim();
-                const weight = document.getElementById('weight').value.trim();
-                
-                if (!age) {
-                    errorMessage = 'Please enter your pet\'s age';
-                    document.getElementById('age').focus();
-                    isValid = false;
-                } else if (!gender) {
-                    errorMessage = 'Please select your pet\'s gender';
-                    document.getElementById('gender').focus();
-                    isValid = false;
-                } else if (!color) {
-                    errorMessage = 'Please describe your pet\'s color/markings';
-                    document.getElementById('color').focus();
-                    isValid = false;
-                } else if (!weight) {
-                    errorMessage = 'Please enter your pet\'s weight';
-                    document.getElementById('weight').focus();
-                    isValid = false;
-                }
-            }
-            
-            if (step === 3) {
-                const medicalNotes = document.getElementById('medicalNotes').value.trim();
-                const lastVetVisit = document.getElementById('last_vet_visit').value;
-                const rabiesVaccine = document.getElementById('rabies_vaccine_date').value;
-                const dhppVaccine = document.getElementById('dhpp_vaccine_date').value;
-                const vetContact = document.getElementById('vetContact').value.trim();
-                
-                if (!medicalNotes) {
-                    errorMessage = 'Please provide current medical notes (enter "None" if none)';
-                    document.getElementById('medicalNotes').focus();
-                    isValid = false;
-                } else if (!lastVetVisit) {
-                    errorMessage = 'Please provide the date of last vet visit';
-                    document.getElementById('last_vet_visit').focus();
-                    isValid = false;
-                } else if (!rabiesVaccine) {
-                    errorMessage = 'Please provide the rabies vaccine date';
-                    document.getElementById('rabies_vaccine_date').focus();
-                    isValid = false;
-                } else if (!dhppVaccine) {
-                    errorMessage = 'Please provide the DHPP/FVRCP vaccine date';
-                    document.getElementById('dhpp_vaccine_date').focus();
-                    isValid = false;
-                } else if (!vetContact) {
-                    errorMessage = 'Please provide your veterinarian\'s contact information';
-                    document.getElementById('vetContact').focus();
-                    isValid = false;
-                }
-            }
-            
-            if (!isValid && errorMessage) {
-                alert('❌ ' + errorMessage);
+            if (!isValid) {
+                alert('Please fill in all required fields before proceeding.');
             }
             
             return isValid;
         }
         
-        function updateReviewSection() {
-            // Profile picture preview in review
-            const profilePictureInput = document.getElementById('profile_picture');
-            const reviewProfilePicture = document.getElementById('reviewProfilePicture');
-            const noProfilePicture = document.getElementById('noProfilePicture');
+        // Populate review fields
+        function populateReviewFields() {
+            // Basic Information
+            document.getElementById('review_petName').textContent = document.getElementById('petName').value || 'Not provided';
+            document.getElementById('review_species').textContent = document.getElementById('species').value || 'Not provided';
+            document.getElementById('review_breed').textContent = document.getElementById('breed').value || 'Not provided';
+            document.getElementById('review_age').textContent = document.getElementById('age').value || 'Not provided';
+            document.getElementById('review_gender').textContent = document.getElementById('gender').value || 'Not provided';
+            document.getElementById('review_color').textContent = document.getElementById('color').value || 'Not provided';
+            document.getElementById('review_weight').textContent = document.getElementById('weight').value || 'Not provided';
+            document.getElementById('review_birthDate').textContent = formatDate(document.getElementById('birthDate').value) || 'Not provided';
             
-            if (profilePictureInput.files && profilePictureInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    reviewProfilePicture.src = e.target.result;
-                    reviewProfilePicture.style.display = 'block';
-                    noProfilePicture.style.display = 'none';
-                }
-                reader.readAsDataURL(profilePictureInput.files[0]);
-            } else {
-                reviewProfilePicture.style.display = 'none';
-                noProfilePicture.style.display = 'block';
-            }
-            
-            // Basic information
-            document.getElementById('reviewName').textContent = document.getElementById('petName').value || 'Not specified';
-            document.getElementById('reviewSpecies').textContent = document.getElementById('species').value || 'Not specified';
-            document.getElementById('reviewBreed').textContent = document.getElementById('breed').value || 'Not specified';
-            document.getElementById('reviewAge').textContent = document.getElementById('age').value ? document.getElementById('age').value + ' years' : 'Not specified';
-            document.getElementById('reviewGender').textContent = document.getElementById('gender').value || 'Not specified';
-            document.getElementById('reviewColor').textContent = document.getElementById('color').value || 'Not specified';
-            document.getElementById('reviewWeight').textContent = document.getElementById('weight').value ? document.getElementById('weight').value + ' kg' : 'Not specified';
-            document.getElementById('reviewBirthDate').textContent = document.getElementById('birthDate').value || 'Not specified';
-            
-            // Medical dates (REMOVED Next Vet Visit)
-            document.getElementById('reviewLastVetVisit').textContent = document.getElementById('last_vet_visit').value || 'Not specified';
-            document.getElementById('reviewRabiesVaccine').textContent = document.getElementById('rabies_vaccine_date').value || 'Not specified';
-            document.getElementById('reviewDhppVaccine').textContent = document.getElementById('dhpp_vaccine_date').value || 'Not specified';
-            document.getElementById('reviewSpayedNeutered').textContent = document.getElementById('is_spayed_neutered').checked ? 'Yes' : 'No';
-            document.getElementById('reviewSpayNeuterDate').textContent = document.getElementById('spay_neuter_date').value || 'Not applicable';
-            
-            // Medical information
-            document.getElementById('reviewMedicalNotes').textContent = document.getElementById('medicalNotes').value || 'None';
-            document.getElementById('reviewPreviousConditions').textContent = document.getElementById('previousConditions').value || 'None';
-            document.getElementById('reviewVaccinationHistory').textContent = document.getElementById('vaccinationHistory').value || 'None';
-            document.getElementById('reviewSurgicalHistory').textContent = document.getElementById('surgicalHistory').value || 'None';
-            document.getElementById('reviewMedicationHistory').textContent = document.getElementById('medicationHistory').value || 'None';
-            document.getElementById('reviewHasExistingRecords').textContent = document.getElementById('hasExistingRecords').checked ? 'Yes' : 'No';
-            document.getElementById('reviewRecordsLocation').textContent = document.getElementById('recordsLocation').value || 'Not specified';
-            document.getElementById('reviewVetContact').textContent = document.getElementById('vetContact').value || 'Not specified';
+            // Medical Information
+            document.getElementById('review_last_vet_visit').textContent = formatDate(document.getElementById('last_vet_visit').value) || 'Not provided';
+            document.getElementById('review_next_vet_visit').textContent = formatDate(document.getElementById('next_vet_visit').value) || 'Not provided';
+            document.getElementById('review_rabies_vaccine_date').textContent = formatDate(document.getElementById('rabies_vaccine_date').value) || 'Not provided';
+            document.getElementById('review_dhpp_vaccine_date').textContent = formatDate(document.getElementById('dhpp_vaccine_date').value) || 'Not provided';
+            document.getElementById('review_is_spayed_neutered').textContent = document.getElementById('is_spayed_neutered').checked ? 'Yes' : 'No';
+            document.getElementById('review_spay_neuter_date').textContent = formatDate(document.getElementById('spay_neuter_date').value) || 'Not applicable';
+            document.getElementById('review_medicalNotes').textContent = document.getElementById('medicalNotes').value || 'Not provided';
+            document.getElementById('review_vetContact').textContent = document.getElementById('vetContact').value ? document.getElementById('vetContact').value.substring(0, 50) + '...' : 'Not provided';
         }
         
-        // Profile picture preview function
-        function previewProfilePicture(input) {
-            const preview = document.getElementById('profilePicturePreview');
-            const file = input.files[0];
-            
+        // Format date for display
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+        
+        // Enable submit button when confirmation is checked
+        document.getElementById('confirmAccuracy')?.addEventListener('change', function() {
+            document.getElementById('submitButton').disabled = !this.checked;
+        });
+        
+        // Profile picture preview
+        document.getElementById('profile_picture')?.addEventListener('change', function(e) {
+            const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                
                 reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
+                    document.getElementById('profilePreviewImg').src = e.target.result;
+                    document.getElementById('profilePreview').style.display = 'block';
                 }
-                
                 reader.readAsDataURL(file);
-                
-                // Validate file size (5MB limit)
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('❌ File size too large. Please choose an image smaller than 5MB.');
-                    input.value = '';
-                    preview.style.display = 'none';
+            }
+        });
+        
+        // Real-time validation
+        document.querySelectorAll('input, select, textarea').forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.hasAttribute('required') && !this.value.trim()) {
+                    this.classList.add('is-invalid');
+                } else {
+                    this.classList.remove('is-invalid');
                 }
-            } else {
-                preview.style.display = 'none';
-            }
-        }
-        
-        // Toggle spay/neuter date
-        document.getElementById('is_spayed_neutered').addEventListener('change', function() {
-            document.getElementById('spayNeuterDate').style.display = this.checked ? 'block' : 'none';
-            if (!this.checked) {
-                document.getElementById('spay_neuter_date').value = '';
-            }
-        });
-
-        // Toggle existing records details
-        document.getElementById('hasExistingRecords').addEventListener('change', function() {
-            const detailsDiv = document.getElementById('existingRecordsDetails');
-            detailsDiv.style.display = this.checked ? 'block' : 'none';
-            
-            // Clear the field if unchecked
-            if (!this.checked) {
-                document.getElementById('recordsLocation').value = '';
-            }
-        });
-        
-        // Initialize the existing records and spay/neuter displays
-        document.addEventListener('DOMContentLoaded', function() {
-            // Existing records
-            const hasExistingRecords = document.getElementById('hasExistingRecords');
-            const recordsDetailsDiv = document.getElementById('existingRecordsDetails');
-            if (hasExistingRecords.checked) {
-                recordsDetailsDiv.style.display = 'block';
-            }
-            
-            // Spay/neuter
-            const spayNeuterCheckbox = document.getElementById('is_spayed_neutered');
-            const spayNeuterDateDiv = document.getElementById('spayNeuterDate');
-            if (spayNeuterCheckbox.checked) {
-                spayNeuterDateDiv.style.display = 'block';
-            }
-        });
-        
-        // Form submission
-        document.getElementById('petRegistrationForm').addEventListener('submit', function(e) {
-            const confirmCheckbox = document.getElementById('confirmInfo');
-            
-            if (!confirmCheckbox.checked) {
-                e.preventDefault();
-                alert('❌ Please confirm that all information is accurate by checking the box.');
-                confirmCheckbox.focus();
-                return;
-            }
-            
-            // Show loading state
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
-            submitBtn.disabled = true;
-            
-            // Add loading class to form
-            document.getElementById('petRegistrationForm').classList.add('loading');
-            
-            // Form will submit naturally to PHP
-        });
-        
-        function generateSuccessQRCode() {
-            const petName = "<?php echo $_SESSION['new_pet_name'] ?? 'Your Pet'; ?>";
-            const petId = "<?php echo $_SESSION['new_pet_id'] ?? '000000'; ?>";
-            const qrData = `PET: ${petName}\nID: PMQ-${String(petId).padStart(6, '0')}\nRegistered: ${new Date().toLocaleDateString()}\nStatus: Active 🐾`;
-            
-            const qr = qrcode(0, 'M');
-            qr.addData(qrData);
-            qr.make();
-            
-            document.getElementById('successQrCode').innerHTML = qr.createSvgTag({
-                scalable: true,
-                margin: 2,
-                color: '#000',
-                background: '#fff'
             });
-        }
+        });
         
-        // Initialize
-        updateProgress();
+        // Toggle spay/neuter date based on checkbox
+        document.getElementById('is_spayed_neutered')?.addEventListener('change', function() {
+            const dateField = document.getElementById('spay_neuter_date');
+            if (this.checked) {
+                dateField.removeAttribute('disabled');
+            } else {
+                dateField.setAttribute('disabled', 'disabled');
+                dateField.value = '';
+            }
+        });
         
-        // Generate QR code for success state if needed
-        <?php if ($showSuccess): ?>
-            generateSuccessQRCode();
-        <?php endif; ?>
+        // Initialize spay/neuter date field state
+        document.addEventListener('DOMContentLoaded', function() {
+            const spayNeuterCheckbox = document.getElementById('is_spayed_neutered');
+            const spayNeuterDate = document.getElementById('spay_neuter_date');
+            
+            if (spayNeuterCheckbox && spayNeuterDate) {
+                if (!spayNeuterCheckbox.checked) {
+                    spayNeuterDate.setAttribute('disabled', 'disabled');
+                }
+            }
+        });
     </script>
 </body>
 </html>
-
-
