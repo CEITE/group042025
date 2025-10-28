@@ -161,7 +161,195 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
 
                 $qrPath = $qrDir . 'qr_' . $pet_id . '.png';
                 QRcode::png($qrURL, $qrPath, QR_ECLEVEL_L, 4);
+// ✅ Handle pet registration
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pet'])) {
+    // Collect and sanitize form data
+    $petName = trim($_POST['petName'] ?? '');
+    $species = trim($_POST['species'] ?? '');
+    $breed = trim($_POST['breed'] ?? '');
+    $age = !empty($_POST['age']) ? intval($_POST['age']) : 0;
+    $color = trim($_POST['color'] ?? '');
+    $weight = !empty($_POST['weight']) ? floatval($_POST['weight']) : null;
+    $birthDate = !empty($_POST['birthDate']) ? $_POST['birthDate'] : null;
+    $gender = trim($_POST['gender'] ?? '');
+    $medicalNotes = trim($_POST['medicalNotes'] ?? '');
+    $vetContact = trim($_POST['vetContact'] ?? '');
+    
+    // Medical history fields
+    $previousConditions = trim($_POST['previousConditions'] ?? '');
+    $vaccinationHistory = trim($_POST['vaccinationHistory'] ?? '');
+    $surgicalHistory = trim($_POST['surgicalHistory'] ?? '');
+    $medicationHistory = trim($_POST['medicationHistory'] ?? '');
+    $hasExistingRecords = isset($_POST['hasExistingRecords']) ? 1 : 0;
+    $recordsLocation = trim($_POST['recordsLocation'] ?? '');
+    
+    // Structured medical fields
+    $last_vet_visit = !empty($_POST['last_vet_visit']) ? $_POST['last_vet_visit'] : null;
+    $next_vet_visit = !empty($_POST['next_vet_visit']) ? $_POST['next_vet_visit'] : null;
+    $rabies_vaccine_date = !empty($_POST['rabies_vaccine_date']) ? $_POST['rabies_vaccine_date'] : null;
+    $dhpp_vaccine_date = !empty($_POST['dhpp_vaccine_date']) ? $_POST['dhpp_vaccine_date'] : null;
+    $is_spayed_neutered = isset($_POST['is_spayed_neutered']) ? 1 : 0;
+    $spay_neuter_date = !empty($_POST['spay_neuter_date']) ? $_POST['spay_neuter_date'] : null;
+    
+    // Profile picture handling
+    $profilePicture = null;
+    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/pet_profile_pictures/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        
+        $fileExtension = pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION);
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        
+        if (in_array(strtolower($fileExtension), $allowedExtensions)) {
+            // Generate unique filename
+            $profilePicture = 'pet_' . uniqid() . '_' . time() . '.' . $fileExtension;
+            $uploadPath = $uploadDir . $profilePicture;
+            
+            // Move uploaded file
+            if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $uploadPath)) {
+                // File uploaded successfully
+            } else {
+                $_SESSION['error'] = "❌ Failed to upload profile picture.";
+                $profilePicture = null;
+            }
+        } else {
+            $_SESSION['error'] = "❌ Invalid file type. Please upload JPG, JPEG, PNG, GIF, or WebP images only.";
+        }
+    }
 
+    // ✅ ENHANCED VALIDATION WITH SPECIFIC ERROR TRACKING
+    $missing_fields = [];
+    
+    // Check required fields
+    if (empty($petName)) $missing_fields[] = "Pet Name";
+    if (empty($species)) $missing_fields[] = "Species";
+    if (empty($breed)) $missing_fields[] = "Breed";
+    if (empty($age)) $missing_fields[] = "Age";
+    if (empty($gender)) $missing_fields[] = "Gender";
+    if (empty($color)) $missing_fields[] = "Color/Markings";
+    if (empty($weight)) $missing_fields[] = "Weight";
+    if (empty($medicalNotes)) $missing_fields[] = "Current Medical Notes & Allergies";
+    if (empty($last_vet_visit)) $missing_fields[] = "Last Vet Visit";
+    if (empty($rabies_vaccine_date)) $missing_fields[] = "Rabies Vaccine Date";
+    if (empty($dhpp_vaccine_date)) $missing_fields[] = "DHPP/FVRCP Vaccine Date";
+    if (empty($vetContact)) $missing_fields[] = "Current Veterinarian Contact";
+    
+    if (!empty($missing_fields)) {
+        $_SESSION['error'] = "❌ Please fill in all required fields. Missing: " . implode(', ', $missing_fields);
+    } else {
+        try {
+            // Generate unique QR code filename
+            $qrCodeFilename = 'qr_' . uniqid() . '_' . time() . '.svg';
+            
+            // Convert species to lowercase to match ENUM('dog', 'cat')
+            $species_lower = strtolower($species);
+            
+            // ✅ CORRECTED: INSERT statement that matches EXACT table structure
+            $stmt = $conn->prepare("
+                INSERT INTO pets (
+                    user_id, name, species, breed, age, color, weight, 
+                    birth_date, gender, medical_notes, vet_contact, 
+                    previous_conditions, vaccination_history, surgical_history, 
+                    medication_history, has_existing_records, records_location,
+                    last_vet_visit, next_vet_visit, rabies_vaccine_date,
+                    dhpp_vaccine_date, is_spayed_neutered, spay_neuter_date,
+                    qr_code, qr_code_data, profile_picture
+                ) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+
+            if (!$stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
+            
+            // Generate QR data first (we need it for the insert)
+            $qrData = generateQRData(
+                $user_id, 0, $petName, $species, $breed, $age, 
+                $color, $weight, $birthDate, $gender, $medicalNotes, 
+                $vetContact, $previousConditions, $vaccinationHistory, 
+                $surgicalHistory, $medicationHistory, 
+                $last_vet_visit, $next_vet_visit, $rabies_vaccine_date,
+                $dhpp_vaccine_date, $is_spayed_neutered, $spay_neuter_date,
+                $user['name'], $user['email']
+            );
+            
+            // ✅ CORRECTED: 25 parameters in bind_param (matches 25 columns we're inserting)
+            $bind_result = $stmt->bind_param("isssisdssssssssisssssissss", 
+                $user_id, 
+                $petName, 
+                $species_lower,
+                $breed, 
+                $age, 
+                $color, 
+                $weight, 
+                $birthDate, 
+                $gender, 
+                $medicalNotes, 
+                $vetContact,
+                $previousConditions,
+                $vaccinationHistory,
+                $surgicalHistory,
+                $medicationHistory,
+                $hasExistingRecords,
+                $recordsLocation,
+                $last_vet_visit,
+                $next_vet_visit,
+                $rabies_vaccine_date,
+                $dhpp_vaccine_date,
+                $is_spayed_neutered,
+                $spay_neuter_date,
+                $qrCodeFilename,
+                $qrData,
+                $profilePicture
+            );
+            
+            if (!$bind_result) {
+                throw new Exception("Bind failed: " . $stmt->error);
+            }
+            
+            if ($stmt->execute()) {
+                $pet_id = $stmt->insert_id;
+                
+                // Generate direct link to view this pet's medical record
+                $qrURL = "https://group042025.ceitesystems.com/view_pet_record.php?pet_id=" . $pet_id;
+
+                // Generate the actual QR code image
+                require_once 'phpqrcode/qrlib.php';
+
+                $qrDir = 'qrcodes/';
+                if (!is_dir($qrDir)) mkdir($qrDir, 0755, true);
+
+                $qrPath = $qrDir . 'qr_' . $pet_id . '.png';
+                QRcode::png($qrURL, $qrPath, QR_ECLEVEL_L, 4);
+
+                // Update the pet record with the QR code path
+                $updateStmt = $conn->prepare("UPDATE pets SET qr_code = ? WHERE pet_id = ?");
+                $updateStmt->bind_param("si", $qrPath, $pet_id);
+                $updateStmt->execute();
+                $updateStmt->close();
+                
+                $_SESSION['success'] = "🎉 Pet '$petName' has been successfully registered! QR code has been generated.";
+                $_SESSION['new_pet_id'] = $pet_id;
+                $_SESSION['new_pet_data'] = $qrData;
+                $_SESSION['new_pet_name'] = $petName;
+                
+                // Redirect to success page
+                header("Location: register_pet.php?success=1");
+                exit();
+                
+            } else {
+                throw new Exception("Failed to register pet: " . $stmt->error);
+            }
+            
+            $stmt->close();
+            
+        } catch (Exception $e) {
+            $_SESSION['error'] = "Database error: " . $e->getMessage();
+        }
+    }
+}
                 // Generate QR data with enhanced medical history
                 $qrData = generateQRData(
                     $user_id, $pet_id, $petName, $species, $breed, $age, 
@@ -1769,4 +1957,5 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     </script>
 </body>
 </html>
+
 
