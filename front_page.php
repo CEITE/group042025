@@ -164,6 +164,7 @@
     50% { transform: translateY(-20px) rotate(5deg); }
   }
 
+  /* Enhanced Slideshow */
   .hero-slideshow {
     position: absolute;
     top: 0;
@@ -171,6 +172,7 @@
     width: 100%;
     height: 100%;
     z-index: 0;
+    overflow: hidden;
   }
 
   .slide {
@@ -196,22 +198,89 @@
 
   .slide-1 {
     background-image: linear-gradient(rgba(255, 214, 231, 0.4), rgba(255, 216, 236, 0.4)), 
-                     url('https://images.unsplash.com/photo-1576201836106-db1758fd1c0a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+                     url('https://images.unsplash.com/photo-1543852786-1cf6624b9987?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
   }
 
   .slide-2 {
     background-image: linear-gradient(rgba(255, 214, 231, 0.4), rgba(255, 216, 236, 0.4)), 
-                     url('https://images.unsplash.com/photo-1596276020309-28b367086ee4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+                     url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2043&q=80');
   }
 
   .slide-3 {
     background-image: linear-gradient(rgba(255, 214, 231, 0.4), rgba(255, 216, 236, 0.4)), 
-                     url('https://images.unsplash.com/photo-1591946611910-2d97985eabc0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+                     url('https://images.unsplash.com/photo-1552053831-71594a27632d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2062&q=80');
   }
 
   .slide-4 {
     background-image: linear-gradient(rgba(255, 214, 231, 0.4), rgba(255, 216, 236, 0.4)), 
-                     url('https://images.unsplash.com/photo-1591946611910-2d97985eabc0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+                     url('https://images.unsplash.com/photo-1583337130417-3346a1be7dee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1964&q=80');
+  }
+
+  .slide-5 {
+    background-image: linear-gradient(rgba(255, 214, 231, 0.4), rgba(255, 216, 236, 0.4)), 
+                     url('https://images.unsplash.com/photo-1574145112594-3e0b8a483d0c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+  }
+
+  .slide-6 {
+    background-image: linear-gradient(rgba(255, 214, 231, 0.4), rgba(255, 216, 236, 0.4)), 
+                     url('https://images.unsplash.com/photo-1583511655826-05700d52f4c9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2068&q=80');
+  }
+
+  .slide-nav {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 3;
+  }
+
+  .slide-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .slide-dot.active {
+    background: var(--white);
+    transform: scale(1.2);
+  }
+
+  .slide-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: var(--white);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    cursor: pointer;
+    z-index: 3;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+  }
+
+  .slide-arrow:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  .slide-arrow.prev {
+    left: 20px;
+  }
+
+  .slide-arrow.next {
+    right: 20px;
   }
 
   .hero-content {
@@ -1179,6 +1248,12 @@
     .section-title {
       font-size: 2.2rem;
     }
+    
+    .slide-arrow {
+      width: 40px;
+      height: 40px;
+      font-size: 1.2rem;
+    }
   }
 
   @media (max-width: 768px) {
@@ -1224,6 +1299,24 @@
     .contact-info,
     .contact-form {
       padding: 2rem;
+    }
+    
+    .slide-nav {
+      bottom: 20px;
+    }
+    
+    .slide-arrow {
+      width: 35px;
+      height: 35px;
+      font-size: 1rem;
+    }
+    
+    .slide-arrow.prev {
+      left: 10px;
+    }
+    
+    .slide-arrow.next {
+      right: 10px;
     }
   }
 
@@ -1419,7 +1512,28 @@
     <div class="slide slide-2"></div>
     <div class="slide slide-3"></div>
     <div class="slide slide-4"></div>
+    <div class="slide slide-5"></div>
+    <div class="slide slide-6"></div>
+    
+    <!-- Navigation arrows -->
+    <button class="slide-arrow prev" onclick="prevSlide()">
+      <i class="bi bi-chevron-left"></i>
+    </button>
+    <button class="slide-arrow next" onclick="nextSlide()">
+      <i class="bi bi-chevron-right"></i>
+    </button>
+    
+    <!-- Navigation dots -->
+    <div class="slide-nav" id="slideNav">
+      <div class="slide-dot active" onclick="goToSlide(0)"></div>
+      <div class="slide-dot" onclick="goToSlide(1)"></div>
+      <div class="slide-dot" onclick="goToSlide(2)"></div>
+      <div class="slide-dot" onclick="goToSlide(3)"></div>
+      <div class="slide-dot" onclick="goToSlide(4)"></div>
+      <div class="slide-dot" onclick="goToSlide(5)"></div>
+    </div>
   </div>
+  
   <div class="container">
     <div class="row align-items-center">
       <div class="col-lg-6 hero-content" data-aos="fade-right">
@@ -1793,17 +1907,29 @@
     // Hero Slideshow
     let currentSlide = 0;
     const slides = document.querySelectorAll('.slide');
+    const dots = document.querySelectorAll('.slide-dot');
     
     function showSlide(n) {
       slides.forEach(slide => slide.classList.remove('active'));
+      dots.forEach(dot => dot.classList.remove('active'));
       currentSlide = (n + slides.length) % slides.length;
       slides[currentSlide].classList.add('active');
+      dots[currentSlide].classList.add('active');
     }
     
     function nextSlide() {
       showSlide(currentSlide + 1);
     }
     
+    function prevSlide() {
+      showSlide(currentSlide - 1);
+    }
+    
+    function goToSlide(n) {
+      showSlide(n);
+    }
+    
+    // Auto-advance slides
     setInterval(nextSlide, 5000);
 
     // Navbar scroll effect
