@@ -256,31 +256,34 @@ foreach ($vets as $vet) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Appointment - VetCareQR</title>
+    <title>Book Appointment - PetMedQR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-pink: #e91e63;
-            --secondary-pink: #f8bbd9;
-            --light-pink: #fce4ec;
-            --dark-pink: #ad1457;
-            --accent-pink: #f48fb1;
-            --blue: #4a6cf7;
-            --blue-light: #e8f0fe;
-            --green: #2ecc71;
-            --green-light: #eafaf1;
-            --orange: #f39c12;
-            --orange-light: #fef5e7;
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
+            --secondary: #8b5cf6;
+            --light: #f0f9ff;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --dark: #1f2937;
+            --gray: #6b7280;
+            --gray-light: #e5e7eb;
             --radius: 16px;
             --shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
         
         body {
             font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, var(--light-pink) 0%, #f3e5f5 100%);
+            background: linear-gradient(135deg, var(--light) 0%, #e0f2fe 100%);
             margin: 0;
-            color: #333;
+            color: var(--dark);
             min-height: 100vh;
         }
         
@@ -291,7 +294,7 @@ foreach ($vets as $vet) {
         
         .sidebar {
             width: 260px;
-            background: var(--secondary-pink);
+            background: var(--primary-light);
             padding: 2rem 1rem;
             border-radius: var(--radius);
             box-shadow: var(--shadow);
@@ -304,7 +307,7 @@ foreach ($vets as $vet) {
             font-size: 1.2rem;
             text-align: center;
             margin-bottom: 2rem;
-            color: var(--dark-pink);
+            color: var(--primary-dark);
         }
         
         .sidebar .profile {
@@ -317,7 +320,7 @@ foreach ($vets as $vet) {
             height: 80px;
             border-radius: 50%;
             margin-bottom: .5rem;
-            border: 3px solid var(--accent-pink);
+            border: 3px solid var(--primary);
             object-fit: cover;
             transition: transform 0.3s;
         }
@@ -333,7 +336,7 @@ foreach ($vets as $vet) {
             border-radius: 12px;
             margin: .3rem 0;
             text-decoration: none;
-            color: #333;
+            color: var(--dark);
             font-weight: 600;
             transition: .2s;
         }
@@ -349,15 +352,15 @@ foreach ($vets as $vet) {
         }
         
         .sidebar a.active, .sidebar a:hover {
-            background: var(--light-pink);
-            color: var(--dark-pink);
+            background: var(--light);
+            color: var(--primary-dark);
         }
         
         .sidebar .logout {
             margin-top: auto;
             font-weight: 600;
             color: #fff;
-            background: linear-gradient(135deg, #dc3545, #e74c3c);
+            background: linear-gradient(135deg, var(--danger), #e74c3c);
             text-align: center;
             padding: 10px;
             border-radius: 10px;
@@ -365,7 +368,7 @@ foreach ($vets as $vet) {
         }
 
         .sidebar .appointment-btn {
-            background: linear-gradient(135deg, var(--primary-pink), var(--dark-pink));
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border: none;
             border-radius: 12px;
@@ -382,7 +385,7 @@ foreach ($vets as $vet) {
         }
         
         .sidebar .appointment-btn:hover {
-            background: linear-gradient(135deg, var(--dark-pink), var(--primary-pink));
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
             color: white;
             transform: translateY(-2px);
         }
@@ -396,7 +399,7 @@ foreach ($vets as $vet) {
         .topbar {
             background: white;
             padding: 1rem 1.5rem;
-            border-radius: 16px;
+            border-radius: var(--radius);
             box-shadow: var(--shadow);
             margin-bottom: 1.5rem;
             display: flex;
@@ -406,7 +409,7 @@ foreach ($vets as $vet) {
         
         .card-custom {
             background: white;
-            border-radius: 16px;
+            border-radius: var(--radius);
             padding: 1.5rem;
             box-shadow: var(--shadow);
             margin-bottom: 1.5rem;
@@ -419,12 +422,12 @@ foreach ($vets as $vet) {
         }
         
         .alert-custom {
-            border-radius: 12px;
+            border-radius: var(--radius);
             border: none;
         }
         
         .appointment-card {
-            border-left: 4px solid var(--primary-pink);
+            border-left: 4px solid var(--primary);
             transition: all 0.3s;
         }
         
@@ -440,29 +443,29 @@ foreach ($vets as $vet) {
         }
         
         .status-scheduled {
-            background-color: var(--blue-light);
-            color: var(--blue);
+            background-color: var(--primary-light);
+            color: var(--primary);
         }
         
         .status-confirmed {
-            background-color: var(--green-light);
-            color: var(--green);
+            background-color: var(--success-light);
+            color: var(--success);
         }
         
         .status-completed {
             background-color: #e8f5e8;
-            color: #2ecc71;
+            color: var(--success);
         }
         
         .status-cancelled {
-            background-color: #ffebee;
-            color: #e74c3c;
+            background-color: var(--danger-light);
+            color: var(--danger);
         }
         
         .empty-state {
             text-align: center;
             padding: 3rem 2rem;
-            color: #6c757d;
+            color: var(--gray);
         }
         
         .empty-state i {
@@ -472,13 +475,13 @@ foreach ($vets as $vet) {
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary-pink), var(--dark-pink));
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             border: none;
             color: white;
         }
         
         .btn-primary:hover {
-            background: linear-gradient(135deg, var(--dark-pink), var(--primary-pink));
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
             color: white;
         }
         
@@ -490,13 +493,13 @@ foreach ($vets as $vet) {
             align-items: center;
             justify-content: center;
             font-size: 1.2rem;
-            background: var(--light-pink);
-            color: var(--dark-pink);
+            background: var(--primary-light);
+            color: var(--primary);
         }
         
         .notification-debug {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
+            background: var(--warning-light);
+            border: 1px solid var(--warning);
             border-radius: 8px;
             padding: 10px;
             margin: 10px 0;
@@ -525,7 +528,7 @@ foreach ($vets as $vet) {
 <div class="wrapper">
     <!-- Sidebar -->
     <div class="sidebar">
-        <div class="brand"><i class="fa-solid fa-paw"></i> VetCareQR</div>
+        <div class="brand"><i class="fa-solid fa-paw"></i> PetMedQR</div>
         <div class="profile">
             <div class="profile-picture-container">
                 <img src="<?php echo htmlspecialchars($profile_picture); ?>" 
