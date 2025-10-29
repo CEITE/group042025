@@ -33,7 +33,7 @@ function sendAccessRequestEmail($owner_email, $owner_name, $pet_name, $vet_email
         <style>
             body { font-family: Arial, sans-serif; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #ec4899; color: white; padding: 20px; text-align: center; }
+            .header { background: #0ea5e9; color: white; padding: 20px; text-align: center; }
             .content { padding: 20px; background: #f8fafc; }
             .button { display: inline-block; padding: 12px 24px; margin: 10px; color: white; text-decoration: none; border-radius: 5px; }
             .approve { background: #10b981; }
@@ -324,17 +324,19 @@ if ($is_authenticated) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --pink: #ffd6e7;
-            --pink-dark: #ec4899;
-            --pink-darker: #db2777;
-            --pink-light: #fff4f8;
-            --pink-gradient: linear-gradient(135deg, #f9a8d4 0%, #ec4899 100%);
-            --blue: #3b82f6;
-            --blue-light: #dbeafe;
-            --green: #10b981;
-            --green-light: #d1fae5;
-            --purple: #8b5cf6;
-            --purple-light: #ede9fe;
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
+            --secondary: #8b5cf6;
+            --light: #f0f9ff;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --dark: #1f2937;
+            --gray: #6b7280;
+            --gray-light: #e5e7eb;
             --radius: 16px;
             --radius-sm: 12px;
             --shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.15);
@@ -349,14 +351,14 @@ if ($is_authenticated) {
         
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #f0f9ff 100%);
+            background: linear-gradient(135deg, var(--light) 0%, #e0f2fe 50%, #f0f9ff 100%);
             min-height: 100vh;
-            color: #1f2937;
+            color: var(--dark);
             line-height: 1.7;
         }
         
         .medical-header {
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
             padding: 4rem 2rem;
             border-radius: var(--radius);
@@ -429,42 +431,42 @@ if ($is_authenticated) {
             left: 0;
             right: 0;
             height: 5px;
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
         }
         
         .card-header-custom {
-            background: var(--pink-light);
-            border-bottom: 2px solid var(--pink);
+            background: var(--primary-light);
+            border-bottom: 2px solid var(--primary);
             padding: 1.5rem 2rem;
             font-weight: 700;
-            color: var(--pink-darker);
+            color: var(--primary-dark);
             font-size: 1.2rem;
         }
         
         .card-header-blue {
-            background: var(--blue-light);
-            border-bottom: 2px solid var(--blue);
+            background: var(--primary-light);
+            border-bottom: 2px solid var(--primary);
             padding: 1.5rem 2rem;
             font-weight: 700;
-            color: var(--blue);
+            color: var(--primary-dark);
             font-size: 1.2rem;
         }
         
         .card-header-green {
-            background: var(--green-light);
-            border-bottom: 2px solid var(--green);
+            background: var(--success-light);
+            border-bottom: 2px solid var(--success);
             padding: 1.5rem 2rem;
             font-weight: 700;
-            color: var(--green);
+            color: var(--success);
             font-size: 1.2rem;
         }
         
         .record-item {
-            background: linear-gradient(135deg, var(--pink-light) 0%, #fff 100%);
+            background: linear-gradient(135deg, var(--primary-light) 0%, #fff 100%);
             border-radius: var(--radius-sm);
             padding: 1.5rem;
             margin-bottom: 1.25rem;
-            border-left: 5px solid var(--pink-dark);
+            border-left: 5px solid var(--primary);
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px -5px rgba(0, 0, 0, 0.1);
         }
@@ -479,7 +481,7 @@ if ($is_authenticated) {
             border-radius: var(--radius-sm);
             padding: 2rem;
             margin-bottom: 1.5rem;
-            border-left: 5px solid #6c757d;
+            border-left: 5px solid var(--gray);
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px -5px rgba(0, 0, 0, 0.08);
         }
@@ -503,13 +505,13 @@ if ($is_authenticated) {
         .empty-state {
             text-align: center;
             padding: 4rem 2rem;
-            color: #6b7280;
+            color: var(--gray);
         }
         
         .empty-state i {
             font-size: 4rem;
             margin-bottom: 1.5rem;
-            color: #d1d5db;
+            color: var(--gray-light);
             opacity: 0.7;
         }
         
@@ -539,27 +541,27 @@ if ($is_authenticated) {
             background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
             padding: 1.5rem;
             border-radius: var(--radius-sm);
-            border-left: 4px solid var(--pink);
+            border-left: 4px solid var(--primary);
             box-shadow: 0 4px 15px -5px rgba(0, 0, 0, 0.08);
         }
         
         .info-card i {
             font-size: 2rem;
-            color: var(--pink-darker);
+            color: var(--primary-dark);
             margin-bottom: 1rem;
         }
         
         .contact-section {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            background: linear-gradient(135deg, var(--light) 0%, var(--primary-light) 100%);
             border-radius: var(--radius);
             padding: 2rem;
             margin: 2rem 0;
-            border: 2px solid #bae6fd;
+            border: 2px solid var(--primary-light);
         }
         
         .emergency-banner {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            border: 2px solid #f59e0b;
+            background: linear-gradient(135deg, var(--warning-light) 0%, #fde68a 100%);
+            border: 2px solid var(--warning);
             border-radius: var(--radius);
             padding: 2rem;
             margin: 2rem 0;
@@ -589,21 +591,21 @@ if ($is_authenticated) {
             justify-content: center;
             font-size: 1.5rem;
             margin-bottom: 1rem;
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
             box-shadow: var(--shadow);
         }
         
         .section-divider {
             height: 3px;
-            background: linear-gradient(90deg, transparent, var(--pink), transparent);
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
             margin: 3rem 0;
             border: none;
         }
 
         .auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
         .auth-card { background: white; border-radius: 16px; box-shadow: var(--shadow-lg); padding: 3rem; max-width: 500px; width: 100%; }
-        .auth-icon { width: 80px; height: 80px; border-radius: 50%; background: var(--pink-gradient); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: white; margin: 0 auto 1.5rem; }
+        .auth-icon { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: white; margin: 0 auto 1.5rem; }
         .waiting-animation { animation: pulse 2s infinite; }
     </style>
 </head>
@@ -613,7 +615,7 @@ if ($is_authenticated) {
 <!-- Success Message for Owner (After Approval/Rejection) -->
 <div class="auth-container">
     <div class="auth-card text-center">
-        <div class="auth-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+        <div class="auth-icon" style="background: linear-gradient(135deg, var(--success) 0%, #059669 100%);">
             <i class="fas fa-check"></i>
         </div>
         <h2 class="text-success mb-3">Request Processed</h2>
@@ -721,7 +723,7 @@ if ($is_authenticated) {
                                     <div class="medical-icon">
                                         <i class="fas fa-file-medical"></i>
                                     </div>
-                                    <h4 class="text-pink-darker mb-0">Current Medical Notes</h4>
+                                    <h4 class="text-primary-dark mb-0">Current Medical Notes</h4>
                                 </div>
                                 <div class="medical-content"><?php echo htmlspecialchars($pet_data['medical_notes']); ?></div>
                             </div>
@@ -746,7 +748,7 @@ if ($is_authenticated) {
                     <h3 class="mb-0">
                         <i class="fas fa-file-medical-alt me-3"></i>Medical Visit Records
                         <?php if (!empty($medical_records)): ?>
-                            <span class="badge bg-white text-blue ms-2 fs-6"><?php echo count($medical_records); ?> visits</span>
+                            <span class="badge bg-white text-primary ms-2 fs-6"><?php echo count($medical_records); ?> visits</span>
                         <?php endif; ?>
                     </h3>
                 </div>
@@ -758,7 +760,7 @@ if ($is_authenticated) {
                                 <div class="record-item h-100">
                                     <div class="d-flex justify-content-between align-items-start mb-3">
                                         <div>
-                                            <h5 class="text-pink-darker mb-1"><?php echo htmlspecialchars($record['record_type']); ?></h5>
+                                            <h5 class="text-primary-dark mb-1"><?php echo htmlspecialchars($record['record_type']); ?></h5>
                                             <?php if (!empty($record['veterinarian'])): ?>
                                                 <small class="text-muted">
                                                     <i class="fas fa-user-md me-1"></i>Dr. <?php echo htmlspecialchars($record['veterinarian']); ?>
@@ -801,7 +803,7 @@ if ($is_authenticated) {
                     <h3 class="mb-0">
                         <i class="fas fa-history me-3"></i>Medical History Summary
                         <?php if ($pet_data && $pet_data['has_existing_records']): ?>
-                            <span class="badge bg-white text-green ms-2 fs-6">Complete History</span>
+                            <span class="badge bg-white text-success ms-2 fs-6">Complete History</span>
                         <?php endif; ?>
                     </h3>
                 </div>
@@ -812,7 +814,7 @@ if ($is_authenticated) {
                             <div class="col-xl-6">
                                 <div class="history-item h-100">
                                     <div class="d-flex align-items-center mb-3">
-                                        <div class="medical-icon" style="background: var(--pink-gradient);">
+                                        <div class="medical-icon" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);">
                                             <i class="fas fa-stethoscope"></i>
                                         </div>
                                         <h4 class="text-dark mb-0">Previous Conditions</h4>
@@ -832,7 +834,7 @@ if ($is_authenticated) {
                             <div class="col-xl-6">
                                 <div class="history-item h-100">
                                     <div class="d-flex align-items-center mb-3">
-                                        <div class="medical-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                                        <div class="medical-icon" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);">
                                             <i class="fas fa-syringe"></i>
                                         </div>
                                         <h4 class="text-dark mb-0">Vaccination History</h4>
@@ -852,7 +854,7 @@ if ($is_authenticated) {
                             <div class="col-xl-6">
                                 <div class="history-item h-100">
                                     <div class="d-flex align-items-center mb-3">
-                                        <div class="medical-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                                        <div class="medical-icon" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);">
                                             <i class="fas fa-scissors"></i>
                                         </div>
                                         <h4 class="text-dark mb-0">Surgical History</h4>
@@ -872,7 +874,7 @@ if ($is_authenticated) {
                             <div class="col-xl-6">
                                 <div class="history-item h-100">
                                     <div class="d-flex align-items-center mb-3">
-                                        <div class="medical-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                        <div class="medical-icon" style="background: linear-gradient(135deg, var(--success) 0%, #059669 100%);">
                                             <i class="fas fa-pills"></i>
                                         </div>
                                         <h4 class="text-dark mb-0">Medication History</h4>
@@ -893,7 +895,7 @@ if ($is_authenticated) {
                         <?php if (!empty($pet_data['records_location']) && trim($pet_data['records_location']) !== ''): ?>
                         <div class="history-item mt-4">
                             <div class="d-flex align-items-center mb-3">
-                                <div class="medical-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                <div class="medical-icon" style="background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);">
                                     <i class="fas fa-archive"></i>
                                 </div>
                                 <h4 class="text-dark mb-0">Existing Records Location</h4>
@@ -958,8 +960,8 @@ if ($is_authenticated) {
             <!-- Footer -->
             <footer class="text-center text-muted mt-5 pt-5 border-top">
                 <div class="mb-3">
-                    <i class="fas fa-paw fa-2x text-pink-dark me-2"></i>
-                    <strong class="text-pink-darker fs-4">PetMedQR</strong>
+                    <i class="fas fa-paw fa-2x text-primary me-2"></i>
+                    <strong class="text-primary-dark fs-4">PetMedQR</strong>
                 </div>
                 <p class="mb-2 small">&copy; <?php echo date('Y'); ?> PetMedQR Medical Records System</p>
                 <p class="small text-muted">Secure QR-based pet medical records access for emergency veterinary care</p>
@@ -978,7 +980,7 @@ if ($is_authenticated) {
 <!-- WAITING FOR APPROVAL PAGE (Vet sees this after submitting request) -->
 <div class="auth-container">
     <div class="auth-card text-center">
-        <div class="auth-icon waiting-animation" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+        <div class="auth-icon waiting-animation" style="background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);">
             <i class="fas fa-clock"></i>
         </div>
         <h2 class="text-warning mb-3">Waiting for Approval</h2>
