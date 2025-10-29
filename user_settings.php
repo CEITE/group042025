@@ -685,7 +685,7 @@ if (isset($_SESSION['error'])) {
                 <p class="text-muted mb-3">Manage your account security and privacy settings</p>
                 
                 <div class="action-grid">
-                    <a href="change_password.php" class="action-btn border-warning">
+                    <a href="forgot-password.php" class="action-btn border-warning">
                         <i class="fas fa-key"></i>
                         <div>
                             <strong>Change Password</strong>
@@ -914,3 +914,4 @@ if (isset($_SESSION['error'])) {
     </script>
 </body>
 </html>
+
