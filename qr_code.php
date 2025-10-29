@@ -74,22 +74,19 @@ $base_url = 'https://group042025.ceitesystems.com';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --pink: #ffd6e7;
-            --pink-2: #f7c5e0;
-            --pink-dark: #ec4899;
-            --pink-darker: #db2777;
-            --pink-light: #fff4f8;
-            --pink-gradient: linear-gradient(135deg, #f9a8d4 0%, #ec4899 100%);
-            --pink-gradient-light: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
-            --blue: #4a6cf7;
-            --green: #2ecc71;
-            --orange: #f39c12;
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
+            --secondary: #8b5cf6;
+            --light: #f0f9ff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
             --dark: #1f2937;
-            --light: #f8fafc;
             --gray: #6b7280;
             --gray-light: #e5e7eb;
-            --radius: 12px;
-            --radius-lg: 16px;
+            --radius: 16px;
+            --radius-lg: 20px;
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
@@ -102,7 +99,7 @@ $base_url = 'https://group042025.ceitesystems.com';
         
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+            background: linear-gradient(135deg, var(--light) 0%, #e0f2fe 100%);
             min-height: 100vh;
             color: var(--dark);
             line-height: 1.6;
@@ -116,7 +113,7 @@ $base_url = 'https://group042025.ceitesystems.com';
         /* Sidebar Styles */
         .sidebar {
             width: 280px;
-            background: linear-gradient(180deg, var(--pink-2) 0%, var(--pink-dark) 100%);
+            background: var(--primary-light);
             padding: 2rem 1.5rem;
             display: flex;
             flex-direction: column;
@@ -132,22 +129,21 @@ $base_url = 'https://group042025.ceitesystems.com';
             font-size: 1.4rem;
             text-align: center;
             margin-bottom: 2.5rem;
-            color: white;
+            color: var(--primary-dark);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .sidebar .profile {
             text-align: center;
             margin-bottom: 2rem;
             padding: 1.5rem 1rem;
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.6);
             border-radius: var(--radius-lg);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.8);
             position: relative;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -176,7 +172,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             height: 80px;
             border-radius: 50%;
             margin-bottom: 1rem;
-            border: 3px solid rgba(255, 255, 255, 0.3);
+            border: 3px solid var(--primary);
             object-fit: cover;
             box-shadow: var(--shadow);
             transition: all 0.3s ease;
@@ -187,13 +183,13 @@ $base_url = 'https://group042025.ceitesystems.com';
         }
         
         .sidebar .profile h6 {
-            color: white;
+            color: var(--dark);
             margin-bottom: 0.25rem;
             font-weight: 600;
         }
         
         .sidebar .profile small {
-            color: rgba(255, 255, 255, 0.9);
+            color: var(--gray);
             font-size: 0.8rem;
         }
         
@@ -204,7 +200,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             border-radius: var(--radius);
             margin: 0.5rem 0;
             text-decoration: none;
-            color: rgba(255, 255, 255, 0.9);
+            color: var(--dark);
             font-weight: 500;
             transition: all 0.3s ease;
             border: 1px solid transparent;
@@ -216,20 +212,20 @@ $base_url = 'https://group042025.ceitesystems.com';
             border-radius: 10px;
             display: grid;
             place-items: center;
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.6);
             margin-right: 12px;
             transition: all 0.3s ease;
         }
         
         .sidebar a.active, .sidebar a:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--primary-dark);
+            border-color: rgba(14, 165, 233, 0.3);
             transform: translateX(5px);
         }
         
         .sidebar a.active .icon, .sidebar a:hover .icon {
-            background: rgba(255, 255, 255, 0.25);
+            background: rgba(14, 165, 233, 0.2);
             transform: scale(1.1);
         }
         
@@ -237,16 +233,16 @@ $base_url = 'https://group042025.ceitesystems.com';
             margin-top: auto;
             font-weight: 600;
             color: white;
-            background: rgba(219, 39, 119, 0.9);
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
             text-align: center;
             padding: 12px;
             border-radius: var(--radius);
             transition: all 0.3s ease;
-            border: 1px solid rgba(219, 39, 119, 0.3);
+            border: none;
         }
         
         .sidebar .logout:hover {
-            background: var(--pink-darker);
+            background: linear-gradient(135deg, #c82333, #dc3545);
             transform: translateY(-2px);
             box-shadow: var(--shadow);
         }
@@ -271,12 +267,12 @@ $base_url = 'https://group042025.ceitesystems.com';
             align-items: center;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.8);
-            background: linear-gradient(135deg, white 0%, var(--pink-light) 100%);
+            background: linear-gradient(135deg, white 0%, var(--light) 100%);
         }
         
         .topbar h5 {
             font-weight: 700;
-            color: var(--pink-darker);
+            color: var(--primary-dark);
             margin-bottom: 0.25rem;
         }
         
@@ -295,7 +291,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             border: none;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.8);
-            background: linear-gradient(135deg, white 0%, var(--pink-light) 100%);
+            background: linear-gradient(135deg, white 0%, var(--light) 100%);
         }
         
         /* QR Cards */
@@ -316,7 +312,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             position: relative;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.8);
-            background: linear-gradient(135deg, white 0%, var(--pink-light) 100%);
+            background: linear-gradient(135deg, white 0%, var(--light) 100%);
         }
         
         .qr-card:hover {
@@ -331,7 +327,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
         }
         
         .qr-card-header {
@@ -339,8 +335,8 @@ $base_url = 'https://group042025.ceitesystems.com';
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: var(--pink-gradient);
-            color: white;
+            background: linear-gradient(135deg, var(--light), var(--primary-light));
+            color: var(--dark);
             position: relative;
             overflow: hidden;
         }
@@ -364,9 +360,9 @@ $base_url = 'https://group042025.ceitesystems.com';
             align-items: center;
             justify-content: center;
             font-size: 2rem;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.6);
             backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.8);
             box-shadow: var(--shadow);
         }
         
@@ -379,7 +375,7 @@ $base_url = 'https://group042025.ceitesystems.com';
         .qr-container {
             display: inline-block;
             margin-bottom: 1.5rem;
-            border: 2px solid var(--pink);
+            border: 2px solid var(--primary-light);
             border-radius: var(--radius);
             padding: 20px;
             background: white;
@@ -395,7 +391,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(45deg, transparent 40%, rgba(236, 72, 153, 0.1) 50%, transparent 60%);
+            background: linear-gradient(45deg, transparent 40%, rgba(14, 165, 233, 0.1) 50%, transparent 60%);
             animation: shimmer 3s infinite;
         }
         
@@ -413,13 +409,13 @@ $base_url = 'https://group042025.ceitesystems.com';
         }
         
         .pet-info-badge {
-            background: var(--pink-light);
-            border: 1px solid var(--pink);
+            background: var(--primary-light);
+            border: 1px solid var(--primary);
             border-radius: 20px;
             padding: 8px 16px;
             font-size: 0.8rem;
             font-weight: 500;
-            color: var(--pink-darker);
+            color: var(--primary-dark);
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -427,7 +423,7 @@ $base_url = 'https://group042025.ceitesystems.com';
         }
         
         .pet-info-badge:hover {
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
             transform: translateY(-2px);
             box-shadow: var(--shadow);
@@ -476,7 +472,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
-            background: linear-gradient(135deg, white 0%, var(--pink-light) 100%);
+            background: linear-gradient(135deg, white 0%, var(--light) 100%);
         }
         
         .stat-card:hover {
@@ -491,13 +487,13 @@ $base_url = 'https://group042025.ceitesystems.com';
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
         }
         
         .stat-number {
             font-size: 2.5rem;
             font-weight: 800;
-            color: var(--pink-darker);
+            color: var(--primary-dark);
             margin-bottom: 0.5rem;
             line-height: 1;
         }
@@ -512,7 +508,7 @@ $base_url = 'https://group042025.ceitesystems.com';
         
         /* Bulk Actions */
         .bulk-actions {
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             border-radius: var(--radius-lg);
             padding: 2rem;
             margin-bottom: 2rem;
@@ -543,13 +539,13 @@ $base_url = 'https://group042025.ceitesystems.com';
             font-size: 5rem;
             margin-bottom: 1.5rem;
             opacity: 0.3;
-            color: var(--pink-darker);
+            color: var(--primary-dark);
         }
         
         .empty-state h5 {
             font-weight: 700;
             margin-bottom: 1rem;
-            color: var(--pink-darker);
+            color: var(--primary-dark);
         }
         
         /* Buttons */
@@ -567,12 +563,12 @@ $base_url = 'https://group042025.ceitesystems.com';
         }
         
         .btn-primary {
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             border: none;
         }
         
         .btn-primary:hover {
-            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+            background: linear-gradient(135deg, var(--primary-dark) 0%, #0369a1 100%);
         }
         
         .btn-success {
@@ -586,12 +582,12 @@ $base_url = 'https://group042025.ceitesystems.com';
         }
         
         .btn-outline-primary {
-            border-color: var(--pink-dark);
-            color: var(--pink-dark);
+            border-color: var(--primary);
+            color: var(--primary);
         }
         
         .btn-outline-primary:hover {
-            background: var(--pink-dark);
+            background: var(--primary);
             color: white;
         }
         
@@ -614,7 +610,7 @@ $base_url = 'https://group042025.ceitesystems.com';
         }
         
         .bg-primary {
-            background: var(--pink-gradient) !important;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
         }
         
         /* Responsive */
@@ -697,12 +693,12 @@ $base_url = 'https://group042025.ceitesystems.com';
         }
         
         ::-webkit-scrollbar-thumb {
-            background: var(--pink-dark);
+            background: var(--primary);
             border-radius: 10px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--pink-darker);
+            background: var(--primary-dark);
         }
         
         /* Loading Animation */
@@ -744,7 +740,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             top: 10px;
             right: 10px;
             background: rgba(255, 255, 255, 0.9);
-            color: var(--pink-darker);
+            color: var(--primary-dark);
             padding: 4px 8px;
             border-radius: 12px;
             font-size: 0.7rem;
@@ -1020,7 +1016,7 @@ $base_url = 'https://group042025.ceitesystems.com';
 <div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius: var(--radius-lg); border: none;">
-            <div class="modal-header" style="background: var(--pink-gradient); color: white; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
                 <h5 class="modal-title fw-bold" id="qrModalTitle">
                     <i class="fas fa-qrcode me-2"></i>QR Code
                 </h5>
@@ -1028,7 +1024,7 @@ $base_url = 'https://group042025.ceitesystems.com';
             </div>
             <div class="modal-body text-center py-4">
                 <div id="modalQrContainer" class="mb-4"></div>
-                <div id="modalQrData" class="qr-data-preview mb-3" style="display: none; background: var(--pink-light); border-radius: var(--radius); padding: 1rem; border: 1px solid var(--pink);"></div>
+                <div id="modalQrData" class="qr-data-preview mb-3" style="display: none; background: var(--primary-light); border-radius: var(--radius); padding: 1rem; border: 1px solid var(--primary);"></div>
                 <p class="text-muted mb-0">Scan this QR code to view our professional medical landing page</p>
                 <div class="mt-3">
                     <small class="text-muted" id="modalQrUrl"></small>
@@ -1054,14 +1050,14 @@ $base_url = 'https://group042025.ceitesystems.com';
 <div class="modal fade" id="allQrDataModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content" style="border-radius: var(--radius-lg); border: none;">
-            <div class="modal-header" style="background: var(--pink-gradient); color: white; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
                 <h5 class="modal-title fw-bold">
                     <i class="fas fa-database me-2"></i>All QR Code URLs
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0">
-                <div id="allQrDataContent" class="qr-data-preview" style="max-height: 60vh; overflow-y: auto; margin: 0; border-radius: 0; background: var(--pink-light); padding: 1rem;"></div>
+                <div id="allQrDataContent" class="qr-data-preview" style="max-height: 60vh; overflow-y: auto; margin: 0; border-radius: 0; background: var(--primary-light); padding: 1rem;"></div>
             </div>
             <div class="modal-footer" style="border-top: 1px solid var(--gray-light);">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
