@@ -10,6 +10,53 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vet') {
 
 $vet_id = $_SESSION['user_id'];
 
+// Handle profile picture upload
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_picture'])) {
+    $upload_dir = "uploads/profiles/";
+    
+    // Create directory if it doesn't exist
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
+    
+    $file_name = time() . '_' . basename($_FILES['profile_picture']['name']);
+    $target_file = $upload_dir . $file_name;
+    $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+    
+    // Check if image file is actual image
+    $check = getimagesize($_FILES['profile_picture']['tmp_name']);
+    if ($check === false) {
+        $_SESSION['error'] = "File is not an image.";
+    } 
+    // Check file size (5MB max)
+    elseif ($_FILES['profile_picture']['size'] > 5000000) {
+        $_SESSION['error'] = "File is too large. Maximum size is 5MB.";
+    }
+    // Allow certain file formats
+    elseif (!in_array($imageFileType, ['jpg', 'jpeg', 'png', 'gif'])) {
+        $_SESSION['error'] = "Only JPG, JPEG, PNG & GIF files are allowed.";
+    }
+    // Upload file
+    elseif (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $target_file)) {
+        // Update database
+        $update_stmt = $conn->prepare("UPDATE users SET profile_picture = ? WHERE user_id = ?");
+        $update_stmt->bind_param("si", $target_file, $vet_id);
+        
+        if ($update_stmt->execute()) {
+            $_SESSION['profile_picture'] = $target_file;
+            $_SESSION['success'] = "Profile picture updated successfully!";
+        } else {
+            $_SESSION['error'] = "Error updating profile picture in database.";
+        }
+        $update_stmt->close();
+    } else {
+        $_SESSION['error'] = "Error uploading file.";
+    }
+    
+    header("Location: vet_appointments.php");
+    exit();
+}
+
 // ✅ 2. Fetch logged-in vet info
 $stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $vet_id);
@@ -154,17 +201,22 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #ec4899;
-            --primary-dark: #db2777;
-            --primary-light: #fbcfe8;
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
             --secondary: #8b5cf6;
-            --accent: #f97316;
+            --light: #f0f9ff;
             --success: #10b981;
+            --success-light: #d1fae5;
             --warning: #f59e0b;
+            --warning-light: #fef3c7;
             --danger: #ef4444;
-            --light: #fdf2f8;
+            --danger-light: #fee2e2;
             --dark: #1f2937;
-            --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            --gray: #6b7280;
+            --gray-light: #e5e7eb;
+            --radius: 16px;
+            --shadow: 0 3px 10px rgba(0,0,0,0.1);
             --hover-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
             --sidebar-width: 280px;
         }
@@ -177,8 +229,8 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #fdf2f8 0%, #f3e8ff 100%);
-            color: #374151;
+            background: linear-gradient(135deg, var(--light) 0%, var(--primary-light) 100%);
+            color: var(--dark);
             line-height: 1.6;
         }
         
@@ -221,8 +273,9 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
             margin-bottom: 3rem;
             padding: 1.5rem 1rem;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
+            border-radius: var(--radius);
             backdrop-filter: blur(10px);
+            position: relative;
         }
         
         .profile img {
@@ -232,7 +285,36 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
             margin-bottom: 1rem;
             border: 4px solid rgba(255, 255, 255, 0.3);
             object-fit: cover;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .profile img:hover {
+            transform: scale(1.05);
+            opacity: 0.8;
+        }
+        
+        .profile-edit-overlay {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s;
+            cursor: pointer;
+        }
+        
+        .profile:hover .profile-edit-overlay {
+            opacity: 1;
         }
         
         .profile h6 {
@@ -256,7 +338,7 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
             display: flex;
             align-items: center;
             padding: 1rem 1.25rem;
-            border-radius: 16px;
+            border-radius: var(--radius);
             text-decoration: none;
             color: rgba(255, 255, 255, 0.9);
             font-weight: 600;
@@ -274,7 +356,7 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
             background: rgba(255, 255, 255, 0.2);
             color: white;
             border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow);
         }
         
         .nav-link i {
@@ -306,8 +388,8 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         .topbar {
             background: white;
             padding: 1.5rem 2rem;
-            border-radius: 20px;
-            box-shadow: var(--card-shadow);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
             margin-bottom: 2rem;
             display: flex;
             justify-content: space-between;
@@ -322,7 +404,7 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         }
         
         .welcome-section p {
-            color: #6b7280;
+            color: var(--gray);
             margin-bottom: 0;
         }
         
@@ -336,7 +418,7 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         }
         
         .datetime-display small {
-            color: #6b7280;
+            color: var(--gray);
             font-weight: 500;
         }
         
@@ -348,9 +430,9 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         .stats-card {
             background: white;
             padding: 2rem 1.5rem;
-            border-radius: 20px;
+            border-radius: var(--radius);
             text-align: center;
-            box-shadow: var(--card-shadow);
+            box-shadow: var(--shadow);
             border: 1px solid rgba(255, 255, 255, 0.8);
             transition: all 0.3s ease;
             height: 100%;
@@ -370,7 +452,7 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         }
         
         .stats-card h6 {
-            color: #6b7280;
+            color: var(--gray);
             font-weight: 600;
             margin-bottom: 0.5rem;
         }
@@ -384,9 +466,9 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         /* Custom Cards */
         .card-custom {
             background: white;
-            border-radius: 20px;
+            border-radius: var(--radius);
             padding: 2rem;
-            box-shadow: var(--card-shadow);
+            box-shadow: var(--shadow);
             margin-bottom: 2rem;
             border: 1px solid rgba(255, 255, 255, 0.8);
         }
@@ -412,15 +494,17 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
             border: none;
             color: white;
             padding: 0.75rem 1.5rem;
-            border-radius: 16px;
+            border-radius: var(--radius);
             font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
         }
         
         .btn-primary:hover {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+            color: white;
         }
         
         .btn-outline-primary {
@@ -428,7 +512,7 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
             color: var(--primary);
             background: transparent;
             padding: 0.75rem 1.5rem;
-            border-radius: 16px;
+            border-radius: var(--radius);
             font-weight: 600;
             transition: all 0.3s ease;
         }
@@ -465,10 +549,10 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         /* Appointment Cards */
         .appointment-card {
             background: white;
-            border-radius: 20px;
+            border-radius: var(--radius);
             overflow: hidden;
             transition: all 0.3s ease;
-            box-shadow: var(--card-shadow);
+            box-shadow: var(--shadow);
             border: 1px solid rgba(255, 255, 255, 0.8);
             margin-bottom: 1.5rem;
         }
@@ -524,7 +608,7 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         
         .appointment-info-value {
             font-weight: 500;
-            color: #374151;
+            color: var(--dark);
         }
         
         /* Badges */
@@ -584,7 +668,7 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         .empty-state {
             text-align: center;
             padding: 4rem 2rem;
-            color: #6b7280;
+            color: var(--gray);
         }
         
         .empty-state i {
@@ -604,27 +688,27 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         
         /* Alerts */
         .alert {
-            border-radius: 16px;
+            border-radius: var(--radius);
             border: none;
             padding: 1.25rem 1.5rem;
-            box-shadow: var(--card-shadow);
+            box-shadow: var(--shadow);
         }
         
         .alert-success {
-            background: rgba(16, 185, 129, 0.1);
+            background: var(--success-light);
             color: var(--success);
             border-left: 4px solid var(--success);
         }
         
         .alert-danger {
-            background: rgba(239, 68, 68, 0.1);
+            background: var(--danger-light);
             color: var(--danger);
             border-left: 4px solid var(--danger);
         }
         
         /* Modal Styles */
         .modal-content {
-            border-radius: 20px;
+            border-radius: var(--radius);
             border: none;
             box-shadow: var(--hover-shadow);
         }
@@ -632,7 +716,7 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         .modal-header {
             background: linear-gradient(135deg, var(--primary-light), var(--primary));
             color: white;
-            border-radius: 20px 20px 0 0;
+            border-radius: var(--radius) var(--radius) 0 0;
             border: none;
             padding: 1.5rem 2rem;
         }
@@ -647,16 +731,16 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         
         /* Form Styles */
         .form-control, .form-select {
-            border-radius: 16px;
+            border-radius: var(--radius);
             padding: 0.75rem 1rem;
-            border: 2px solid #f3f4f6;
-            background: #fdf2f8;
+            border: 2px solid var(--gray-light);
+            background: var(--light);
             transition: all 0.3s ease;
         }
         
         .form-control:focus, .form-select:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
             transform: translateY(-2px);
             background: white;
         }
@@ -704,9 +788,14 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
         </div>
         
         <div class="profile">
-            <img src="<?php echo htmlspecialchars($profile_picture); ?>" 
-                 alt="Veterinarian"
-                 onerror="this.src='https://i.pravatar.cc/100?u=<?php echo urlencode($vet['name']); ?>'">
+            <div class="profile-picture-container" data-bs-toggle="modal" data-bs-target="#profilePictureModal">
+                <img src="<?php echo htmlspecialchars($profile_picture); ?>" 
+                     alt="Veterinarian"
+                     onerror="this.src='https://i.pravatar.cc/100?u=<?php echo urlencode($vet['name']); ?>'">
+                <div class="profile-edit-overlay">
+                    <i class="fas fa-camera"></i>
+                </div>
+            </div>
             <h6>Dr. <?php echo htmlspecialchars($vet['name']); ?></h6>
             <small>Veterinarian</small>
         </div>
@@ -912,6 +1001,46 @@ $pets = $pets_result->fetch_all(MYSQLI_ASSOC);
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Picture Modal -->
+<div class="modal fade" id="profilePictureModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Profile Picture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="vet_appointments.php" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <img src="<?php echo htmlspecialchars($profile_picture); ?>" 
+                             alt="Current Profile" 
+                             id="currentProfilePicture"
+                             class="rounded-circle mb-3"
+                             style="width: 150px; height: 150px; object-fit: cover; border: 3px solid var(--primary);"
+                             onerror="this.src='https://i.pravatar.cc/150?u=<?php echo urlencode($vet['name']); ?>'">
+                        <div id="imagePreview" class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover; border: 3px solid var(--primary); display: none;"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="profile_picture" class="form-label">Choose New Profile Picture</label>
+                        <input type="file" class="form-control" id="profile_picture" name="profile_picture" accept="image/*" required>
+                        <div class="form-text">Supported formats: JPG, JPEG, PNG, GIF. Max size: 5MB</div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Your profile picture will be visible to pet owners when you confirm their appointments.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Profile Picture</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -1145,8 +1274,28 @@ function editAppointment(appointmentId) {
         });
 }
 
-// Set minimum date to today for appointment scheduling
+// Image preview for profile picture upload
 document.addEventListener('DOMContentLoaded', function() {
+    const profilePictureInput = document.getElementById('profile_picture');
+    const imagePreview = document.getElementById('imagePreview');
+    const currentProfilePicture = document.getElementById('currentProfilePicture');
+    
+    if (profilePictureInput) {
+        profilePictureInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.style.backgroundImage = `url(${e.target.result})`;
+                    imagePreview.style.display = 'block';
+                    currentProfilePicture.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Set minimum date to today for appointment scheduling
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('appointment_date').min = today;
     
