@@ -11,24 +11,28 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root{
-            --pink:#ffd6e7;
-            --pink-2:#f7c5e0;
-            --pink-dark:#bf3b78;
-            --pink-darker:#8c2859;
-            --pink-gradient: linear-gradient(135deg, #ff6b9d 0%, #bf3b78 100%);
-            --ink:#2a2e34;
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
+            --secondary: #8b5cf6;
+            --light: #f0f9ff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --ink: #2a2e34;
             --ink-light: #5d6370;
             --white: #ffffff;
-            --bg-light: #fef9fb;
-            --hi:#ff6b6b;     /* high risk */
-            --med:#ffa94d;    /* medium risk */
-            --low:#74c69d;    /* low risk */
-            --muted:#e9ecef;  /* no data */
+            --bg-light: #f0f9ff;
+            --hi: #ef4444;     /* high risk */
+            --med: #f59e0b;    /* medium risk */
+            --low: #10b981;    /* low risk */
+            --muted: #e9ecef;  /* no data */
             --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
             --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.12);
-            --shadow-lg: 0 20px 60px rgba(191, 59, 120, 0.15);
+            --shadow-lg: 0 20px 60px rgba(14, 165, 233, 0.15);
             --border-radius: 16px;
             --border-radius-lg: 24px;
+            --primary-gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
         }
 
         * {
@@ -55,34 +59,34 @@
         }
 
         ::-webkit-scrollbar-thumb {
-            background: var(--pink-dark);
+            background: var(--primary);
             border-radius: 10px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--pink-darker);
+            background: var(--primary-dark);
         }
 
         /* Improved Navigation */
         .navbar{
-            background: rgba(255, 248, 252, 0.98);
-            border-bottom: 1px solid rgba(241, 230, 240, 0.8); 
+            background: rgba(240, 249, 255, 0.98);
+            border-bottom: 1px solid rgba(224, 242, 254, 0.8); 
             padding: 1rem 0;
             backdrop-filter: blur(20px);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 1px 20px rgba(191, 59, 120, 0.08);
+            box-shadow: 0 1px 20px rgba(14, 165, 233, 0.08);
             z-index: 1000;
         }
 
         .navbar.scrolled {
             padding: 0.7rem 0;
-            background: rgba(255, 248, 252, 0.95);
-            box-shadow: 0 4px 30px rgba(191, 59, 120, 0.1);
+            background: rgba(240, 249, 255, 0.95);
+            box-shadow: 0 4px 30px rgba(14, 165, 233, 0.1);
         }
 
         .navbar-brand {
             font-weight: 800;
-            color: var(--pink-dark);
+            color: var(--primary);
             font-size: 1.6rem;
             display: flex;
             align-items: center;
@@ -105,7 +109,7 @@
 
         .navbar .nav-link:hover,
         .navbar .nav-link.active {
-            color: var(--pink-dark);
+            color: var(--primary);
         }
 
         .navbar .nav-link::after {
@@ -115,7 +119,7 @@
             left: 50%;
             width: 0;
             height: 2px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             transition: all 0.3s ease;
             transform: translateX(-50%);
             border-radius: 2px;
@@ -131,7 +135,7 @@
             position: relative;
             padding: 120px 0 150px;
             overflow: hidden;
-            background: linear-gradient(135deg, var(--bg-light) 0%, #fff5f9 100%);
+            background: linear-gradient(135deg, var(--bg-light) 0%, #e0f2fe 100%);
         }
 
         .hero::before {
@@ -141,7 +145,7 @@
             right: -10%;
             width: 600px;
             height: 600px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             border-radius: 50%;
             opacity: 0.1;
             animation: float 6s ease-in-out infinite;
@@ -154,7 +158,7 @@
             left: -10%;
             width: 400px;
             height: 400px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             border-radius: 50%;
             opacity: 0.08;
             animation: float 8s ease-in-out infinite reverse;
@@ -296,7 +300,7 @@
 
         .hero-badge {
             background: rgba(255, 255, 255, 0.95);
-            color: var(--pink-dark);
+            color: var(--primary);
             font-weight: 600;
             padding: 0.8rem 2rem;
             border-radius: 50px;
@@ -304,7 +308,7 @@
             align-items: center;
             gap: 0.5rem;
             margin-bottom: 2rem;
-            border: 1px solid rgba(191, 59, 120, 0.2);
+            border: 1px solid rgba(14, 165, 233, 0.2);
             box-shadow: var(--shadow-sm);
             backdrop-filter: blur(10px);
             animation: pulse 2s infinite;
@@ -348,27 +352,27 @@
             left: 100%;
         }
 
-        .btn-pink{
-            background: var(--pink-gradient);
+        .btn-primary{
+            background: var(--primary-gradient);
             color: var(--white);
-            box-shadow: 0 8px 25px rgba(191, 59, 120, 0.3);
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.3);
         }
 
-        .btn-pink:hover{
+        .btn-primary:hover{
             transform: translateY(-3px);
-            box-shadow: 0 12px 35px rgba(191, 59, 120, 0.4);
+            box-shadow: 0 12px 35px rgba(14, 165, 233, 0.4);
         }
 
-        .btn-outline-pink{
+        .btn-outline-primary{
             color: var(--white);
             border: 2px solid var(--white);
             background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(10px);
         }
 
-        .btn-outline-pink:hover{
+        .btn-outline-primary:hover{
             background: var(--white);
-            color: var(--pink-dark);
+            color: var(--primary);
             transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(255, 255, 255, 0.2);
         }
@@ -402,7 +406,7 @@
         .feature-icon {
             width: 50px;
             height: 50px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             border-radius: 12px;
             display: flex;
             align-items: center;
@@ -423,7 +427,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 248, 252, 0.98);
+            background: rgba(240, 249, 255, 0.98);
             backdrop-filter: blur(20px);
             display: flex;
             align-items: center;
@@ -462,15 +466,15 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
         }
 
         .role-title {
             font-weight: 800;
-            color: var(--pink-dark);
+            color: var(--primary);
             margin-bottom: 1rem;
             font-size: 2.8rem;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -492,7 +496,7 @@
 
         .role-card {
             background: var(--white);
-            border: 2px solid #f8f0f5;
+            border: 2px solid #e0f2fe;
             border-radius: var(--border-radius-lg);
             padding: 3rem 2rem;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -509,14 +513,14 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             transform: scaleX(0);
             transition: transform 0.3s ease;
         }
 
         .role-card:hover {
             transform: translateY(-10px) scale(1.02);
-            border-color: var(--pink-dark);
+            border-color: var(--primary);
             box-shadow: var(--shadow-lg);
         }
 
@@ -525,8 +529,8 @@
         }
 
         .role-card.active {
-            border-color: var(--pink-dark);
-            background: linear-gradient(135deg, #fff8fc, #ffeaf3);
+            border-color: var(--primary);
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
             transform: translateY(-5px);
             box-shadow: var(--shadow-md);
         }
@@ -538,13 +542,13 @@
         .role-icon {
             width: 90px;
             height: 90px;
-            background: rgba(191, 59, 120, 0.1);
+            background: rgba(14, 165, 233, 0.1);
             border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 2rem;
-            color: var(--pink-dark);
+            color: var(--primary);
             font-size: 2.8rem;
             transition: all 0.4s ease;
             position: relative;
@@ -554,7 +558,7 @@
             content: '';
             position: absolute;
             inset: -5px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             border-radius: 25px;
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -562,7 +566,7 @@
         }
 
         .role-card:hover .role-icon {
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             color: var(--white);
             transform: scale(1.1) rotate(5deg);
         }
@@ -607,12 +611,12 @@
         }
 
         .role-features li:hover {
-            color: var(--pink-dark);
+            color: var(--primary);
             transform: translateX(5px);
         }
 
         .role-features li i {
-            color: var(--pink-dark);
+            color: var(--primary);
             font-size: 1rem;
             transition: all 0.3s ease;
         }
@@ -622,7 +626,7 @@
         }
 
         .role-continue-btn {
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             color: var(--white);
             border: none;
             border-radius: 50px;
@@ -632,7 +636,7 @@
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             opacity: 0.7;
             cursor: not-allowed;
-            box-shadow: 0 8px 25px rgba(191, 59, 120, 0.3);
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.3);
             position: relative;
             overflow: hidden;
         }
@@ -644,7 +648,7 @@
 
         .role-continue-btn.active:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 35px rgba(191, 59, 120, 0.4);
+            box-shadow: 0 12px 35px rgba(14, 165, 233, 0.4);
         }
 
         /* Enhanced Verification Modal */
@@ -654,7 +658,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 248, 252, 0.98);
+            background: rgba(240, 249, 255, 0.98);
             backdrop-filter: blur(20px);
             display: flex;
             align-items: center;
@@ -692,15 +696,15 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
         }
 
         .verification-title {
             font-weight: 800;
-            color: var(--pink-dark);
+            color: var(--primary);
             margin-bottom: 1rem;
             font-size: 2.2rem;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -738,15 +742,15 @@
         }
 
         .form-control:focus {
-            border-color: var(--pink-dark);
-            box-shadow: 0 0 0 3px rgba(191, 59, 120, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
             outline: none;
             transform: translateY(-2px);
         }
 
         .verification-badge {
-            background: rgba(191, 59, 120, 0.1);
-            color: var(--pink-dark);
+            background: rgba(14, 165, 233, 0.1);
+            color: var(--primary);
             padding: 1rem 2rem;
             border-radius: 50px;
             display: inline-flex;
@@ -755,7 +759,7 @@
             margin-bottom: 2.5rem;
             font-weight: 600;
             font-size: 1rem;
-            border: 1px solid rgba(191, 59, 120, 0.2);
+            border: 1px solid rgba(14, 165, 233, 0.2);
         }
 
         .btn-group {
@@ -782,7 +786,7 @@
         }
 
         .btn-verify {
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             color: var(--white);
             border: none;
             border-radius: 50px;
@@ -790,12 +794,12 @@
             font-weight: 600;
             transition: all 0.3s ease;
             flex: 1;
-            box-shadow: 0 8px 25px rgba(191, 59, 120, 0.3);
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.3);
         }
 
         .btn-verify:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 35px rgba(191, 59, 120, 0.4);
+            box-shadow: 0 12px 35px rgba(14, 165, 233, 0.4);
         }
 
         /* Enhanced Sections */
@@ -810,7 +814,7 @@
             color: var(--ink);
             font-size: 2.8rem;
             text-align: center;
-            background: linear-gradient(135deg, var(--ink) 0%, var(--pink-dark) 100%);
+            background: linear-gradient(135deg, var(--ink) 0%, var(--primary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -848,7 +852,7 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             transform: scaleX(0);
             transition: transform 0.3s ease;
         }
@@ -865,26 +869,26 @@
         .feature-icon-wrapper {
             width: 80px;
             height: 80px;
-            background: rgba(191, 59, 120, 0.1);
+            background: rgba(14, 165, 233, 0.1);
             border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 2rem;
-            color: var(--pink-dark);
+            color: var(--primary);
             font-size: 2.5rem;
             transition: all 0.4s ease;
         }
 
         .feature-card:hover .feature-icon-wrapper {
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             color: var(--white);
             transform: scale(1.1) rotate(5deg);
         }
 
         /* Enhanced Research Section */
         .research-section {
-            background: linear-gradient(135deg, #faf5f8 0%, #fff 100%);
+            background: linear-gradient(135deg, #f0f9ff 0%, #fff 100%);
             position: relative;
         }
 
@@ -895,7 +899,7 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
         }
 
         .research-card {
@@ -903,7 +907,7 @@
             border-radius: var(--border-radius);
             padding: 2.5rem;
             margin-bottom: 2rem;
-            border-left: 4px solid var(--pink-dark);
+            border-left: 4px solid var(--primary);
             box-shadow: var(--shadow-sm);
             transition: all 0.3s ease;
             position: relative;
@@ -917,7 +921,7 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(191, 59, 120, 0.05), transparent);
+            background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.05), transparent);
             transition: left 0.5s;
         }
 
@@ -931,7 +935,7 @@
         }
 
         .research-card h5 {
-            color: var(--pink-dark);
+            color: var(--primary);
             margin-bottom: 1.2rem;
             font-weight: 700;
             font-size: 1.3rem;
@@ -939,7 +943,7 @@
 
         /* Enhanced Team Section */
         .team-section {
-            background: linear-gradient(135deg, #fff8fc 0%, #fef5f9 100%);
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
         }
 
         .team-card {
@@ -960,7 +964,7 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             transform: scaleX(0);
             transition: transform 0.3s ease;
         }
@@ -987,7 +991,7 @@
 
         .team-card:hover .team-img {
             transform: scale(1.1);
-            border-color: var(--pink-dark);
+            border-color: var(--primary);
         }
 
         .team-content {
@@ -1001,7 +1005,7 @@
         }
 
         .team-role {
-            color: var(--pink-dark);
+            color: var(--primary);
             font-weight: 600;
             margin-bottom: 1rem;
             font-size: 1rem;
@@ -1009,7 +1013,7 @@
 
         /* Enhanced Contact Section */
         .contact-section {
-            background: linear-gradient(135deg, #fff8fc 0%, #ffeaf3 100%);
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             position: relative;
         }
 
@@ -1020,7 +1024,7 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
         }
 
         .contact-info {
@@ -1042,14 +1046,14 @@
         }
 
         .contact-item:hover {
-            background: rgba(191, 59, 120, 0.05);
+            background: rgba(14, 165, 233, 0.05);
             transform: translateX(5px);
         }
 
         .contact-icon {
             width: 60px;
             height: 60px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             border-radius: 15px;
             display: flex;
             align-items: center;
@@ -1068,7 +1072,7 @@
 
         /* About Section */
         .about-section {
-            background: linear-gradient(135deg, #faf5f8 0%, #fff 100%);
+            background: linear-gradient(135deg, #f0f9ff 0%, #fff 100%);
         }
 
         .about-content {
@@ -1086,7 +1090,7 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
         }
 
         .stats {
@@ -1099,20 +1103,20 @@
         .stat-item {
             text-align: center;
             padding: 2rem;
-            background: rgba(191, 59, 120, 0.05);
+            background: rgba(14, 165, 233, 0.05);
             border-radius: var(--border-radius);
             transition: all 0.3s ease;
         }
 
         .stat-item:hover {
             transform: translateY(-5px);
-            background: rgba(191, 59, 120, 0.1);
+            background: rgba(14, 165, 233, 0.1);
         }
 
         .stat-number {
             font-size: 2.5rem;
             font-weight: 800;
-            color: var(--pink-dark);
+            color: var(--primary);
             margin-bottom: 0.5rem;
         }
 
@@ -1137,15 +1141,15 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
         }
 
         footer .text-muted {
             color: #a0a4a8 !important;
         }
 
-        footer .text-pink-dark {
-            color: var(--pink) !important;
+        .text-primary {
+            color: var(--primary) !important;
         }
 
         /* Enhanced Scroll to top button */
@@ -1156,7 +1160,7 @@
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            background: var(--pink-gradient);
+            background: var(--primary-gradient);
             color: white;
             display: flex;
             align-items: center;
@@ -1178,7 +1182,7 @@
 
         .scroll-top:hover {
             transform: translateY(-3px) scale(1.1);
-            box-shadow: 0 15px 40px rgba(191, 59, 120, 0.4);
+            box-shadow: 0 15px 40px rgba(14, 165, 233, 0.4);
         }
 
         /* Form Controls */
@@ -1193,8 +1197,8 @@
         }
 
         .form-control:focus {
-            border-color: var(--pink-dark);
-            box-shadow: 0 0 0 3px rgba(191, 59, 120, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
             outline: none;
             transform: translateY(-2px);
         }
@@ -1346,17 +1350,13 @@
             transform: translateY(0);
         }
 
-        .text-pink-dark {
-            color: var(--pink-dark) !important;
-        }
-
         /* Loading Animation */
         .loading-spinner {
             display: none;
             width: 40px;
             height: 40px;
             border: 4px solid #f3f3f3;
-            border-top: 4px solid var(--pink-dark);
+            border-top: 4px solid var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto;
@@ -1481,8 +1481,8 @@
                 <li class="nav-item"><a class="nav-link" href="#research">Research</a></li>
                 <li class="nav-item"><a class="nav-link" href="#team">Team</a></li>
                 <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
-                <li class="nav-item ms-2"><a class="btn btn-outline-pink mt-1 mt-lg-0" href="#" onclick="showRoleModal()">Login</a></li>
-                <li class="nav-item ms-2"><a class="btn btn-pink mt-1 mt-lg-0" href="#">Get Started</a></li>
+                <li class="nav-item ms-2"><a class="btn btn-outline-primary mt-1 mt-lg-0" href="#" onclick="showRoleModal()">Login</a></li>
+                <li class="nav-item ms-2"><a class="btn btn-primary mt-1 mt-lg-0" href="#">Get Started</a></li>
             </ul>
         </div>
     </div>
@@ -1517,12 +1517,12 @@
         <div class="row align-items-center">
             <div class="col-lg-6 hero-content" data-aos="fade-right">
                 <span class="hero-badge"><i class="bi bi-star-fill me-2"></i>Modern Pet Healthcare</span>
-                <h1>Smart Pet Healthcare Management with <span class="text-pink-dark">QR Technology</span></h1>
+                <h1>Smart Pet Healthcare Management with <span class="text-primary">QR Technology</span></h1>
                 <p class="hero-subtitle">VetCare revolutionizes pet healthcare with QR-based medical records, predictive analytics, and real-time risk monitoring for healthier pet communities.</p>
 
                 <div class="cta-group">
-                    <a class="btn btn-pink" href="#">Get Started Free</a>
-                    <a class="btn btn-outline-pink" href="#" onclick="showRoleModal()">Login to Your Account</a>
+                    <a class="btn btn-primary" href="#">Get Started Free</a>
+                    <a class="btn btn-outline-primary" href="#" onclick="showRoleModal()">Login to Your Account</a>
                 </div>
 
                 <div class="feature-highlights">
@@ -1805,7 +1805,7 @@
                                 <textarea class="form-control" rows="5" placeholder="How can we help you?" required></textarea>
                             </div>
                             <div class="col-12">
-                                <button type="submit" class="btn btn-pink w-100">
+                                <button type="submit" class="btn btn-primary w-100">
                                     <i class="bi bi-send me-2"></i>Send Message
                                 </button>
                             </div>
@@ -1825,10 +1825,10 @@
                 <h4 class="mb-3"><i class="bi bi-qr-code me-2"></i>VetCare</h4>
                 <p class="text-muted">Revolutionizing pet healthcare through QR technology and predictive analytics for a healthier pet community.</p>
                 <div class="d-flex gap-3">
-                    <a href="#" class="text-pink-dark"><i class="bi bi-facebook" style="font-size: 1.2rem;"></i></a>
-                    <a href="#" class="text-pink-dark"><i class="bi bi-twitter" style="font-size: 1.2rem;"></i></a>
-                    <a href="#" class="text-pink-dark"><i class="bi bi-instagram" style="font-size: 1.2rem;"></i></a>
-                    <a href="#" class="text-pink-dark"><i class="bi bi-linkedin" style="font-size: 1.2rem;"></i></a>
+                    <a href="#" class="text-primary"><i class="bi bi-facebook" style="font-size: 1.2rem;"></i></a>
+                    <a href="#" class="text-primary"><i class="bi bi-twitter" style="font-size: 1.2rem;"></i></a>
+                    <a href="#" class="text-primary"><i class="bi bi-instagram" style="font-size: 1.2rem;"></i></a>
+                    <a href="#" class="text-primary"><i class="bi bi-linkedin" style="font-size: 1.2rem;"></i></a>
                 </div>
             </div>
             <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
@@ -1854,7 +1854,7 @@
                 <p class="text-muted mb-3">Subscribe to get updates on new features and pet healthcare tips.</p>
                 <div class="input-group">
                     <input type="email" class="form-control" placeholder="Your email address">
-                    <button class="btn btn-pink" type="button">Subscribe</button>
+                    <button class="btn btn-primary" type="button">Subscribe</button>
                 </div>
             </div>
         </div>
@@ -1864,7 +1864,7 @@
                 <p class="text-muted mb-0">© 2023 VetCare. All rights reserved.</p>
             </div>
             <div class="col-md-6 text-md-end">
-                <p class="text-muted mb-0">Made with <i class="bi bi-heart-fill text-pink-dark"></i> for pets everywhere</p>
+                <p class="text-muted mb-0">Made with <i class="bi bi-heart-fill text-primary"></i> for pets everywhere</p>
             </div>
         </div>
     </div>
@@ -2083,5 +2083,3 @@
 </script>
 </body>
 </html>
-
-
