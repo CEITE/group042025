@@ -35,12 +35,12 @@ function sendPasswordResetOTP($email, $name, $otp) {
         $mail->Port       = 587;
 
         // Recipients
-        $mail->setFrom('alimoromaira13@gmail.com', 'VetCareQR');
+        $mail->setFrom('alimoromaira13@gmail.com', 'PetMedQR');
         $mail->addAddress($email, $name);
 
         // Content
         $mail->isHTML(true);
-        $mail->Subject = 'VetCareQR - Password Reset Verification Code';
+        $mail->Subject = 'PetMedQR - Password Reset Verification Code';
         
         $mail->Body = "
         <html>
@@ -48,8 +48,8 @@ function sendPasswordResetOTP($email, $name, $otp) {
             <style>
                 body { font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px; }
                 .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-                .header { text-align: center; color: #bf3b78; }
-                .otp-code { font-size: 32px; font-weight: bold; text-align: center; color: #bf3b78; margin: 20px 0; padding: 15px; background: #fff8fc; border-radius: 10px; letter-spacing: 5px; }
+                .header { text-align: center; color: #0ea5e9; }
+                .otp-code { font-size: 32px; font-weight: bold; text-align: center; color: #0ea5e9; margin: 20px 0; padding: 15px; background: #f0f9ff; border-radius: 10px; letter-spacing: 5px; }
                 .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
                 .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin: 15px 0; }
             </style>
@@ -57,7 +57,7 @@ function sendPasswordResetOTP($email, $name, $otp) {
         <body>
             <div class='container'>
                 <div class='header'>
-                    <h2>🐾 VetCareQR</h2>
+                    <h2>🐾 PetMedQR</h2>
                     <h3>Password Reset Request</h3>
                 </div>
                 <p>Hello <strong>$name</strong>,</p>
@@ -67,14 +67,14 @@ function sendPasswordResetOTP($email, $name, $otp) {
                     <strong>Note:</strong> This code will expire in 10 minutes. If you didn't request a password reset, please ignore this email and your account will remain secure.
                 </div>
                 <div class='footer'>
-                    <p>© 2025 VetCareQR - Santa Rosa Municipal Veterinary Services</p>
+                    <p>© 2025 PetMedQR - Professional Pet Medical Records System</p>
                 </div>
             </div>
         </body>
         </html>
         ";
         
-        $mail->AltBody = "Hello $name,\n\nWe received a request to reset your password. Your verification code is: $otp\nThis code will expire in 10 minutes.\n\nIf you didn't request this, please ignore this email.\n\n© 2025 VetCareQR";
+        $mail->AltBody = "Hello $name,\n\nWe received a request to reset your password. Your verification code is: $otp\nThis code will expire in 10 minutes.\n\nIf you didn't request this, please ignore this email.\n\n© 2025 PetMedQR";
 
         $mail->send();
         return true;
@@ -220,7 +220,7 @@ if (isset($_POST['resend_otp'])) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VetCareQR — Forgot Password</title>
+  <title>PetMedQR — Forgot Password</title>
 
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -229,17 +229,19 @@ if (isset($_POST['resend_otp'])) {
 
   <style>
     :root {
-      --pink: #ffd6e7;
-      --pink-2: #f7c5e0;
-      --pink-dark: #bf3b78;
-      --pink-darker: #9c2c60;
-      --ink: #2a2e34;
-      --gray-light: #f8f9fa;
+      --primary: #0ea5e9;
+      --primary-dark: #0284c7;
+      --primary-light: #e0f2fe;
+      --secondary: #8b5cf6;
+      --light: #f0f9ff;
+      --dark: #1f2937;
+      --gray: #6b7280;
+      --gray-light: #e5e7eb;
     }
 
     body {
       font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
-      color: var(--ink);
+      color: var(--dark);
       background: #fff;
       display: flex;
       flex-direction: column;
@@ -253,18 +255,18 @@ if (isset($_POST['resend_otp'])) {
       justify-content: center;
       background: radial-gradient(
         1200px 600px at 15% 20%,
-        #ffe7f2 0%,
-        #ffd8ec 40%,
-        var(--pink) 100%
+        #e0f2fe 0%,
+        #bae6fd 40%,
+        var(--primary-light) 100%
       );
       padding: 40px 20px;
     }
 
     .password-card {
       background: #fff;
-      border: 1px solid #f0ddea;
+      border: 1px solid var(--primary-light);
       border-radius: 24px;
-      box-shadow: 0 15px 40px rgba(184, 71, 129, 0.12);
+      box-shadow: 0 15px 40px rgba(14, 165, 233, 0.12);
       padding: 40px 35px;
       max-width: 500px;
       width: 100%;
@@ -273,7 +275,7 @@ if (isset($_POST['resend_otp'])) {
 
     .password-card:hover {
       transform: translateY(-5px);
-      box-shadow: 0 20px 50px rgba(184, 71, 129, 0.15);
+      box-shadow: 0 20px 50px rgba(14, 165, 233, 0.15);
     }
 
     .logo-container {
@@ -282,7 +284,7 @@ if (isset($_POST['resend_otp'])) {
     }
 
     .logo-icon {
-      background: linear-gradient(135deg, var(--pink-dark), var(--pink-darker));
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
       color: white;
       width: 70px;
       height: 70px;
@@ -297,12 +299,12 @@ if (isset($_POST['resend_otp'])) {
     .welcome-title {
       font-weight: 800;
       margin-bottom: 5px;
-      color: var(--pink-darker);
+      color: var(--primary-dark);
       font-size: 28px;
     }
 
     .welcome-subtitle {
-      color: #6c757d;
+      color: var(--gray);
       margin-bottom: 30px;
       font-size: 15px;
       line-height: 1.5;
@@ -311,7 +313,7 @@ if (isset($_POST['resend_otp'])) {
     .form-label {
       font-weight: 600;
       margin-bottom: 8px;
-      color: var(--ink);
+      color: var(--dark);
       font-size: 14px;
     }
 
@@ -324,7 +326,7 @@ if (isset($_POST['resend_otp'])) {
       left: 15px;
       top: 50%;
       transform: translateY(-50%);
-      color: #6c757d;
+      color: var(--gray);
       z-index: 5;
     }
 
@@ -335,8 +337,8 @@ if (isset($_POST['resend_otp'])) {
     }
 
     .form-control:focus {
-      box-shadow: 0 0 0 3px rgba(191, 59, 120, 0.15);
-      border-color: #ced4da;
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+      border-color: var(--primary);
     }
 
     .password-toggle {
@@ -346,49 +348,49 @@ if (isset($_POST['resend_otp'])) {
       transform: translateY(-50%);
       background: none;
       border: none;
-      color: #6c757d;
+      color: var(--gray);
       cursor: pointer;
       z-index: 5;
     }
 
-    .btn-pink {
-      background: var(--pink-dark);
+    .btn-primary {
+      background: var(--primary);
       color: #fff;
       border: none;
       border-radius: 12px;
       padding: 0.9rem 1.2rem;
       font-weight: 700;
       transition: all 0.2s ease;
-      box-shadow: 0 4px 10px rgba(191, 59, 120, 0.25);
+      box-shadow: 0 4px 10px rgba(14, 165, 233, 0.25);
     }
 
-    .btn-pink:hover {
-      background: var(--pink-darker);
+    .btn-primary:hover {
+      background: var(--primary-dark);
       transform: translateY(-2px);
-      box-shadow: 0 6px 15px rgba(191, 59, 120, 0.3);
+      box-shadow: 0 6px 15px rgba(14, 165, 233, 0.3);
     }
 
-    .btn-pink:active {
+    .btn-primary:active {
       transform: translateY(0);
     }
 
-    .btn-outline-pink {
+    .btn-outline-primary {
       background: transparent;
-      color: var(--pink-dark);
-      border: 2px solid var(--pink-dark);
+      color: var(--primary);
+      border: 2px solid var(--primary);
       border-radius: 12px;
       padding: 0.9rem 1.2rem;
       font-weight: 700;
       transition: all 0.2s ease;
     }
 
-    .btn-outline-pink:hover {
-      background: var(--pink-dark);
+    .btn-outline-primary:hover {
+      background: var(--primary);
       color: #fff;
     }
 
     .login-link {
-      color: var(--pink-dark);
+      color: var(--primary);
       text-decoration: none;
       font-weight: 600;
       font-size: 14px;
@@ -396,7 +398,7 @@ if (isset($_POST['resend_otp'])) {
     }
 
     .login-link:hover {
-      color: var(--pink-darker);
+      color: var(--primary-dark);
       text-decoration: underline;
     }
 
@@ -410,7 +412,7 @@ if (isset($_POST['resend_otp'])) {
       height: 5px;
       margin-top: 5px;
       border-radius: 5px;
-      background: #e9ecef;
+      background: var(--gray-light);
       overflow: hidden;
     }
 
@@ -423,13 +425,13 @@ if (isset($_POST['resend_otp'])) {
 
     .password-requirements {
       font-size: 12px;
-      color: #6c757d;
+      color: var(--gray);
       margin-top: 5px;
     }
 
     footer {
-      background: #fff8fc;
-      border-top: 1px solid #f1e6f0;
+      background: var(--light);
+      border-top: 1px solid var(--primary-light);
       padding: 1.5rem 0;
       margin-top: auto;
     }
@@ -453,32 +455,32 @@ if (isset($_POST['resend_otp'])) {
       text-align: center;
       font-size: 24px;
       font-weight: bold;
-      border: 2px solid #e9ecef;
+      border: 2px solid var(--gray-light);
       border-radius: 12px;
-      background: #f8f9fa;
+      background: var(--light);
       transition: all 0.3s ease;
     }
 
     .otp-input:focus {
-      border-color: var(--pink-dark);
-      box-shadow: 0 0 0 3px rgba(191, 59, 120, 0.15);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
       outline: none;
       background: #fff;
     }
 
     .otp-input.filled {
-      border-color: var(--pink-dark);
-      background: var(--pink-2);
+      border-color: var(--primary);
+      background: var(--primary-light);
     }
 
     .timer {
-      color: var(--pink-darker);
+      color: var(--primary-dark);
       font-weight: 600;
       margin: 10px 0;
     }
 
     .demo-note {
-      background: var(--pink-2);
+      background: var(--primary-light);
       padding: 10px;
       border-radius: 8px;
       margin: 15px 0;
@@ -489,7 +491,7 @@ if (isset($_POST['resend_otp'])) {
     .back-link {
       display: inline-flex;
       align-items: center;
-      color: var(--pink-dark);
+      color: var(--primary);
       text-decoration: none;
       font-weight: 600;
       margin-bottom: 20px;
@@ -497,7 +499,7 @@ if (isset($_POST['resend_otp'])) {
     }
 
     .back-link:hover {
-      color: var(--pink-darker);
+      color: var(--primary-dark);
       text-decoration: underline;
     }
   </style>
@@ -591,7 +593,7 @@ if (isset($_POST['resend_otp'])) {
           </div>
 
           <div class="d-grid gap-2">
-            <button type="submit" name="reset_password" class="btn btn-pink">
+            <button type="submit" name="reset_password" class="btn btn-primary">
               <i class="fas fa-save me-2"></i>Reset Password
             </button>
           </div>
@@ -622,10 +624,10 @@ if (isset($_POST['resend_otp'])) {
           </div>
 
           <div class="d-grid gap-2">
-            <button type="submit" name="verify_reset_otp" class="btn btn-pink">
+            <button type="submit" name="verify_reset_otp" class="btn btn-primary">
               <i class="fas fa-check-circle me-2"></i>Verify OTP
             </button>
-            <button type="submit" name="resend_otp" class="btn btn-outline-pink">
+            <button type="submit" name="resend_otp" class="btn btn-outline-primary">
               <i class="fas fa-redo me-2"></i>Resend OTP
             </button>
           </div>
@@ -645,7 +647,7 @@ if (isset($_POST['resend_otp'])) {
           </div>
 
           <div class="d-grid gap-2">
-            <button type="submit" name="send_otp" class="btn btn-pink">
+            <button type="submit" name="send_otp" class="btn btn-primary">
               <i class="fas fa-paper-plane me-2"></i>Send OTP
             </button>
           </div>
@@ -661,7 +663,7 @@ if (isset($_POST['resend_otp'])) {
   </section>
 
   <footer class="py-4 text-center">
-    <small>© 2025 VetCareQR — Santa Rosa Municipal Veterinary Services</small>
+    <small>© 2025 PetMedQR — Professional Pet Medical Records System</small>
   </footer>
 
   <!-- Bootstrap JS -->
