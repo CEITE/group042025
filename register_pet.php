@@ -277,22 +277,22 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Your existing CSS remains the same */
         :root {
-            --pink: #ffd6e7;
-            --pink-2: #f7c5e0;
-            --pink-dark: #ec4899;
-            --pink-darker: #db2777;
-            --pink-light: #fff4f8;
-            --pink-gradient: linear-gradient(135deg, #f9a8d4 0%, #ec4899 100%);
-            --pink-gradient-light: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
-            --blue: #4a6cf7;
-            --green: #10b981;
-            --orange: #f59e0b;
-            --radius: 12px;
-            --radius-lg: 16px;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
+            --secondary: #8b5cf6;
+            --light: #f0f9ff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1f2937;
+            --gray: #6b7280;
+            --gray-light: #e5e7eb;
+            --radius: 16px;
+            --radius-lg: 20px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         
         * {
@@ -303,9 +303,9 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+            background: linear-gradient(135deg, var(--light) 0%, #e0f2fe 100%);
             min-height: 100vh;
-            color: #1f2937;
+            color: var(--dark);
         }
         
         .registration-container {
@@ -329,7 +329,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         
         .registration-sidebar {
             width: 40%;
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
             padding: 3rem 2rem;
             display: flex;
@@ -410,13 +410,13 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         }
         
         .form-header h1 {
-            color: var(--pink-darker);
+            color: var(--primary-dark);
             font-weight: 800;
             margin-bottom: 0.5rem;
         }
         
         .form-header p {
-            color: #6b7280;
+            color: var(--gray);
         }
         
         .progress-steps {
@@ -433,7 +433,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             left: 0;
             right: 0;
             height: 2px;
-            background: #e5e7eb;
+            background: var(--gray-light);
             z-index: 1;
         }
         
@@ -442,7 +442,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             top: 15px;
             left: 0;
             height: 2px;
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             z-index: 2;
             transition: width 0.3s ease;
         }
@@ -460,7 +460,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             height: 32px;
             border-radius: 50%;
             background: white;
-            border: 2px solid #e5e7eb;
+            border: 2px solid var(--gray-light);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -472,14 +472,14 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         }
         
         .step.active .step-icon {
-            background: var(--pink-gradient);
-            border-color: var(--pink-dark);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-color: var(--primary);
             color: white;
         }
         
         .step.completed .step-icon {
-            background: var(--green);
-            border-color: var(--green);
+            background: var(--success);
+            border-color: var(--success);
             color: white;
         }
         
@@ -490,7 +490,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         }
         
         .step.active .step-label {
-            color: var(--pink-darker);
+            color: var(--primary-dark);
         }
         
         .form-section {
@@ -510,7 +510,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         .section-title {
             font-size: 1.25rem;
             font-weight: 700;
-            color: var(--pink-darker);
+            color: var(--primary-dark);
             margin-bottom: 1.5rem;
             display: flex;
             align-items: center;
@@ -538,12 +538,12 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         
         .required::after {
             content: '*';
-            color: #ef4444;
+            color: var(--danger);
             margin-left: 0.25rem;
         }
         
         .form-control, .form-select {
-            border: 2px solid #e5e7eb;
+            border: 2px solid var(--gray-light);
             border-radius: var(--radius);
             padding: 0.75rem 1rem;
             font-size: 0.9rem;
@@ -551,13 +551,13 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         }
         
         .form-control:focus, .form-select:focus {
-            border-color: var(--pink-dark);
-            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
         }
         
         .form-text {
             font-size: 0.8rem;
-            color: #6b7280;
+            color: var(--gray);
             margin-top: 0.25rem;
         }
         
@@ -566,7 +566,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             justify-content: space-between;
             margin-top: 2rem;
             padding-top: 2rem;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid var(--gray-light);
         }
         
         .btn {
@@ -592,7 +592,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         }
         
         .btn-next, .btn-submit {
-            background: var(--pink-gradient);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
         }
         
@@ -601,7 +601,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         }
         
         .btn-next:hover, .btn-submit:hover {
-            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+            background: linear-gradient(135deg, var(--primary-dark) 0%, #0369a1 100%);
         }
         
         .success-state {
@@ -618,7 +618,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         .success-icon {
             width: 80px;
             height: 80px;
-            background: var(--green);
+            background: var(--success);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -647,17 +647,17 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         .alert-success {
             background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
             color: #065f46;
-            border-left: 4px solid #10b981;
+            border-left: 4px solid var(--success);
         }
         
         .alert-danger {
             background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
             color: #7f1d1d;
-            border-left: 4px solid #ef4444;
+            border-left: 4px solid var(--danger);
         }
         
-        .bg-pink-light {
-            background: var(--pink-light);
+        .bg-primary-light {
+            background: var(--primary-light);
         }
         
         .card {
@@ -667,8 +667,8 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         }
         
         .card-header {
-            background: var(--pink-gradient-light);
-            border-bottom: 1px solid var(--pink);
+            background: var(--primary-light);
+            border-bottom: 1px solid var(--primary);
             font-weight: 600;
         }
         
@@ -718,7 +718,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
             max-width: 200px;
             max-height: 200px;
             border-radius: 8px;
-            border: 2px solid #e5e7eb;
+            border: 2px solid var(--gray-light);
             object-fit: cover;
         }
         
@@ -739,7 +739,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
         }
         
         .debug-info h6 {
-            color: #6c757d;
+            color: var(--gray);
             margin-bottom: 0.5rem;
         }
     </style>
@@ -1003,7 +1003,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
 
                         <!-- NEW: Structured Medical Dates Section -->
                         <div class="card mb-3">
-                            <div class="card-header bg-pink-light">
+                            <div class="card-header bg-primary-light">
                                 <h6 class="mb-0">
                                     <i class="fas fa-calendar-check me-2"></i>Important Medical Dates & Reminders
                                 </h6>
@@ -1070,7 +1070,7 @@ $showSuccess = isset($_GET['success']) && $_GET['success'] == '1' && isset($_SES
 
                         <!-- KEEP EXISTING: Medical History Section -->
                         <div class="card mb-3">
-                            <div class="card-header bg-pink-light">
+                            <div class="card-header bg-primary-light">
                                 <h6 class="mb-0">
                                     <i class="fas fa-history me-2"></i>Medical History & Previous Records
                                 </h6>
