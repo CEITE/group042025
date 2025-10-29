@@ -704,9 +704,395 @@ foreach ($missing_notifications as $appointment) {
             </div>
         </div>
 
-        <!-- Rest of the dashboard content remains the same -->
-        <!-- ... (appointments sections, quick actions, etc.) ... -->
+        <div class="row">
+            <!-- Pending Appointment Requests -->
+            <div class="col-lg-8 mb-4">
+                <div class="card-custom">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="mb-0"><i class="fas fa-clock me-2 text-warning"></i>Pending Appointment Requests</h4>
+                        <span class="badge bg-warning"><?php echo $pending_count; ?> New</span>
+                    </div>
+                    
+                    <?php if (empty($pending_appointments)): ?>
+                        <div class="empty-state">
+                            <i class="fas fa-calendar-check text-success"></i>
+                            <h5>No Pending Requests</h5>
+                            <p class="text-muted">All appointment requests have been processed.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="appointments-list">
+                            <?php foreach ($pending_appointments as $appointment): ?>
+                                <div class="card appointment-card appointment-pending mb-3">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="d-flex align-items-center">
+                                                <div class="pet-avatar me-3">
+                                                    <i class="fas fa-<?php echo strtolower($appointment['species']) == 'dog' ? 'dog' : 'cat'; ?>"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0"><?php echo htmlspecialchars($appointment['pet_name']); ?></h6>
+                                                    <small class="text-muted">
+                                                        Owner: <?php echo htmlspecialchars($appointment['owner_name']); ?> | 
+                                                        Service: <?php echo htmlspecialchars($appointment['service_type']); ?>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <span class="badge badge-pending">
+                                                <i class="fas fa-clock me-1"></i>Pending Review
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="row mt-3">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Requested Date & Time</small>
+                                                <div class="fw-semibold">
+                                                    <?php echo date('M j, Y', strtotime($appointment['appointment_date'])); ?> 
+                                                    at <?php echo date('g:i A', strtotime($appointment['appointment_time'])); ?>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Contact Information</small>
+                                                <div class="fw-semibold">
+                                                    📞 <?php echo htmlspecialchars($appointment['owner_phone']); ?><br>
+                                                    📧 <?php echo htmlspecialchars($appointment['owner_email']); ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <?php if (!empty($appointment['reason'])): ?>
+                                            <div class="mt-2">
+                                                <small class="text-muted">Reason for Visit</small>
+                                                <div class="small"><?php echo htmlspecialchars($appointment['reason']); ?></div>
+                                            </div>
+                                        <?php endif; ?>
 
+                                        <?php if (!empty($appointment['notes'])): ?>
+                                            <div class="mt-2">
+                                                <small class="text-muted">Owner Notes</small>
+                                                <div class="small"><?php echo htmlspecialchars($appointment['notes']); ?></div>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <!-- Quick Action Buttons -->
+                                        <div class="action-buttons">
+                                            <form method="POST" action="vet_dashboard.php" class="d-inline">
+                                                <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
+                                                <input type="hidden" name="status" value="confirmed">
+                                                <input type="hidden" name="vet_notes" value="Appointment confirmed by veterinarian">
+                                                <button type="submit" name="update_status" class="btn btn-confirm">
+                                                    <i class="fas fa-check me-1"></i> Confirm Appointment
+                                                </button>
+                                            </form>
+                                            
+                                            <button type="button" class="btn btn-cancel" data-bs-toggle="modal" 
+                                                    data-bs-target="#cancelModal<?php echo $appointment['appointment_id']; ?>">
+                                                <i class="fas fa-times me-1"></i> Cancel
+                                            </button>
+                                            
+                                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" 
+                                                    data-bs-target="#detailsModal<?php echo $appointment['appointment_id']; ?>">
+                                                <i class="fas fa-edit me-1"></i> Custom Response
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Cancel Modal -->
+                                        <div class="modal fade" id="cancelModal<?php echo $appointment['appointment_id']; ?>" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Cancel Appointment</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form method="POST" action="vet_dashboard.php">
+                                                        <div class="modal-body">
+                                                            <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
+                                                            <input type="hidden" name="status" value="cancelled">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Reason for Cancellation</label>
+                                                                <textarea class="form-control" name="vet_notes" rows="3" 
+                                                                          placeholder="Please provide a reason for cancellation..." required></textarea>
+                                                            </div>
+                                                            <div class="alert alert-warning">
+                                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                                This will notify the owner that their appointment has been cancelled.
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                            <button type="submit" name="update_status" class="btn btn-danger">Cancel Appointment</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Custom Response Modal -->
+                                        <div class="modal fade" id="detailsModal<?php echo $appointment['appointment_id']; ?>" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Manage Appointment</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form method="POST" action="vet_dashboard.php">
+                                                        <div class="modal-body">
+                                                            <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Appointment Status</label>
+                                                                <select class="form-select" name="status" required>
+                                                                    <option value="confirmed">Confirm Appointment</option>
+                                                                    <option value="cancelled">Cancel Appointment</option>
+                                                                    <option value="completed">Mark as Completed</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Veterinarian Notes</label>
+                                                                <textarea class="form-control" name="vet_notes" rows="4" 
+                                                                          placeholder="Add notes for the owner (this will be included in the notification)..."></textarea>
+                                                                <div class="form-text">These notes will be visible to the pet owner.</div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                            <button type="submit" name="update_status" class="btn btn-primary">Update Appointment</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Confirmed Appointments -->
+                <div class="card-custom mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="mb-0"><i class="fas fa-calendar-check me-2 text-success"></i>Confirmed Appointments</h4>
+                        <span class="badge bg-success"><?php echo $confirmed_count; ?> Upcoming</span>
+                    </div>
+                    
+                    <?php if (empty($confirmed_appointments)): ?>
+                        <div class="empty-state">
+                            <i class="fas fa-calendar-times"></i>
+                            <h5>No Confirmed Appointments</h5>
+                            <p class="text-muted">No upcoming confirmed appointments.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="appointments-list">
+                            <?php foreach ($confirmed_appointments as $appointment): ?>
+                                <div class="card appointment-card appointment-confirmed mb-3">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="d-flex align-items-center">
+                                                <div class="pet-avatar me-3">
+                                                    <i class="fas fa-<?php echo strtolower($appointment['species']) == 'dog' ? 'dog' : 'cat'; ?>"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0"><?php echo htmlspecialchars($appointment['pet_name']); ?></h6>
+                                                    <small class="text-muted">
+                                                        Owner: <?php echo htmlspecialchars($appointment['owner_name']); ?> | 
+                                                        Service: <?php echo htmlspecialchars($appointment['service_type']); ?>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <span class="badge badge-confirmed">
+                                                <i class="fas fa-check-circle me-1"></i>Confirmed
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="row mt-3">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Scheduled Date & Time</small>
+                                                <div class="fw-semibold">
+                                                    <?php echo date('M j, Y', strtotime($appointment['appointment_date'])); ?> 
+                                                    at <?php echo date('g:i A', strtotime($appointment['appointment_time'])); ?>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Contact</small>
+                                                <div class="fw-semibold">
+                                                    📞 <?php echo htmlspecialchars($appointment['owner_phone']); ?><br>
+                                                    📧 <?php echo htmlspecialchars($appointment['owner_email']); ?>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <?php if (!empty($appointment['vet_notes'])): ?>
+                                            <div class="mt-2">
+                                                <small class="text-muted">Vet Notes</small>
+                                                <div class="small text-success"><?php echo htmlspecialchars($appointment['vet_notes']); ?></div>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <!-- Additional Actions for Confirmed Appointments -->
+                                        <div class="action-buttons mt-3">
+                                            <form method="POST" action="vet_dashboard.php" class="d-inline">
+                                                <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
+                                                <input type="hidden" name="status" value="completed">
+                                                <input type="hidden" name="vet_notes" value="<?php echo htmlspecialchars($appointment['vet_notes'] ?? ''); ?>">
+                                                <button type="submit" name="update_status" class="btn btn-outline-success">
+                                                    <i class="fas fa-flag-checkered me-1"></i> Mark Complete
+                                                </button>
+                                            </form>
+                                            
+                                            <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" 
+                                                    data-bs-target="#rescheduleModal<?php echo $appointment['appointment_id']; ?>">
+                                                <i class="fas fa-calendar-alt me-1"></i> Reschedule
+                                            </button>
+                                            
+                                            <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" 
+                                                    data-bs-target="#notesModal<?php echo $appointment['appointment_id']; ?>">
+                                                <i class="fas fa-notes-medical me-1"></i> Add Notes
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Reschedule Modal -->
+                                        <div class="modal fade" id="rescheduleModal<?php echo $appointment['appointment_id']; ?>" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Reschedule Appointment</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="alert alert-info">
+                                                            <i class="fas fa-info-circle me-2"></i>
+                                                            To reschedule this appointment, please contact the owner directly or use the full appointments management page.
+                                                        </div>
+                                                        <div class="text-center">
+                                                            <a href="vet_appointments.php" class="btn btn-primary">
+                                                                <i class="fas fa-external-link-alt me-2"></i>Go to Appointments
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Notes Modal -->
+                                        <div class="modal fade" id="notesModal<?php echo $appointment['appointment_id']; ?>" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Add Medical Notes</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form method="POST" action="vet_dashboard.php">
+                                                        <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
+                                                        <input type="hidden" name="status" value="confirmed">
+                                                        <div class="modal-body">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Medical Notes & Observations</label>
+                                                                <textarea class="form-control" name="vet_notes" rows="6" 
+                                                                          placeholder="Enter medical notes, observations, treatment details, or follow-up instructions..."><?php echo htmlspecialchars($appointment['vet_notes'] ?? ''); ?></textarea>
+                                                                <div class="form-text">These notes will be saved with the appointment record.</div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                            <button type="submit" name="update_status" class="btn btn-primary">Save Notes</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Quick Actions & Today's Schedule -->
+            <div class="col-lg-4 mb-4">
+                <!-- Quick Actions -->
+                <div class="card-custom mb-4">
+                    <h5 class="mb-3"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                    <div class="d-grid gap-2">
+                        <a href="vet_appointments.php" class="btn btn-outline-primary text-start">
+                            <i class="fas fa-calendar-alt me-2"></i>View All Appointments
+                        </a>
+                        <a href="vet_patients.php" class="btn btn-outline-success text-start">
+                            <i class="fas fa-dog me-2"></i>Manage Patients
+                        </a>
+                        <a href="vet_records.php" class="btn btn-outline-info text-start">
+                            <i class="fas fa-file-medical me-2"></i>Medical Records
+                        </a>
+                        <a href="vet_settings.php" class="btn btn-outline-secondary text-start">
+                            <i class="fas fa-gear me-2"></i>Clinic Settings
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Today's Schedule -->
+                <div class="card-custom">
+                    <h5 class="mb-3"><i class="fas fa-calendar-day me-2"></i>Today's Schedule</h5>
+                    <?php if (empty($today_appointments)): ?>
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-calendar-times fa-2x mb-2"></i>
+                            <p class="mb-0">No appointments today</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="schedule-list">
+                            <?php foreach ($today_appointments as $schedule): ?>
+                                <div class="d-flex align-items-center mb-3 p-2 border rounded">
+                                    <div class="pet-avatar me-3">
+                                        <i class="fas fa-<?php echo strtolower($schedule['species']) == 'dog' ? 'dog' : 'cat'; ?>"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <strong class="d-block"><?php echo htmlspecialchars($schedule['pet_name']); ?></strong>
+                                        <small class="text-muted"><?php echo date('g:i A', strtotime($schedule['appointment_time'])); ?></small>
+                                        <small class="d-block"><?php echo htmlspecialchars($schedule['owner_name']); ?></small>
+                                        <small class="text-muted"><?php echo htmlspecialchars($schedule['service_type']); ?></small>
+                                    </div>
+                                    <span class="badge badge-confirmed">
+                                        <?php echo ucfirst($schedule['status']); ?>
+                                    </span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="card-custom mt-4">
+                    <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Quick Stats</h5>
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <div class="p-2 border rounded">
+                                <h4 class="mb-0 text-warning"><?php echo $pending_count; ?></h4>
+                                <small>Pending</small>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="p-2 border rounded">
+                                <h4 class="mb-0 text-success"><?php echo $confirmed_count; ?></h4>
+                                <small>Confirmed</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border rounded">
+                                <h4 class="mb-0 text-info"><?php echo $today_count; ?></h4>
+                                <small>Today</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border rounded">
+                                <h4 class="mb-0 text-primary"><?php echo $notification_count; ?></h4>
+                                <small>Alerts</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
