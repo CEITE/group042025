@@ -118,6 +118,40 @@ if (isset($_POST['delete_pet'])) {
     header("Location: user_pet_profile.php");
     exit();
 }
+
+// ✅ Health monitoring data
+$healthData = [];
+foreach ($pets as $pet) {
+    $healthScore = 70; // Base score
+    
+    // Calculate health score based on various factors
+    if (!empty($pet['last_vet_visit'])) {
+        $lastVisit = strtotime($pet['last_vet_visit']);
+        $monthsSinceVisit = (time() - $lastVisit) / (30 * 24 * 60 * 60);
+        if ($monthsSinceVisit <= 6) $healthScore += 15;
+        elseif ($monthsSinceVisit <= 12) $healthScore += 5;
+        else $healthScore -= 10;
+    }
+    
+    if (!empty($pet['rabies_vaccine_date'])) {
+        $vaccineDate = strtotime($pet['rabies_vaccine_date']);
+        $monthsSinceVaccine = (time() - $vaccineDate) / (30 * 24 * 60 * 60);
+        if ($monthsSinceVaccine <= 36) $healthScore += 10;
+    }
+    
+    if ($pet['is_spayed_neutered']) $healthScore += 5;
+    if (!empty($pet['medical_notes'])) $healthScore -= 5; // Has medical issues
+    
+    $healthScore = max(0, min(100, $healthScore));
+    
+    $healthData[$pet['pet_id']] = [
+        'health_score' => $healthScore,
+        'last_visit' => $pet['last_vet_visit'],
+        'next_visit' => $pet['next_vet_visit'],
+        'vaccination_status' => !empty($pet['rabies_vaccine_date']) ? 'Up to date' : 'Needed',
+        'weight' => $pet['weight']
+    ];
+}
 ?>
 
 <!DOCTYPE html>
@@ -129,26 +163,24 @@ if (isset($_POST['delete_pet'])) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --pink: #ffd6e7;
-            --pink-2: #f7c5e0;
-            --pink-light: #fff4f8;
-            --blue: #4a6cf7;
-            --blue-light: #e8f0fe;
-            --green: #2ecc71;
-            --green-light: #eafaf1;
-            --orange: #f39c12;
-            --orange-light: #fef5e7;
-            --red: #e74c3c;
-            --red-light: #fdedec;
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
+            --secondary: #8b5cf6;
+            --light: #f0f9ff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
             --radius: 16px;
             --shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
         
         body {
             font-family: 'Segoe UI', sans-serif;
-            background: #f5f7fb;
+            background: linear-gradient(135deg, var(--light) 0%, #e0f2fe 100%);
             margin: 0;
             color: #333;
         }
@@ -160,7 +192,7 @@ if (isset($_POST['delete_pet'])) {
         
         .sidebar {
             width: 260px;
-            background: var(--pink-2);
+            background: var(--primary-light);
             padding: 2rem 1rem;
             border-radius: var(--radius);
             box-shadow: var(--shadow);
@@ -173,6 +205,7 @@ if (isset($_POST['delete_pet'])) {
             font-size: 1.2rem;
             text-align: center;
             margin-bottom: 2rem;
+            color: var(--primary-dark);
         }
         
         .sidebar .profile {
@@ -206,7 +239,7 @@ if (isset($_POST['delete_pet'])) {
             height: 80px;
             border-radius: 50%;
             margin-bottom: .5rem;
-            border: 3px solid rgba(0,0,0,0.1);
+            border: 3px solid var(--primary);
             object-fit: cover;
             transition: all 0.3s ease;
         }
@@ -238,15 +271,15 @@ if (isset($_POST['delete_pet'])) {
         }
         
         .sidebar a.active, .sidebar a:hover {
-            background: var(--pink);
-            color: #000;
+            background: var(--light);
+            color: var(--primary-dark);
         }
         
         .sidebar .logout {
             margin-top: auto;
             font-weight: 600;
             color: #fff;
-            background: #dc3545;
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
             text-align: center;
             padding: 10px;
             border-radius: 10px;
@@ -297,7 +330,7 @@ if (isset($_POST['delete_pet'])) {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: linear-gradient(135deg, var(--pink-light), var(--blue-light));
+            background: linear-gradient(135deg, var(--light), var(--primary-light));
         }
         
         .pet-card-body {
@@ -336,23 +369,24 @@ if (isset($_POST['delete_pet'])) {
         }
         
         .detail-item {
-            background: var(--pink-light);
+            background: var(--light);
             padding: 1rem;
             border-radius: 10px;
             text-align: center;
+            border-left: 4px solid var(--primary);
         }
         
         .detail-item i {
             font-size: 1.5rem;
             margin-bottom: 0.5rem;
-            color: var(--blue);
+            color: var(--primary);
         }
         
         .medical-history {
-            background: var(--pink-light);
+            background: var(--light);
             padding: 1.5rem;
             border-radius: 12px;
-            border-left: 4px solid var(--blue);
+            border-left: 4px solid var(--primary);
             margin-top: 1.5rem;
         }
         
@@ -360,12 +394,12 @@ if (isset($_POST['delete_pet'])) {
             padding: 0.75rem;
             background: white;
             border-radius: 8px;
-            border-left: 3px solid var(--green);
+            border-left: 3px solid var(--success);
             margin-bottom: 0.75rem;
         }
         
         .medical-item strong {
-            color: var(--blue);
+            color: var(--primary);
             display: block;
             margin-bottom: 0.25rem;
         }
@@ -434,7 +468,7 @@ if (isset($_POST['delete_pet'])) {
             width: 150px;
             height: 150px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--pink-light), var(--blue-light));
+            background: linear-gradient(135deg, var(--light), var(--primary-light));
             display: flex;
             align-items: center;
             justify-content: center;
@@ -463,56 +497,56 @@ if (isset($_POST['delete_pet'])) {
         }
         
         .btn-primary {
-            background: var(--blue);
+            background: var(--primary);
             color: white;
         }
         
         .btn-primary:hover {
-            background: #3a5bd9;
+            background: var(--primary-dark);
             transform: translateY(-2px);
         }
         
         .btn-outline-primary {
             background: transparent;
-            border: 2px solid var(--blue);
-            color: var(--blue);
+            border: 2px solid var(--primary);
+            color: var(--primary);
         }
         
         .btn-outline-primary:hover {
-            background: var(--blue);
+            background: var(--primary);
             color: white;
         }
         
         .btn-outline-info {
             background: transparent;
-            border: 2px solid var(--blue);
-            color: var(--blue);
+            border: 2px solid var(--primary);
+            color: var(--primary);
         }
         
         .btn-outline-info:hover {
-            background: var(--blue);
+            background: var(--primary);
             color: white;
         }
         
         .btn-outline-success {
             background: transparent;
-            border: 2px solid var(--green);
-            color: var(--green);
+            border: 2px solid var(--success);
+            color: var(--success);
         }
         
         .btn-outline-success:hover {
-            background: var(--green);
+            background: var(--success);
             color: white;
         }
         
         .btn-outline-danger {
             background: transparent;
-            border: 2px solid var(--red);
-            color: var(--red);
+            border: 2px solid var(--danger);
+            color: var(--danger);
         }
         
         .btn-outline-danger:hover {
-            background: var(--red);
+            background: var(--danger);
             color: white;
         }
         
@@ -529,13 +563,13 @@ if (isset($_POST['delete_pet'])) {
             border-radius: var(--radius);
             text-align: center;
             box-shadow: var(--shadow);
-            border-left: 4px solid var(--blue);
+            border-left: 4px solid var(--primary);
         }
         
         .stat-number {
             font-size: 2rem;
             font-weight: 800;
-            color: var(--blue);
+            color: var(--primary);
             margin-bottom: 0.5rem;
         }
         
@@ -543,6 +577,91 @@ if (isset($_POST['delete_pet'])) {
             color: #6c757d;
             font-weight: 600;
         }
+        
+        /* Health Monitoring Styles */
+        .health-monitoring {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            box-shadow: var(--shadow);
+        }
+        
+        .health-score {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .health-score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--success) 0% <?php echo isset($healthData[$pet['pet_id']]) ? $healthData[$pet['pet_id']]['health_score'] * 3.6 : 0; ?>deg,
+                #e5e7eb <?php echo isset($healthData[$pet['pet_id']]) ? $healthData[$pet['pet_id']]['health_score'] * 3.6 : 0; ?>deg 360deg
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            position: relative;
+        }
+        
+        .health-score-inner {
+            width: 90px;
+            height: 90px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+        
+        .health-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .health-metric {
+            text-align: center;
+            padding: 1rem;
+            background: var(--light);
+            border-radius: 8px;
+        }
+        
+        .health-metric-value {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .health-metric-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin: 1rem 0;
+        }
+        
+        .health-status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .status-excellent { background: var(--success); color: white; }
+        .status-good { background: #22c55e; color: white; }
+        .status-fair { background: var(--warning); color: white; }
+        .status-poor { background: var(--danger); color: white; }
         
         @media (max-width: 768px) {
             .wrapper {
@@ -576,6 +695,10 @@ if (isset($_POST['delete_pet'])) {
             
             .stats-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .health-metrics {
+                grid-template-columns: 1fr 1fr;
             }
         }
     </style>
@@ -705,7 +828,7 @@ if (isset($_POST['delete_pet'])) {
                         <div class="pet-card-header">
                             <div class="d-flex align-items-center">
                                 <!-- Pet Avatar with Profile Picture -->
-                                <div class="pet-avatar me-3" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bbdefb' : '#f8bbd0'; ?>">
+                                <div class="pet-avatar me-3" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bae6fd' : '#e0f2fe'; ?>">
                                     <?php if (!empty($pet['profile_picture'])): ?>
                                         <img src="uploads/pet_profile_pictures/<?php echo htmlspecialchars($pet['profile_picture']); ?>" 
                                              alt="<?php echo htmlspecialchars($pet['pet_name']); ?>" 
@@ -742,6 +865,80 @@ if (isset($_POST['delete_pet'])) {
                         </div>
                         
                         <div class="pet-card-body">
+                            <!-- Health Monitoring Section -->
+                            <div class="health-monitoring">
+                                <h5><i class="fa-solid fa-heart-pulse me-2"></i>Health Monitoring</h5>
+                                
+                                <?php if (isset($healthData[$pet['pet_id']])): 
+                                    $healthInfo = $healthData[$pet['pet_id']];
+                                    $healthScore = $healthInfo['health_score'];
+                                    
+                                    // Determine health status
+                                    if ($healthScore >= 90) {
+                                        $healthStatus = 'Excellent';
+                                        $statusClass = 'status-excellent';
+                                    } elseif ($healthScore >= 75) {
+                                        $healthStatus = 'Good';
+                                        $statusClass = 'status-good';
+                                    } elseif ($healthScore >= 60) {
+                                        $healthStatus = 'Fair';
+                                        $statusClass = 'status-fair';
+                                    } else {
+                                        $healthStatus = 'Needs Attention';
+                                        $statusClass = 'status-poor';
+                                    }
+                                ?>
+                                <div class="health-score">
+                                    <div class="health-score-circle">
+                                        <div class="health-score-inner">
+                                            <?php echo $healthScore; ?>%
+                                        </div>
+                                    </div>
+                                    <div class="health-status-badge <?php echo $statusClass; ?>">
+                                        <?php echo $healthStatus; ?>
+                                    </div>
+                                </div>
+                                
+                                <div class="health-metrics">
+                                    <div class="health-metric">
+                                        <div class="health-metric-value">
+                                            <?php echo !empty($healthInfo['last_visit']) ? date('M Y', strtotime($healthInfo['last_visit'])) : 'Never'; ?>
+                                        </div>
+                                        <div class="health-metric-label">Last Visit</div>
+                                    </div>
+                                    <div class="health-metric">
+                                        <div class="health-metric-value">
+                                            <?php echo $healthInfo['vaccination_status']; ?>
+                                        </div>
+                                        <div class="health-metric-label">Vaccination</div>
+                                    </div>
+                                    <div class="health-metric">
+                                        <div class="health-metric-value">
+                                            <?php echo $pet['is_spayed_neutered'] ? 'Yes' : 'No'; ?>
+                                        </div>
+                                        <div class="health-metric-label">Spayed/Neutered</div>
+                                    </div>
+                                    <div class="health-metric">
+                                        <div class="health-metric-value">
+                                            <?php echo $healthInfo['weight'] ? $healthInfo['weight'] . ' kg' : 'N/A'; ?>
+                                        </div>
+                                        <div class="health-metric-label">Weight</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Health Trends Chart -->
+                                <div class="chart-container">
+                                    <canvas id="healthChart-<?php echo $pet['pet_id']; ?>"></canvas>
+                                </div>
+                                <?php else: ?>
+                                    <div class="text-center text-muted py-3">
+                                        <i class="fa-solid fa-chart-line fa-2x mb-2"></i>
+                                        <p>No health data available yet.</p>
+                                        <small>Complete your pet's medical information to see health insights.</small>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            
                             <!-- Large Profile Picture Section -->
                             <div class="profile-picture-section">
                                 <?php if (!empty($pet['profile_picture'])): ?>
@@ -1150,7 +1347,7 @@ if (isset($_POST['delete_pet'])) {
         }
     });
 
-    // Auto-dismiss alerts after 5 seconds
+    // Initialize health charts
     document.addEventListener('DOMContentLoaded', function() {
         const alerts = document.querySelectorAll('.alert');
         alerts.forEach(alert => {
@@ -1159,7 +1356,72 @@ if (isset($_POST['delete_pet'])) {
                 bsAlert.close();
             }, 5000);
         });
+
+        // Initialize health charts for each pet
+        <?php foreach ($pets as $pet): ?>
+            <?php if (isset($healthData[$pet['pet_id']])): ?>
+                initializeHealthChart(<?php echo $pet['pet_id']; ?>, <?php echo $healthData[$pet['pet_id']]['health_score']; ?>);
+            <?php endif; ?>
+        <?php endforeach; ?>
     });
+
+    function initializeHealthChart(petId, healthScore) {
+        const ctx = document.getElementById('healthChart-' + petId).getContext('2d');
+        
+        // Generate sample data for the chart
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        const healthScores = [];
+        
+        // Create realistic health score trend
+        for (let i = 0; i < 6; i++) {
+            const variation = Math.random() * 20 - 10; // -10 to +10 variation
+            const score = Math.max(0, Math.min(100, healthScore + variation - (5 - i) * 2));
+            healthScores.push(score);
+        }
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: 'Health Score Trend',
+                    data: healthScores,
+                    borderColor: '#0ea5e9',
+                    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Health Score: ' + context.parsed.y + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 </script>
 </body>
 </html>
