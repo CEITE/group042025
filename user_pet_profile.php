@@ -130,454 +130,455 @@ if (isset($_POST['delete_pet'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --pink: #ffd6e7;
-            --pink-2: #f7c5e0;
-            --pink-light: #fff4f8;
-            --blue: #4a6cf7;
-            --blue-light: #e8f0fe;
-            --green: #2ecc71;
-            --green-light: #eafaf1;
-            --orange: #f39c12;
-            --orange-light: #fef5e7;
-            --red: #e74c3c;
-            --red-light: #fdedec;
-            --radius: 16px;
-            --shadow: 0 3px 10px rgba(0,0,0,0.1);
-        }
-        
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f5f7fb;
-            margin: 0;
-            color: #333;
-        }
-        
+      <style>
+    :root {
+        --primary: #0ea5e9;
+        --primary-dark: #0284c7;
+        --primary-light: #e0f2fe;
+        --secondary: #8b5cf6;
+        --light: #f0f9ff;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --radius: 16px;
+        --shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, var(--light) 0%, #e0f2fe 100%);
+        margin: 0;
+        color: #333;
+    }
+    
+    .wrapper {
+        display: flex;
+        min-height: 100vh;
+    }
+    
+    .sidebar {
+        width: 260px;
+        background: var(--primary-light);
+        padding: 2rem 1rem;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .sidebar .brand {
+        font-weight: 800;
+        font-size: 1.2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        color: var(--primary-dark);
+    }
+    
+    .sidebar .profile {
+        text-align: center;
+        margin-bottom: 2rem;
+        position: relative;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .sidebar .profile:hover::after {
+        content: 'Change Photo';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .sidebar .profile img {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        margin-bottom: .5rem;
+        border: 3px solid var(--primary);
+        object-fit: cover;
+        transition: all 0.3s ease;
+    }
+    
+    .sidebar .profile:hover img {
+        transform: scale(1.05);
+    }
+    
+    .sidebar a {
+        display: flex;
+        align-items: center;
+        padding: 12px 14px;
+        border-radius: 12px;
+        margin: .3rem 0;
+        text-decoration: none;
+        color: #333;
+        font-weight: 600;
+        transition: .2s;
+    }
+    
+    .sidebar a .icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: rgba(255,255,255,.6);
+        margin-right: 10px;
+    }
+    
+    .sidebar a.active, .sidebar a:hover {
+        background: var(--light);
+        color: var(--primary-dark);
+    }
+    
+    .sidebar .logout {
+        margin-top: auto;
+        font-weight: 600;
+        color: #fff;
+        background: linear-gradient(135deg, #dc3545, #e74c3c);
+        text-align: center;
+        padding: 10px;
+        border-radius: 10px;
+    }
+    
+    .main-content {
+        flex: 1;
+        padding: 1.5rem 2rem;
+        overflow-y: auto;
+    }
+    
+    .topbar {
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .card-custom {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow);
+        margin-bottom: 1.5rem;
+        border: none;
+    }
+    
+    .pet-card {
+        border-radius: 16px;
+        overflow: hidden;
+        transition: transform 0.3s;
+        height: 100%;
+        border: none;
+        box-shadow: var(--shadow);
+        margin-bottom: 1.5rem;
+    }
+    
+    .pet-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .pet-card-header {
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(135deg, var(--light), var(--primary-light));
+    }
+    
+    .pet-card-body {
+        padding: 1.5rem;
+    }
+    
+    .pet-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        background: white;
+        border: 4px solid white;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+    }
+    
+    .pet-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .pet-avatar i {
+        font-size: 2rem;
+    }
+    
+    .pet-details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+    }
+    
+    .detail-item {
+        background: var(--light);
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+        border-left: 4px solid var(--primary);
+    }
+    
+    .detail-item i {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        color: var(--primary);
+    }
+    
+    .medical-history {
+        background: var(--light);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 4px solid var(--primary);
+        margin-top: 1.5rem;
+    }
+    
+    .medical-item {
+        padding: 0.75rem;
+        background: white;
+        border-radius: 8px;
+        border-left: 3px solid var(--success);
+        margin-bottom: 0.75rem;
+    }
+    
+    .medical-item strong {
+        color: var(--primary);
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+    
+    .medical-item p {
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+    
+    .medical-dates-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .medical-date-item {
+        background: white;
+        padding: 0.75rem;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid #e9ecef;
+    }
+    
+    .medical-date-item small {
+        color: #6c757d;
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .profile-picture-section {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .profile-picture-large {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid white;
+        box-shadow: var(--shadow);
+    }
+    
+    .no-profile-picture {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--light), var(--primary-light));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        border: 4px solid white;
+        box-shadow: var(--shadow);
+    }
+    
+    .no-profile-picture i {
+        font-size: 3rem;
+        color: #6c757d;
+    }
+    
+    .btn-custom {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+    }
+    
+    .btn-outline-primary {
+        background: transparent;
+        border: 2px solid var(--primary);
+        color: var(--primary);
+    }
+    
+    .btn-outline-primary:hover {
+        background: var(--primary);
+        color: white;
+    }
+    
+    .btn-outline-info {
+        background: transparent;
+        border: 2px solid var(--primary);
+        color: var(--primary);
+    }
+    
+    .btn-outline-info:hover {
+        background: var(--primary);
+        color: white;
+    }
+    
+    .btn-outline-success {
+        background: transparent;
+        border: 2px solid var(--success);
+        color: var(--success);
+    }
+    
+    .btn-outline-success:hover {
+        background: var(--success);
+        color: white;
+    }
+    
+    .btn-outline-danger {
+        background: transparent;
+        border: 2px solid var(--danger);
+        color: var(--danger);
+    }
+    
+    .btn-outline-danger:hover {
+        background: var(--danger);
+        color: white;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: var(--radius);
+        text-align: center;
+        box-shadow: var(--shadow);
+        border-left: 4px solid var(--primary);
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-weight: 600;
+    }
+    
+    @media (max-width: 768px) {
         .wrapper {
-            display: flex;
-            min-height: 100vh;
-        }
-        
-        .sidebar {
-            width: 260px;
-            background: var(--pink-2);
-            padding: 2rem 1rem;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            display: flex;
             flex-direction: column;
         }
         
-        .sidebar .brand {
-            font-weight: 800;
-            font-size: 1.2rem;
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        
-        .sidebar .profile {
-            text-align: center;
-            margin-bottom: 2rem;
-            position: relative;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .sidebar .profile:hover::after {
-            content: 'Change Photo';
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .sidebar .profile img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin-bottom: .5rem;
-            border: 3px solid rgba(0,0,0,0.1);
-            object-fit: cover;
-            transition: all 0.3s ease;
-        }
-        
-        .sidebar .profile:hover img {
-            transform: scale(1.05);
-        }
-        
-        .sidebar a {
-            display: flex;
-            align-items: center;
-            padding: 12px 14px;
-            border-radius: 12px;
-            margin: .3rem 0;
-            text-decoration: none;
-            color: #333;
-            font-weight: 600;
-            transition: .2s;
-        }
-        
-        .sidebar a .icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 12px;
-            display: grid;
-            place-items: center;
-            background: rgba(255,255,255,.6);
-            margin-right: 10px;
-        }
-        
-        .sidebar a.active, .sidebar a:hover {
-            background: var(--pink);
-            color: #000;
-        }
-        
-        .sidebar .logout {
-            margin-top: auto;
-            font-weight: 600;
-            color: #fff;
-            background: #dc3545;
-            text-align: center;
-            padding: 10px;
-            border-radius: 10px;
-        }
-        
-        .main-content {
-            flex: 1;
-            padding: 1.5rem 2rem;
-            overflow-y: auto;
+        .sidebar {
+            width: 100%;
+            padding: 1rem;
         }
         
         .topbar {
-            background: white;
-            padding: 1rem 1.5rem;
-            border-radius: 16px;
-            box-shadow: var(--shadow);
-            margin-bottom: 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .card-custom {
-            background: white;
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: var(--shadow);
-            margin-bottom: 1.5rem;
-            border: none;
-        }
-        
-        .pet-card {
-            border-radius: 16px;
-            overflow: hidden;
-            transition: transform 0.3s;
-            height: 100%;
-            border: none;
-            box-shadow: var(--shadow);
-            margin-bottom: 1.5rem;
-        }
-        
-        .pet-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .pet-card-header {
-            padding: 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: linear-gradient(135deg, var(--pink-light), var(--blue-light));
-        }
-        
-        .pet-card-body {
-            padding: 1.5rem;
-        }
-        
-        .pet-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            background: white;
-            border: 4px solid white;
-            box-shadow: var(--shadow);
-            overflow: hidden;
-        }
-        
-        .pet-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .pet-avatar i {
-            font-size: 2rem;
-        }
-        
-        .pet-details-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            flex-direction: column;
             gap: 1rem;
-            margin: 1.5rem 0;
-        }
-        
-        .detail-item {
-            background: var(--pink-light);
-            padding: 1rem;
-            border-radius: 10px;
             text-align: center;
-        }
-        
-        .detail-item i {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-            color: var(--blue);
-        }
-        
-        .medical-history {
-            background: var(--pink-light);
-            padding: 1.5rem;
-            border-radius: 12px;
-            border-left: 4px solid var(--blue);
-            margin-top: 1.5rem;
-        }
-        
-        .medical-item {
-            padding: 0.75rem;
-            background: white;
-            border-radius: 8px;
-            border-left: 3px solid var(--green);
-            margin-bottom: 0.75rem;
-        }
-        
-        .medical-item strong {
-            color: var(--blue);
-            display: block;
-            margin-bottom: 0.25rem;
-        }
-        
-        .medical-item p {
-            margin: 0;
-            font-size: 0.9rem;
-            line-height: 1.4;
-        }
-        
-        .medical-dates-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .medical-date-item {
-            background: white;
-            padding: 0.75rem;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid #e9ecef;
-        }
-        
-        .medical-date-item small {
-            color: #6c757d;
-            display: block;
-            margin-bottom: 0.25rem;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 3rem 2rem;
-            color: #6c757d;
-        }
-        
-        .empty-state i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
         }
         
         .action-buttons {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
+            flex-direction: column;
         }
         
-        .profile-picture-section {
+        .medical-dates-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .pet-card-header {
+            flex-direction: column;
             text-align: center;
-            margin-bottom: 1.5rem;
-        }
-        
-        .profile-picture-large {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 4px solid white;
-            box-shadow: var(--shadow);
-        }
-        
-        .no-profile-picture {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--pink-light), var(--blue-light));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto;
-            border: 4px solid white;
-            box-shadow: var(--shadow);
-        }
-        
-        .no-profile-picture i {
-            font-size: 3rem;
-            color: #6c757d;
-        }
-        
-        .btn-custom {
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            text-decoration: none;
-            font-size: 0.9rem;
-        }
-        
-        .btn-primary {
-            background: var(--blue);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #3a5bd9;
-            transform: translateY(-2px);
-        }
-        
-        .btn-outline-primary {
-            background: transparent;
-            border: 2px solid var(--blue);
-            color: var(--blue);
-        }
-        
-        .btn-outline-primary:hover {
-            background: var(--blue);
-            color: white;
-        }
-        
-        .btn-outline-info {
-            background: transparent;
-            border: 2px solid var(--blue);
-            color: var(--blue);
-        }
-        
-        .btn-outline-info:hover {
-            background: var(--blue);
-            color: white;
-        }
-        
-        .btn-outline-success {
-            background: transparent;
-            border: 2px solid var(--green);
-            color: var(--green);
-        }
-        
-        .btn-outline-success:hover {
-            background: var(--green);
-            color: white;
-        }
-        
-        .btn-outline-danger {
-            background: transparent;
-            border: 2px solid var(--red);
-            color: var(--red);
-        }
-        
-        .btn-outline-danger:hover {
-            background: var(--red);
-            color: white;
+            gap: 1rem;
         }
         
         .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
+            grid-template-columns: 1fr;
         }
-        
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: var(--radius);
-            text-align: center;
-            box-shadow: var(--shadow);
-            border-left: 4px solid var(--blue);
-        }
-        
-        .stat-number {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--blue);
-            margin-bottom: 0.5rem;
-        }
-        
-        .stat-label {
-            color: #6c757d;
-            font-weight: 600;
-        }
-        
-        @media (max-width: 768px) {
-            .wrapper {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                padding: 1rem;
-            }
-            
-            .topbar {
-                flex-direction: column;
-                gap: 1rem;
-                text-align: center;
-            }
-            
-            .action-buttons {
-                flex-direction: column;
-            }
-            
-            .medical-dates-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .pet-card-header {
-                flex-direction: column;
-                text-align: center;
-                gap: 1rem;
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+    }
+</style>
     </style>
 </head>
 <body>
@@ -1163,3 +1164,4 @@ if (isset($_POST['delete_pet'])) {
 </script>
 </body>
 </html>
+
