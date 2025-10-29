@@ -70,25 +70,29 @@ if (isset($_SESSION['error'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings - VetCareQR</title>
+    <title>Settings - PetMedQR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-pink: #e91e63;
-            --secondary-pink: #f8bbd9;
-            --light-pink: #fce4ec;
-            --dark-pink: #ad1457;
-            --accent-pink: #f48fb1;
-            --success-color: #4caf50;
-            --warning-color: #ff9800;
-            --danger-color: #f44336;
-            --dark-color: #37474f;
-            --light-color: #fafafa;
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
+            --secondary: #8b5cf6;
+            --light: #f0f9ff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1f2937;
+            --gray: #6b7280;
+            --gray-light: #e5e7eb;
+            --radius: 16px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         
         body {
-            background: linear-gradient(135deg, var(--light-pink) 0%, #f3e5f5 100%);
+            background: linear-gradient(135deg, var(--light) 0%, #e0f2fe 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
@@ -101,9 +105,9 @@ if (isset($_SESSION['error'])) {
         
         .settings-card {
             background: white;
-            border-radius: 20px;
+            border-radius: var(--radius);
             padding: 2rem;
-            box-shadow: 0 10px 30px rgba(233, 30, 99, 0.1);
+            box-shadow: var(--shadow-lg);
             margin-bottom: 2rem;
             border: none;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -118,12 +122,12 @@ if (isset($_SESSION['error'])) {
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary-pink), var(--accent-pink));
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
         }
         
         .settings-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(233, 30, 99, 0.15);
+            box-shadow: 0 15px 35px rgba(14, 165, 233, 0.15);
         }
         
         .settings-section {
@@ -138,12 +142,12 @@ if (isset($_SESSION['error'])) {
             font-size: 1.3rem;
             font-weight: 700;
             margin-bottom: 1.5rem;
-            color: var(--dark-pink);
+            color: var(--primary-dark);
             padding-bottom: 0.75rem;
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            border-bottom: 2px solid var(--secondary-pink);
+            border-bottom: 2px solid var(--primary-light);
         }
         
         .info-grid {
@@ -157,27 +161,27 @@ if (isset($_SESSION['error'])) {
             justify-content: space-between;
             align-items: center;
             padding: 1.25rem;
-            border-radius: 12px;
-            background: var(--light-pink);
+            border-radius: var(--radius);
+            background: var(--primary-light);
             transition: all 0.3s ease;
-            border-left: 4px solid var(--accent-pink);
+            border-left: 4px solid var(--primary);
         }
         
         .info-item:hover {
-            background: #f8bbd9;
+            background: #bae6fd;
             transform: translateX(5px);
         }
         
         .info-label {
             font-weight: 600;
-            color: var(--dark-pink);
+            color: var(--primary-dark);
             display: flex;
             align-items: center;
             gap: 0.75rem;
         }
         
         .info-value {
-            color: var(--dark-color);
+            color: var(--dark);
             text-align: right;
             word-break: break-word;
             font-weight: 500;
@@ -196,15 +200,15 @@ if (isset($_SESSION['error'])) {
             height: 160px;
             border-radius: 50%;
             object-fit: cover;
-            border: 5px solid var(--secondary-pink);
+            border: 5px solid var(--primary-light);
             transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(233, 30, 99, 0.2);
+            box-shadow: var(--shadow-lg);
         }
         
         .profile-picture:hover {
             transform: scale(1.08);
-            border-color: var(--primary-pink);
-            box-shadow: 0 12px 25px rgba(233, 30, 99, 0.3);
+            border-color: var(--primary);
+            box-shadow: 0 12px 25px rgba(14, 165, 233, 0.3);
         }
         
         .profile-picture-overlay {
@@ -213,7 +217,7 @@ if (isset($_SESSION['error'])) {
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(233, 30, 99, 0.7), rgba(244, 143, 177, 0.7));
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.7), rgba(2, 132, 199, 0.7));
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -235,31 +239,31 @@ if (isset($_SESSION['error'])) {
             width: 160px;
             height: 160px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--light-pink), var(--secondary-pink));
+            background: linear-gradient(135deg, var(--primary-light), #bae6fd);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 3.5rem;
-            color: var(--primary-pink);
-            border: 5px solid var(--secondary-pink);
+            color: var(--primary);
+            border: 5px solid var(--primary-light);
             margin: 0 auto;
             transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(233, 30, 99, 0.2);
+            box-shadow: var(--shadow-lg);
         }
         
         .profile-picture-placeholder:hover {
-            border-color: var(--primary-pink);
+            border-color: var(--primary);
             transform: scale(1.08);
-            box-shadow: 0 12px 25px rgba(233, 30, 99, 0.3);
+            box-shadow: 0 12px 25px rgba(14, 165, 233, 0.3);
         }
         
         .picture-stats {
-            background: linear-gradient(135deg, var(--light-pink), #f3e5f5);
-            border-radius: 15px;
+            background: linear-gradient(135deg, var(--primary-light), #f0f9ff);
+            border-radius: var(--radius);
             padding: 1.5rem;
             margin-top: 1.5rem;
-            border-left: 5px solid var(--primary-pink);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--primary);
+            box-shadow: var(--shadow);
         }
         
         .stat-item {
@@ -267,7 +271,7 @@ if (isset($_SESSION['error'])) {
             justify-content: space-between;
             align-items: center;
             padding: 0.75rem 0;
-            border-bottom: 1px solid rgba(233, 30, 99, 0.1);
+            border-bottom: 1px solid rgba(14, 165, 233, 0.1);
         }
         
         .stat-item:last-child {
@@ -276,19 +280,19 @@ if (isset($_SESSION['error'])) {
         
         .stat-label {
             font-weight: 600;
-            color: var(--dark-pink);
+            color: var(--primary-dark);
             display: flex;
             align-items: center;
             gap: 0.75rem;
         }
         
         .stat-value {
-            color: var(--dark-color);
+            color: var(--dark);
             font-weight: 500;
         }
         
         .btn-custom {
-            border-radius: 12px;
+            border-radius: var(--radius);
             padding: 0.75rem 1.5rem;
             font-weight: 600;
             transition: all 0.3s ease;
@@ -296,38 +300,38 @@ if (isset($_SESSION['error'])) {
             align-items: center;
             gap: 0.75rem;
             border: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow);
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary-pink), var(--accent-pink));
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
         }
         
         .btn-primary:hover {
-            background: linear-gradient(135deg, var(--dark-pink), var(--primary-pink));
+            background: linear-gradient(135deg, var(--primary-dark), #0369a1);
             transform: translateY(-3px);
-            box-shadow: 0 7px 15px rgba(233, 30, 99, 0.3);
+            box-shadow: 0 7px 15px rgba(14, 165, 233, 0.3);
         }
         
         .btn-outline-primary {
-            border: 2px solid var(--primary-pink);
-            color: var(--primary-pink);
+            border: 2px solid var(--primary);
+            color: var(--primary);
         }
         
         .btn-outline-primary:hover {
-            background: var(--primary-pink);
-            border-color: var(--primary-pink);
+            background: var(--primary);
+            border-color: var(--primary);
             transform: translateY(-3px);
-            box-shadow: 0 7px 15px rgba(233, 30, 99, 0.3);
+            box-shadow: 0 7px 15px rgba(14, 165, 233, 0.3);
         }
         
         .btn-outline-danger {
-            border: 2px solid var(--danger-color);
-            color: var(--danger-color);
+            border: 2px solid var(--danger);
+            color: var(--danger);
         }
         
         .btn-outline-danger:hover {
-            background: var(--danger-color);
+            background: var(--danger);
             transform: translateY(-3px);
         }
         
@@ -349,7 +353,7 @@ if (isset($_SESSION['error'])) {
         
         .action-btn {
             padding: 1.25rem;
-            border-radius: 15px;
+            border-radius: var(--radius);
             text-align: left;
             transition: all 0.3s ease;
             border: none;
@@ -359,7 +363,7 @@ if (isset($_SESSION['error'])) {
             align-items: center;
             gap: 1rem;
             background: white;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow);
             position: relative;
             overflow: hidden;
         }
@@ -371,12 +375,12 @@ if (isset($_SESSION['error'])) {
             left: 0;
             right: 0;
             height: 3px;
-            background: var(--secondary-pink);
+            background: var(--primary-light);
         }
         
         .action-btn:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(233, 30, 99, 0.15);
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.15);
             color: inherit;
             text-decoration: none;
         }
@@ -389,12 +393,12 @@ if (isset($_SESSION['error'])) {
             align-items: center;
             justify-content: center;
             border-radius: 10px;
-            background: var(--light-pink);
-            color: var(--primary-pink);
+            background: var(--primary-light);
+            color: var(--primary);
         }
         
         .action-btn.border-warning {
-            border-left: 4px solid var(--warning-color);
+            border-left: 4px solid var(--warning);
         }
         
         .action-btn.border-info {
@@ -402,19 +406,19 @@ if (isset($_SESSION['error'])) {
         }
         
         .action-btn.border-success {
-            border-left: 4px solid var(--success-color);
+            border-left: 4px solid var(--success);
         }
         
         .action-btn.border-primary {
-            border-left: 4px solid var(--primary-pink);
+            border-left: 4px solid var(--primary);
         }
         
         .action-btn.border-secondary {
-            border-left: 4px solid #6c757d;
+            border-left: 4px solid var(--gray);
         }
         
         .action-btn.border-danger {
-            border-left: 4px solid var(--danger-color);
+            border-left: 4px solid var(--danger);
         }
         
         @keyframes fadeIn {
@@ -427,7 +431,7 @@ if (isset($_SESSION['error'])) {
             width: 20px;
             height: 20px;
             border: 2px solid #f3f3f3;
-            border-top: 2px solid var(--primary-pink);
+            border-top: 2px solid var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -442,35 +446,35 @@ if (isset($_SESSION['error'])) {
             border-radius: 20px;
             font-weight: 600;
             text-transform: capitalize;
-            background: linear-gradient(135deg, var(--primary-pink), var(--accent-pink));
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
         }
         
         .alert {
-            border-radius: 15px;
+            border-radius: var(--radius);
             border: none;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow);
         }
         
         .alert-success {
-            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-            color: #2e7d32;
-            border-left: 5px solid var(--success-color);
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            color: #065f46;
+            border-left: 5px solid var(--success);
         }
         
         .alert-danger {
-            background: linear-gradient(135deg, #ffebee, #ffcdd2);
-            color: #c62828;
-            border-left: 5px solid var(--danger-color);
+            background: linear-gradient(135deg, #fecaca, #fca5a5);
+            color: #7f1d1d;
+            border-left: 5px solid var(--danger);
         }
         
         h3 {
-            color: var(--dark-pink);
+            color: var(--primary-dark);
             font-weight: 700;
         }
         
         .text-muted {
-            color: #78909c !important;
+            color: var(--gray) !important;
         }
         
         @media (max-width: 768px) {
@@ -496,26 +500,26 @@ if (isset($_SESSION['error'])) {
             }
         }
         
-        /* Custom pink modal */
+        /* Custom blue modal */
         .modal-content {
-            border-radius: 20px;
+            border-radius: var(--radius);
             border: none;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow-lg);
             overflow: hidden;
         }
         
         .modal-header {
-            background: linear-gradient(135deg, var(--light-pink), #f3e5f5);
-            border-bottom: 1px solid var(--secondary-pink);
+            background: linear-gradient(135deg, var(--primary-light), var(--light));
+            border-bottom: 1px solid var(--primary-light);
         }
         
         .modal-title {
-            color: var(--dark-pink);
+            color: var(--primary-dark);
             font-weight: 700;
         }
         
         .modal-footer {
-            border-top: 1px solid var(--secondary-pink);
+            border-top: 1px solid var(--primary-light);
         }
     </style>
 </head>
@@ -910,5 +914,3 @@ if (isset($_SESSION['error'])) {
     </script>
 </body>
 </html>
-
-
