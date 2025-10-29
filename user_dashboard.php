@@ -35,6 +35,14 @@ $vaccinatedPets = 0;
 $upcomingReminders = 0;
 $recentVisits = 0;
 
+// Health monitoring data for charts
+$healthData = [
+    'vaccination_status' => [],
+    'visit_frequency' => [],
+    'weight_trends' => [],
+    'health_scores' => []
+];
+
 try {
     $query = "
     SELECT 
@@ -129,14 +137,19 @@ try {
     
     $totalPets = count($pets);
     
-    // Calculate statistics
+    // Calculate statistics and health data
     $thirtyDaysAgo = date('Y-m-d', strtotime('-30 days'));
+    $sixMonthsAgo = date('Y-m-d', strtotime('-6 months'));
+    
     foreach ($pets as $pet) {
+        $petVaccinated = false;
+        $petVisits = 0;
+        $petWeight = $pet['weight'] ? floatval($pet['weight']) : null;
+        
         foreach ($pet['records'] as $record) {
             // Check for vaccinations
             if (!empty($record['service_type']) && stripos($record['service_type'], 'vaccin') !== false) {
-                $vaccinatedPets++;
-                break; // Count each pet only once for vaccination
+                $petVaccinated = true;
             }
             
             // Check for upcoming reminders
@@ -147,8 +160,27 @@ try {
             // Check for recent visits
             if (!empty($record['service_date']) && $record['service_date'] >= $thirtyDaysAgo) {
                 $recentVisits++;
+                $petVisits++;
             }
         }
+        
+        if ($petVaccinated) {
+            $vaccinatedPets++;
+        }
+        
+        // Build health data for charts
+        $healthData['vaccination_status'][$pet['pet_name']] = $petVaccinated ? 'Vaccinated' : 'Not Vaccinated';
+        $healthData['visit_frequency'][$pet['pet_name']] = $petVisits;
+        
+        if ($petWeight) {
+            $healthData['weight_trends'][$pet['pet_name']] = $petWeight;
+        }
+        
+        // Calculate health score (simplified)
+        $healthScore = 70; // Base score
+        if ($petVaccinated) $healthScore += 20;
+        if ($petVisits > 0) $healthScore += 10;
+        $healthData['health_scores'][$pet['pet_name']] = min($healthScore, 100);
     }
     
 } catch (Exception $e) {
@@ -269,23 +301,24 @@ if (isset($_POST['cancel_appointment'])) {
     <title>VetCareQR - User Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary-pink: #e91e63;
-            --secondary-pink: #f8bbd9;
-            --light-pink: #fce4ec;
-            --dark-pink: #ad1457;
-            --accent-pink: #f48fb1;
-            --blue: #4a6cf7;
-            --green: #2ecc71;
-            --orange: #f39c12;
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
+            --secondary: #8b5cf6;
+            --light: #f0f9ff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
             --radius: 16px;
             --shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
         
         body {
             font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, var(--light-pink) 0%, #f3e5f5 100%);
+            background: linear-gradient(135deg, var(--light) 0%, #e0f2fe 100%);
             margin: 0;
             color: #333;
             min-height: 100vh;
@@ -298,7 +331,7 @@ if (isset($_POST['cancel_appointment'])) {
         
         .sidebar {
             width: 260px;
-            background: var(--secondary-pink);
+            background: var(--primary-light);
             padding: 2rem 1rem;
             border-radius: var(--radius);
             box-shadow: var(--shadow);
@@ -311,7 +344,7 @@ if (isset($_POST['cancel_appointment'])) {
             font-size: 1.2rem;
             text-align: center;
             margin-bottom: 2rem;
-            color: var(--dark-pink);
+            color: var(--primary-dark);
         }
         
         .sidebar .profile {
@@ -324,7 +357,7 @@ if (isset($_POST['cancel_appointment'])) {
             height: 80px;
             border-radius: 50%;
             margin-bottom: .5rem;
-            border: 3px solid var(--accent-pink);
+            border: 3px solid var(--primary);
             object-fit: cover;
         }
         
@@ -351,8 +384,8 @@ if (isset($_POST['cancel_appointment'])) {
         }
         
         .sidebar a.active, .sidebar a:hover {
-            background: var(--light-pink);
-            color: var(--dark-pink);
+            background: var(--light);
+            color: var(--primary-dark);
         }
         
         .sidebar .logout {
@@ -367,7 +400,7 @@ if (isset($_POST['cancel_appointment'])) {
         }
 
         .sidebar .appointment-btn {
-            background: linear-gradient(135deg, var(--primary-pink), var(--dark-pink));
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border: none;
             border-radius: 12px;
@@ -384,7 +417,7 @@ if (isset($_POST['cancel_appointment'])) {
         }
         
         .sidebar .appointment-btn:hover {
-            background: linear-gradient(135deg, var(--dark-pink), var(--primary-pink));
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
             color: white;
             transform: translateY(-2px);
         }
@@ -434,10 +467,10 @@ if (isset($_POST['cancel_appointment'])) {
         }
         
         /* Appointment Status Styles */
-        .badge-pending { background: linear-gradient(135deg, #f39c12, #e67e22); }
-        .badge-confirmed { background: linear-gradient(135deg, #2ecc71, #27ae60); }
-        .badge-completed { background: linear-gradient(135deg, #3498db, #2980b9); }
-        .badge-cancelled { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .badge-pending { background: linear-gradient(135deg, var(--warning), #e67e22); }
+        .badge-confirmed { background: linear-gradient(135deg, var(--success), #27ae60); }
+        .badge-completed { background: linear-gradient(135deg, var(--primary), #2980b9); }
+        .badge-cancelled { background: linear-gradient(135deg, var(--danger), #c0392b); }
         
         .appointment-card {
             border-left: 4px solid;
@@ -445,10 +478,10 @@ if (isset($_POST['cancel_appointment'])) {
             margin-bottom: 1rem;
         }
         
-        .appointment-pending { border-left-color: #f39c12; background: #fef9e7; }
-        .appointment-confirmed { border-left-color: #2ecc71; background: #eafaf1; }
-        .appointment-completed { border-left-color: #3498db; background: #ebf5fb; }
-        .appointment-cancelled { border-left-color: #e74c3c; background: #fdedec; }
+        .appointment-pending { border-left-color: var(--warning); background: #fef9e7; }
+        .appointment-confirmed { border-left-color: var(--success); background: #eafaf1; }
+        .appointment-completed { border-left-color: var(--primary); background: #ebf5fb; }
+        .appointment-cancelled { border-left-color: var(--danger); background: #fdedec; }
         
         .pet-card {
             border-radius: 16px;
@@ -491,7 +524,7 @@ if (isset($_POST['cancel_appointment'])) {
         }
         
         .notification-item {
-            border-left: 4px solid var(--primary-pink);
+            border-left: 4px solid var(--primary);
             padding: 1rem;
             margin-bottom: 1rem;
             background: white;
@@ -500,8 +533,8 @@ if (isset($_POST['cancel_appointment'])) {
         }
         
         .notification-item.unread {
-            background: var(--light-pink);
-            border-left-color: var(--dark-pink);
+            background: var(--light);
+            border-left-color: var(--primary-dark);
         }
         
         .notification-item:hover {
@@ -522,9 +555,44 @@ if (isset($_POST['cancel_appointment'])) {
             display: inline-block;
         }
         
-        .status-good { background-color: var(--green); }
-        .status-warning { background-color: var(--orange); }
-        .status-bad { background-color: #e74c3c; }
+        .status-good { background-color: var(--success); }
+        .status-warning { background-color: var(--warning); }
+        .status-bad { background-color: var(--danger); }
+        
+        /* Chart Styles */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 1rem 0;
+        }
+        
+        .health-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 0.5rem 0;
+        }
+        
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
         
         @media (max-width: 768px) {
             .wrapper {
@@ -540,6 +608,10 @@ if (isset($_POST['cancel_appointment'])) {
                 flex-direction: column;
                 gap: 1rem;
                 text-align: center;
+            }
+            
+            .health-metrics {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -640,7 +712,7 @@ if (isset($_POST['cancel_appointment'])) {
                 
                 <div class="input-group" style="width:300px">
                     <input type="text" placeholder="Search pet, appointment, vet..." class="form-control">
-                    <button class="btn btn-outline-secondary" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    <button class="btn btn-outline-primary" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
                 </div>
                 <div class="text-end">
                     <strong id="currentDate"></strong><br>
@@ -669,48 +741,121 @@ if (isset($_POST['cancel_appointment'])) {
         <!-- Stats Cards -->
         <div class="row stats-row mb-4">
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <div class="stats-card" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark));">
                     <i class="fa-solid fa-paw"></i>
                     <h6>Registered Pets</h6>
                     <h4><?php echo $totalPets; ?></h4>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                <div class="stats-card" style="background: linear-gradient(135deg, var(--success), #27ae60);">
                     <i class="fa-solid fa-syringe"></i>
                     <h6>Vaccinated Pets</h6>
                     <h4><?php echo $vaccinatedPets; ?></h4>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                <div class="stats-card" style="background: linear-gradient(135deg, var(--warning), #e67e22);">
                     <i class="fa-solid fa-calendar-check"></i>
                     <h6>Upcoming Reminders</h6>
                     <h4><?php echo $upcomingReminders; ?></h4>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                <div class="stats-card" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
                     <i class="fa-solid fa-stethoscope"></i>
                     <h6>Recent Visits</h6>
                     <h4><?php echo $recentVisits; ?></h4>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, #fa709a, #fee140);">
+                <div class="stats-card" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
                     <i class="fa-solid fa-calendar-day"></i>
                     <h6>Total Appointments</h6>
                     <h4><?php echo $appointment_stats['total']; ?></h4>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 mb-3">
-                <div class="stats-card" style="background: linear-gradient(135deg, #ff9a9e, #fecfef);">
+                <div class="stats-card" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
                     <i class="fa-solid fa-clock"></i>
                     <h6>Pending</h6>
                     <h4><?php echo $appointment_stats['pending']; ?></h4>
                 </div>
             </div>
         </div>
+
+        <!-- Health Monitoring Section -->
+        <?php if (!empty($pets)): ?>
+        <div class="card-custom">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0"><i class="fa-solid fa-heart-pulse me-2"></i>Health Monitoring</h4>
+                <small class="text-muted">Real-time health insights</small>
+            </div>
+            
+            <!-- Health Metrics -->
+            <div class="health-metrics">
+                <div class="metric-card">
+                    <div class="metric-value"><?php echo $vaccinatedPets; ?>/<?php echo $totalPets; ?></div>
+                    <div class="metric-label">Vaccinated Pets</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value"><?php echo $recentVisits; ?></div>
+                    <div class="metric-label">Visits (30 days)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value"><?php echo $upcomingReminders; ?></div>
+                    <div class="metric-label">Upcoming Reminders</div>
+                </div>
+                <div class="metric-card">
+                    <?php
+                    $avgHealthScore = !empty($healthData['health_scores']) ? 
+                        round(array_sum($healthData['health_scores']) / count($healthData['health_scores'])) : 0;
+                    ?>
+                    <div class="metric-value"><?php echo $avgHealthScore; ?>%</div>
+                    <div class="metric-label">Avg Health Score</div>
+                </div>
+            </div>
+
+            <!-- Health Charts -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <h6>Vaccination Status</h6>
+                        <div class="chart-container">
+                            <canvas id="vaccinationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <h6>Health Scores</h6>
+                        <div class="chart-container">
+                            <canvas id="healthScoreChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <h6>Visit Frequency (Last 30 Days)</h6>
+                        <div class="chart-container">
+                            <canvas id="visitChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <h6>Weight Distribution</h6>
+                        <div class="chart-container">
+                            <canvas id="weightChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Recent Appointments Section -->
         <div class="card-custom">
@@ -879,12 +1024,12 @@ if (isset($_POST['cancel_appointment'])) {
                         ?>
                         <div class="col-md-6 col-lg-4 mb-3">
                             <div class="pet-card">
-                                <div class="pet-card-header" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#e8f4fd' : '#fde8f2'; ?>">
+                                <div class="pet-card-header" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#e0f2fe' : '#f0f9ff'; ?>">
                                     <div>
                                         <h5 class="mb-0"><?php echo htmlspecialchars($pet['pet_name']); ?></h5>
                                         <small class="text-muted"><?php echo htmlspecialchars($pet['species']) . " • " . htmlspecialchars($pet['breed']); ?></small>
                                     </div>
-                                    <div class="pet-species-icon" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bbdefb' : '#f8bbd0'; ?>">
+                                    <div class="pet-species-icon" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bae6fd' : '#e0f2fe'; ?>">
                                         <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
                                     </div>
                                 </div>
@@ -1020,6 +1165,9 @@ if (isset($_POST['cancel_appointment'])) {
             });
         }, 5000);
         
+        // Initialize health monitoring charts
+        initializeHealthCharts();
+        
         console.log('User dashboard initialized successfully!');
     });
 
@@ -1034,6 +1182,119 @@ if (isset($_POST['cancel_appointment'])) {
         document.getElementById('cancelAppointmentId').value = appointmentId;
         const cancelModal = new bootstrap.Modal(document.getElementById('cancelModal'));
         cancelModal.show();
+    }
+
+    function initializeHealthCharts() {
+        // Vaccination Status Chart
+        const vaccinationCtx = document.getElementById('vaccinationChart').getContext('2d');
+        const vaccinationChart = new Chart(vaccinationCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Vaccinated', 'Not Vaccinated'],
+                datasets: [{
+                    data: [<?php echo $vaccinatedPets; ?>, <?php echo $totalPets - $vaccinatedPets; ?>],
+                    backgroundColor: ['#10b981', '#ef4444'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Health Scores Chart
+        const healthScoreCtx = document.getElementById('healthScoreChart').getContext('2d');
+        const healthScoreChart = new Chart(healthScoreCtx, {
+            type: 'bar',
+            data: {
+                labels: <?php echo json_encode(array_keys($healthData['health_scores'])); ?>,
+                datasets: [{
+                    label: 'Health Score (%)',
+                    data: <?php echo json_encode(array_values($healthData['health_scores'])); ?>,
+                    backgroundColor: '#0ea5e9',
+                    borderColor: '#0284c7',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Health Score (%)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Visit Frequency Chart
+        const visitCtx = document.getElementById('visitChart').getContext('2d');
+        const visitChart = new Chart(visitCtx, {
+            type: 'line',
+            data: {
+                labels: <?php echo json_encode(array_keys($healthData['visit_frequency'])); ?>,
+                datasets: [{
+                    label: 'Visits (Last 30 Days)',
+                    data: <?php echo json_encode(array_values($healthData['visit_frequency'])); ?>,
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    borderColor: '#8b5cf6',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Visits'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Weight Distribution Chart
+        const weightCtx = document.getElementById('weightChart').getContext('2d');
+        const weightChart = new Chart(weightCtx, {
+            type: 'radar',
+            data: {
+                labels: <?php echo json_encode(array_keys($healthData['weight_trends'])); ?>,
+                datasets: [{
+                    label: 'Weight (kg)',
+                    data: <?php echo json_encode(array_values($healthData['weight_trends'])); ?>,
+                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                    borderColor: '#f59e0b',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#f59e0b'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
     }
 
     // Search functionality
@@ -1053,4 +1314,3 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
-
