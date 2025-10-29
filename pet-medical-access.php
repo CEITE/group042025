@@ -1065,7 +1065,7 @@ if ($is_authenticated) {
             
             <div class="mb-4">
                 <label class="form-label fw-semibold">
-                    <i class="fas fa-hospital me-2 text-primary"></i>Clinic/Hospital Name
+                    <i class="fas fa-hospital me-2 text-primary"></i>Clinic Name
                 </label>
                 <input type="text" class="form-control form-control-lg" name="vet_clinic" 
                        placeholder="Your veterinary clinic name" required 
@@ -1108,3 +1108,4 @@ if ($is_authenticated) {
 </script>
 </body>
 </html>
+
