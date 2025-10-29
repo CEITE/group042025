@@ -109,14 +109,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #ec4899;
-            --primary-dark: #db2777;
-            --primary-light: #fbcfe8;
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
             --secondary: #8b5cf6;
-            --light: #fdf2f8;
+            --light: #f0f9ff;
             --success: #10b981;
+            --success-light: #d1fae5;
             --warning: #f59e0b;
+            --warning-light: #fef3c7;
             --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --dark: #1f2937;
+            --gray: #6b7280;
+            --gray-light: #e5e7eb;
+            --radius: 16px;
+            --shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
         
         body {
@@ -130,8 +138,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         .register-container {
             background: white;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
             overflow: hidden;
             max-width: 1100px;
             width: 100%;
@@ -208,32 +216,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .form-control {
-            border-radius: 16px;
+            border-radius: var(--radius);
             padding: 16px 20px;
-            border: 2px solid #f3f4f6;
+            border: 2px solid var(--gray-light);
             font-size: 1rem;
             transition: all 0.3s ease;
-            background: #fdf2f8;
+            background: var(--light);
         }
         
         .form-control:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
             transform: translateY(-2px);
             background: white;
         }
         
         .form-select {
-            border-radius: 16px;
+            border-radius: var(--radius);
             padding: 16px 20px;
-            border: 2px solid #f3f4f6;
-            background: #fdf2f8;
+            border: 2px solid var(--gray-light);
+            background: var(--light);
             transition: all 0.3s ease;
         }
         
         .form-select:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
             transform: translateY(-2px);
         }
         
@@ -241,16 +249,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             border: none;
             padding: 16px 32px;
-            border-radius: 16px;
+            border-radius: var(--radius);
             font-weight: 600;
             font-size: 1.1rem;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
         }
         
         .btn-primary:hover {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
             transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+            color: white;
         }
         
         .btn-outline-light {
@@ -295,14 +305,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .alert {
-            border-radius: 16px;
+            border-radius: var(--radius);
             border: none;
             padding: 1.2rem 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow);
         }
         
         .alert-danger {
-            background: rgba(239, 68, 68, 0.1);
+            background: var(--danger-light);
             color: var(--danger);
             border-left: 4px solid var(--danger);
         }
@@ -310,7 +320,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .password-toggle {
             cursor: pointer;
             transition: color 0.3s ease;
-            color: #6b7280;
+            color: var(--gray);
         }
         
         .password-toggle:hover {
@@ -340,12 +350,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             content: '';
             flex: 1;
             height: 1px;
-            background: #e5e7eb;
+            background: var(--gray-light);
         }
         
         .divider-text {
             padding: 0 1rem;
-            color: #6b7280;
+            color: var(--gray);
             font-size: 0.9rem;
             font-weight: 500;
         }
