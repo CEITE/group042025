@@ -1628,8 +1628,8 @@
                     <div class="feature-icon-wrapper">
                         <i class="bi bi-bell-fill"></i>
                     </div>
-                    <h4>Predictive Vaccination Reminders</h4>
-                    <p>Get automated alerts for upcoming vaccinations based on predictive analytics and pet health history, ensuring no vaccination is missed.</p>
+                    <h4>Identify Pet Health Issues with a Photo</h4>
+                    <p>Get instant insights on potential skin conditions, eye problems, and more with our AI-driven image analysis.</p>
                 </div>
             </div>
             <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
@@ -2083,3 +2083,4 @@
 </script>
 </body>
 </html>
+
