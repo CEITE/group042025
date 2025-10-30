@@ -456,7 +456,7 @@ footer {
               <input type="checkbox" class="form-check-input" id="rememberMe">
               <label class="form-check-label small" for="rememberMe">Remember me</label>
             </div>
-            <a href="forgot_password.php" class="forgot-link">
+            <a href="forgot-password.php" class="forgot-link">
               <i class="fas fa-key me-1"></i>Forgot Password?
             </a>
           </div>
@@ -593,3 +593,4 @@ footer {
 </body>
 
 </html>
+
