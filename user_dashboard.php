@@ -593,6 +593,39 @@ if (isset($_POST['cancel_appointment'])) {
             color: #6c757d;
             font-size: 0.9rem;
         }
+
+        /* AI Analysis Styles */
+        .upload-area {
+            border: 3px dashed var(--primary);
+            padding: 30px;
+            text-align: center;
+            border-radius: 12px;
+            background: var(--light);
+            transition: all 0.3s;
+            height: 100%;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--primary-dark);
+            background: #e0f2fe;
+        }
+        
+        .class-list {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            height: 100%;
+        }
+        
+        .disease-tag {
+            background: var(--primary);
+            color: white;
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 4px;
+            display: inline-block;
+            font-size: 0.8rem;
+        }
         
         @media (max-width: 768px) {
             .wrapper {
@@ -856,6 +889,49 @@ if (isset($_POST['cancel_appointment'])) {
             </div>
         </div>
         <?php endif; ?>
+
+        <!-- Pet Disease AI Analysis Section -->
+        <div class="card-custom">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0"><i class="fa-solid fa-robot me-2"></i>AI Pet Disease Analysis</h4>
+                <small class="text-muted">Powered by VetCare AI</small>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="upload-area">
+                        <h5><i class="fa-solid fa-camera me-2"></i>Upload Pet Image</h5>
+                        <p class="text-muted mb-3">Get instant AI analysis for common pet diseases</p>
+                        
+                        <input type="file" id="petImageInput" accept="image/*" class="form-control mb-3">
+                        <button onclick="analyzePetImage()" class="btn btn-primary w-100">
+                            <i class="fa-solid fa-magnifying-glass me-2"></i> Analyze Image
+                        </button>
+                        
+                        <small class="text-muted">
+                            Supports: JPG, PNG, JPEG • Max 10MB<br>
+                            <i class="fa-solid fa-lightbulb me-1"></i> Best results with clear, well-lit images
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="class-list">
+                        <h6><i class="fa-solid fa-list me-2"></i>Detectable Conditions</h6>
+                        <div id="diseaseClassesList" style="max-height: 200px; overflow-y: auto;">
+                            <div class="text-center">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <small class="text-muted">Loading diseases...</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="analysisResult" class="mt-4"></div>
+        </div>
 
         <!-- Recent Appointments Section -->
         <div class="card-custom">
@@ -1168,6 +1244,9 @@ if (isset($_POST['cancel_appointment'])) {
         // Initialize health monitoring charts
         initializeHealthCharts();
         
+        // Load disease classes for AI analysis
+        loadDiseaseClasses();
+        
         console.log('User dashboard initialized successfully!');
     });
 
@@ -1295,6 +1374,211 @@ if (isset($_POST['cancel_appointment'])) {
                 }
             }
         });
+    }
+
+    // Pet Disease AI Analysis Functions
+    function loadDiseaseClasses() {
+        fetch('https://vetcare-prediction-api-production.up.railway.app/classes')
+            .then(response => response.json())
+            .then(data => {
+                const classesList = document.getElementById('diseaseClassesList');
+                if (data.classes && data.classes.length > 0) {
+                    classesList.innerHTML = data.classes.map(cls => 
+                        `<span class="disease-tag">${cls}</span>`
+                    ).join('');
+                } else {
+                    classesList.innerHTML = '<small class="text-muted">Unable to load disease classes</small>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading disease classes:', error);
+                document.getElementById('diseaseClassesList').innerHTML = 
+                    '<small class="text-muted">Cannot connect to AI service</small>';
+            });
+    }
+
+    async function analyzePetImage() {
+        const fileInput = document.getElementById('petImageInput');
+        const resultDiv = document.getElementById('analysisResult');
+        
+        if (!fileInput.files[0]) {
+            showAlert('Please select an image file first!', 'warning');
+            return;
+        }
+        
+        // Validate file size (10MB limit)
+        if (fileInput.files[0].size > 10 * 1024 * 1024) {
+            showAlert('File size too large. Please select an image under 10MB.', 'warning');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        
+        // Show loading state
+        resultDiv.innerHTML = `
+            <div class="alert alert-info alert-custom">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                    <div>
+                        <strong>Analyzing Image...</strong><br>
+                        <small>Our AI is examining your pet's image for disease detection</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        try {
+            const response = await fetch('https://vetcare-prediction-api-production.up.railway.app/predict', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                displayAnalysisResults(data);
+            } else {
+                throw new Error(data.error || 'Analysis failed');
+            }
+            
+        } catch (error) {
+            console.error('Analysis error:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger alert-custom">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Analysis Failed</strong><br>
+                    <small>${error.message || 'Unable to connect to AI service. Please try again.'}</small>
+                </div>
+            `;
+        }
+    }
+
+    function displayAnalysisResults(data) {
+        const resultDiv = document.getElementById('analysisResult');
+        
+        let html = `
+            <div class="alert alert-success alert-custom">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5><i class="fas fa-check-circle me-2"></i>Analysis Complete</h5>
+                        <p class="mb-1"><strong>File:</strong> ${data.file_name}</p>
+                        <p class="mb-0"><strong>Model:</strong> ${data.message || 'AI Medical Analysis'}</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="clearAnalysis()">
+                        <i class="fas fa-times me-1"></i> Clear
+                    </button>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card-custom" style="background: linear-gradient(135deg, #d4edda, #c3e6cb);">
+                        <h6><i class="fas fa-stethoscope me-2"></i>Primary Diagnosis</h6>
+                        <div class="text-center py-3">
+                            <h3 class="text-success mb-2">${data.primary_prediction.class}</h3>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: ${data.primary_prediction.confidence}%" 
+                                     aria-valuenow="${data.primary_prediction.confidence}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    ${data.primary_prediction.confidence}%
+                                </div>
+                            </div>
+                            <small class="text-muted mt-2">Confidence Level</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <h6><i class="fas fa-list-ol me-2"></i>Alternative Possibilities</h6>
+                        <div style="max-height: 200px; overflow-y: auto;">
+        `;
+        
+        if (data.predictions.length > 1) {
+            data.predictions.slice(1, 5).forEach((pred, index) => {
+                const confidenceColor = pred.confidence > 30 ? 'warning' : 'secondary';
+                html += `
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <small>${index + 1}. ${pred.class}</small>
+                        <span class="badge bg-${confidenceColor}">${pred.confidence}%</span>
+                    </div>
+                `;
+            });
+        } else {
+            html += `<p class="text-muted text-center mb-0">No alternative diagnoses</p>`;
+        }
+        
+        html += `
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-custom mt-3">
+                <h6><i class="fas fa-lightbulb me-2"></i>Recommended Actions</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Consult a Veterinarian</strong><br>
+                            <small>This AI analysis is for informational purposes only. Always consult a qualified veterinarian for proper diagnosis and treatment.</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="alert alert-info">
+                            <i class="fas fa-calendar-plus me-2"></i>
+                            <strong>Book an Appointment</strong><br>
+                            <small>Schedule a vet visit for professional diagnosis and treatment plan.</small>
+                            <div class="mt-2">
+                                <a href="user_appointment.php" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-calendar-plus me-1"></i> Book Now
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        resultDiv.innerHTML = html;
+    }
+
+    function clearAnalysis() {
+        document.getElementById('petImageInput').value = '';
+        document.getElementById('analysisResult').innerHTML = '';
+    }
+
+    function showAlert(message, type = 'info') {
+        const alertClass = {
+            'success': 'alert-success',
+            'warning': 'alert-warning', 
+            'danger': 'alert-danger',
+            'info': 'alert-info'
+        }[type] || 'alert-info';
+        
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alertClass} alert-custom alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.getElementById('analysisResult').innerHTML = '';
+        document.getElementById('analysisResult').appendChild(alertDiv);
+        
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                const bsAlert = new bootstrap.Alert(alertDiv);
+                bsAlert.close();
+            }
+        }, 5000);
     }
 
     // Search functionality
