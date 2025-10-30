@@ -509,7 +509,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="text-center mt-4">
                             <small class="text-muted">
                                 Are you a pet owner? 
-                                <a href="../login.php" class="register-link">Login to pet portal here</a>
+                                <a href="../login_vet.php" class="register-link">Login to pet portal here</a>
                             </small>
                         </div>
                     </div>
@@ -569,3 +569,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </script>
 </body>
 </html>
+
