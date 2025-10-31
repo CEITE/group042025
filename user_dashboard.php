@@ -1,9 +1,12 @@
 <?php
-session_start();
+// ✅ Include session configuration first
+include("session_config.php");
 include("conn.php");
 
-// ✅ 1. Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
+// ✅ STRICT ACCESS CONTROL FOR PET OWNERS ONLY
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'owner') {
+    // Clear session and redirect to login
+    session_destroy();
     header("Location: login.php");
     exit();
 }
@@ -27,6 +30,7 @@ try {
 } catch (Exception $e) {
     die("Error fetching user data: " . $e->getMessage());
 }
+
 
 // ✅ 3. Fetch user's pets & medical records
 $pets = [];
@@ -1598,6 +1602,7 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
 
 
 
