@@ -2,9 +2,70 @@
 session_start();
 include("conn.php");
 
-// Check if user is logged in and is a vet
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'vet') {
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Check database connection
+if (!$conn) {
+    die("Database connection failed: " . htmlspecialchars($conn->connect_error));
+}
+
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
     header("Location: login_vet.php");
+    exit();
+}
+
+// Check if user has the correct role
+if ($_SESSION['role'] !== 'vet') {
+    // Clear any existing session data
+    session_unset();
+    session_destroy();
+    
+    // Redirect to appropriate login based on role
+    if (isset($_SESSION['role'])) {
+        if ($_SESSION['role'] === 'admin') {
+            header("Location: login_admin.php");
+        } else {
+            header("Location: login.php");
+        }
+    } else {
+        header("Location: login_vet.php");
+    }
+    exit();
+}
+
+// Validate session and prevent session fixation
+if (!isset($_SESSION['created'])) {
+    $_SESSION['created'] = time();
+} else if (time() - $_SESSION['created'] > 1800) {
+    // session started more than 30 minutes ago
+    session_regenerate_id(true);
+    $_SESSION['created'] = time();
+}
+
+// Function to validate session security
+function validateSession() {
+    if (isset($_SESSION['IPaddress']) && isset($_SESSION['userAgent'])) {
+        if ($_SESSION['IPaddress'] != $_SERVER['REMOTE_ADDR']) {
+            return false;
+        }
+        if ($_SESSION['userAgent'] != $_SERVER['HTTP_USER_AGENT']) {
+            return false;
+        }
+    } else {
+        $_SESSION['IPaddress'] = $_SERVER['REMOTE_ADDR'];
+        $_SESSION['userAgent'] = $_SERVER['HTTP_USER_AGENT'];
+    }
+    return true;
+}
+
+// Call the function
+if (!validateSession()) {
+    session_unset();
+    session_destroy();
+    header("Location: login_vet.php?error=session_invalid");
     exit();
 }
 
@@ -40,15 +101,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_picture'])) 
     elseif (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $target_file)) {
         // Update database
         $update_stmt = $conn->prepare("UPDATE users SET profile_picture = ? WHERE user_id = ?");
-        $update_stmt->bind_param("si", $target_file, $vet_id);
-        
-        if ($update_stmt->execute()) {
-            $_SESSION['profile_picture'] = $target_file;
-            $_SESSION['success'] = "Profile picture updated successfully!";
+        if (!$update_stmt) {
+            $_SESSION['error'] = "Database error: " . $conn->error;
         } else {
-            $_SESSION['error'] = "Error updating profile picture in database.";
+            $update_stmt->bind_param("si", $target_file, $vet_id);
+            
+            if ($update_stmt->execute()) {
+                $_SESSION['profile_picture'] = $target_file;
+                $_SESSION['success'] = "Profile picture updated successfully!";
+            } else {
+                $_SESSION['error'] = "Error updating profile picture in database: " . $update_stmt->error;
+            }
+            $update_stmt->close();
         }
-        $update_stmt->close();
     } else {
         $_SESSION['error'] = "Error uploading file.";
     }
@@ -59,9 +124,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_picture'])) 
 
 // Fetch vet info
 $stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
+if (!$stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 $stmt->bind_param("i", $vet_id);
-$stmt->execute();
+if (!$stmt->execute()) {
+    die("Execute failed: " . $stmt->error);
+}
 $vet = $stmt->get_result()->fetch_assoc();
+$stmt->close();
 
 if (!$vet) {
     die("Vet not found!");
@@ -70,7 +141,7 @@ if (!$vet) {
 // Set default profile picture
 $profile_picture = !empty($vet['profile_picture']) ? $vet['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($vet['name']);
 
-// ✅ FIXED: Fetch pending appointment requests
+// Fetch pending appointment requests
 $pending_appointments_stmt = $conn->prepare("
     SELECT a.*, p.name as pet_name, p.species, p.breed, p.age, p.gender, 
            u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone
@@ -80,10 +151,14 @@ $pending_appointments_stmt = $conn->prepare("
     WHERE a.status = 'pending' OR a.status = 'scheduled'
     ORDER BY a.appointment_date ASC, a.appointment_time ASC
 ");
+if (!$pending_appointments_stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 $pending_appointments_stmt->execute();
 $pending_appointments = $pending_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$pending_appointments_stmt->close();
 
-// ✅ FIXED: Fetch confirmed appointments (today and upcoming)
+// Fetch confirmed appointments (today and upcoming)
 $today = date('Y-m-d');
 $confirmed_appointments_stmt = $conn->prepare("
     SELECT a.*, p.name as pet_name, p.species, p.breed, u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone
@@ -93,11 +168,15 @@ $confirmed_appointments_stmt = $conn->prepare("
     WHERE a.status = 'confirmed' AND a.appointment_date >= ?
     ORDER BY a.appointment_date ASC, a.appointment_time ASC
 ");
+if (!$confirmed_appointments_stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 $confirmed_appointments_stmt->bind_param("s", $today);
 $confirmed_appointments_stmt->execute();
 $confirmed_appointments = $confirmed_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$confirmed_appointments_stmt->close();
 
-// ✅ FIXED: Fetch today's appointments
+// Fetch today's appointments
 $today_appointments_stmt = $conn->prepare("
     SELECT a.*, p.name as pet_name, p.species, u.name as owner_name, u.phone_number as owner_phone
     FROM appointments a 
@@ -106,21 +185,29 @@ $today_appointments_stmt = $conn->prepare("
     WHERE a.appointment_date = ? AND (a.status = 'confirmed' OR a.status = 'scheduled')
     ORDER BY a.appointment_time ASC
 ");
+if (!$today_appointments_stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 $today_appointments_stmt->bind_param("s", $today);
 $today_appointments_stmt->execute();
 $today_appointments = $today_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$today_appointments_stmt->close();
 
-// ✅ FIXED: Fetch unread notifications for vet
+// Fetch unread notifications for vet
 $notifications_stmt = $conn->prepare("
     SELECT * FROM vet_notifications 
     WHERE vet_id = ? AND is_read = 0 
     ORDER BY created_at DESC
 ");
+if (!$notifications_stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 $notifications_stmt->bind_param("i", $vet_id);
 $notifications_stmt->execute();
 $notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$notifications_stmt->close();
 
-// ✅ NEW: Fetch emails sent to veterinarian
+// Fetch emails sent to veterinarian
 $emails_stmt = $conn->prepare("
     SELECT el.*, u.name as sender_name 
     FROM email_logs el 
@@ -129,9 +216,13 @@ $emails_stmt = $conn->prepare("
     ORDER BY el.sent_at DESC 
     LIMIT 10
 ");
+if (!$emails_stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 $emails_stmt->bind_param("i", $vet_id);
 $emails_stmt->execute();
 $received_emails = $emails_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$emails_stmt->close();
 
 // Count statistics
 $pending_count = count($pending_appointments);
@@ -140,7 +231,7 @@ $confirmed_count = count($confirmed_appointments);
 $notification_count = count($notifications);
 $email_count = count($received_emails);
 
-// ✅ FIXED: Handle appointment status update
+// Handle appointment status update
 if (isset($_POST['update_status'])) {
     $appointment_id = $_POST['appointment_id'];
     $new_status = $_POST['status'];
@@ -154,54 +245,66 @@ if (isset($_POST['update_status'])) {
         JOIN pets p ON a.pet_id = p.pet_id
         WHERE a.appointment_id = ?
     ");
-    $appointment_info_stmt->bind_param("i", $appointment_id);
-    $appointment_info_stmt->execute();
-    $appointment_info = $appointment_info_stmt->get_result()->fetch_assoc();
-    
-    if ($appointment_info) {
-        // Update appointment status
-        $update_stmt = $conn->prepare("
-            UPDATE appointments 
-            SET status = ?, vet_notes = ?, updated_at = NOW() 
-            WHERE appointment_id = ?
-        ");
-        $update_stmt->bind_param("ssi", $new_status, $vet_notes, $appointment_id);
+    if ($appointment_info_stmt) {
+        $appointment_info_stmt->bind_param("i", $appointment_id);
+        $appointment_info_stmt->execute();
+        $appointment_info = $appointment_info_stmt->get_result()->fetch_assoc();
+        $appointment_info_stmt->close();
         
-        if ($update_stmt->execute()) {
-            // Create notification for user
-            if ($new_status == 'confirmed') {
-                $message = "✅ Great news! Your appointment for " . $appointment_info['pet_name'] . " on " . 
-                          date('M j, Y', strtotime($appointment_info['appointment_date'])) . " at " . 
-                          date('g:i A', strtotime($appointment_info['appointment_time'])) . " has been confirmed!";
-            } elseif ($new_status == 'cancelled') {
-                $message = "❌ Your appointment for " . $appointment_info['pet_name'] . " has been cancelled. " . 
-                          (!empty($vet_notes) ? "Reason: " . $vet_notes : "Please contact the clinic for more information.");
-            } elseif ($new_status == 'completed') {
-                $message = "✅ Appointment completed for " . $appointment_info['pet_name'] . " on " . 
-                          date('M j, Y', strtotime($appointment_info['appointment_date'])) . ". Thank you for choosing our clinic!";
+        if ($appointment_info) {
+            // Update appointment status
+            $update_stmt = $conn->prepare("
+                UPDATE appointments 
+                SET status = ?, vet_notes = ?, updated_at = NOW() 
+                WHERE appointment_id = ?
+            ");
+            if ($update_stmt) {
+                $update_stmt->bind_param("ssi", $new_status, $vet_notes, $appointment_id);
+                
+                if ($update_stmt->execute()) {
+                    // Create notification for user
+                    if ($new_status == 'confirmed') {
+                        $message = "✅ Great news! Your appointment for " . $appointment_info['pet_name'] . " on " . 
+                                  date('M j, Y', strtotime($appointment_info['appointment_date'])) . " at " . 
+                                  date('g:i A', strtotime($appointment_info['appointment_time'])) . " has been confirmed!";
+                    } elseif ($new_status == 'cancelled') {
+                        $message = "❌ Your appointment for " . $appointment_info['pet_name'] . " has been cancelled. " . 
+                                  (!empty($vet_notes) ? "Reason: " . $vet_notes : "Please contact the clinic for more information.");
+                    } elseif ($new_status == 'completed') {
+                        $message = "✅ Appointment completed for " . $appointment_info['pet_name'] . " on " . 
+                                  date('M j, Y', strtotime($appointment_info['appointment_date'])) . ". Thank you for choosing our clinic!";
+                    }
+                    
+                    // Insert user notification
+                    if (isset($message)) {
+                        $user_notification_stmt = $conn->prepare("
+                            INSERT INTO user_notifications (user_id, message, appointment_id, created_at) 
+                            VALUES (?, ?, ?, NOW())
+                        ");
+                        if ($user_notification_stmt) {
+                            $user_notification_stmt->bind_param("isi", $appointment_info['user_id'], $message, $appointment_id);
+                            $user_notification_stmt->execute();
+                            $user_notification_stmt->close();
+                        }
+                    }
+                    
+                    $_SESSION['success'] = "Appointment " . $new_status . " and owner notified!";
+                    
+                    // Mark related vet notifications as read
+                    $mark_read_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE appointment_id = ? AND vet_id = ?");
+                    if ($mark_read_stmt) {
+                        $mark_read_stmt->bind_param("ii", $appointment_id, $vet_id);
+                        $mark_read_stmt->execute();
+                        $mark_read_stmt->close();
+                    }
+                    
+                    header("Location: vet_dashboard.php");
+                    exit();
+                } else {
+                    $_SESSION['error'] = "Error updating appointment status: " . $conn->error;
+                }
+                $update_stmt->close();
             }
-            
-            // Insert user notification
-            if (isset($message)) {
-                $user_notification_stmt = $conn->prepare("
-                    INSERT INTO user_notifications (user_id, message, appointment_id, created_at) 
-                    VALUES (?, ?, ?, NOW())
-                ");
-                $user_notification_stmt->bind_param("isi", $appointment_info['user_id'], $message, $appointment_id);
-                $user_notification_stmt->execute();
-            }
-            
-            $_SESSION['success'] = "Appointment " . $new_status . " and owner notified!";
-            
-            // Mark related vet notifications as read
-            $mark_read_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE appointment_id = ? AND vet_id = ?");
-            $mark_read_stmt->bind_param("ii", $appointment_id, $vet_id);
-            $mark_read_stmt->execute();
-            
-            header("Location: vet_dashboard.php");
-            exit();
-        } else {
-            $_SESSION['error'] = "Error updating appointment status: " . $conn->error;
         }
     }
 }
@@ -209,20 +312,28 @@ if (isset($_POST['update_status'])) {
 // Handle mark all notifications as read
 if (isset($_GET['mark_all_read'])) {
     $mark_all_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE vet_id = ?");
-    $mark_all_stmt->bind_param("i", $vet_id);
-    if ($mark_all_stmt->execute()) {
-        $_SESSION['success'] = "All notifications marked as read!";
-        header("Location: vet_dashboard.php");
-        exit();
+    if ($mark_all_stmt) {
+        $mark_all_stmt->bind_param("i", $vet_id);
+        if ($mark_all_stmt->execute()) {
+            $_SESSION['success'] = "All notifications marked as read!";
+        } else {
+            $_SESSION['error'] = "Error marking notifications as read: " . $mark_all_stmt->error;
+        }
+        $mark_all_stmt->close();
     }
+    header("Location: vet_dashboard.php");
+    exit();
 }
 
 // Handle mark single notification as read
 if (isset($_GET['mark_read'])) {
     $notification_id = $_GET['mark_read'];
     $mark_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE notification_id = ? AND vet_id = ?");
-    $mark_stmt->bind_param("ii", $notification_id, $vet_id);
-    $mark_stmt->execute();
+    if ($mark_stmt) {
+        $mark_stmt->bind_param("ii", $notification_id, $vet_id);
+        $mark_stmt->execute();
+        $mark_stmt->close();
+    }
     header("Location: vet_dashboard.php");
     exit();
 }
@@ -231,13 +342,16 @@ if (isset($_GET['mark_read'])) {
 if (isset($_GET['mark_email_read'])) {
     $email_id = $_GET['mark_email_read'];
     $mark_email_stmt = $conn->prepare("UPDATE email_logs SET is_read = 1 WHERE id = ? AND vet_id = ?");
-    $mark_email_stmt->bind_param("ii", $email_id, $vet_id);
-    $mark_email_stmt->execute();
+    if ($mark_email_stmt) {
+        $mark_email_stmt->bind_param("ii", $email_id, $vet_id);
+        $mark_email_stmt->execute();
+        $mark_email_stmt->close();
+    }
     header("Location: vet_dashboard.php");
     exit();
 }
 
-// ✅ FIXED: Create notifications for any pending appointments without notifications (Temporary fix)
+// Create notifications for any pending appointments without notifications (Temporary fix)
 $check_pending_stmt = $conn->prepare("
     SELECT a.appointment_id, p.name as pet_name, a.appointment_date, a.appointment_time, u.name as owner_name
     FROM appointments a 
@@ -247,21 +361,27 @@ $check_pending_stmt = $conn->prepare("
     AND a.appointment_id NOT IN (SELECT appointment_id FROM vet_notifications WHERE vet_id = ?)
     AND a.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
 ");
-$check_pending_stmt->bind_param("i", $vet_id);
-$check_pending_stmt->execute();
-$missing_notifications = $check_pending_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+if ($check_pending_stmt) {
+    $check_pending_stmt->bind_param("i", $vet_id);
+    $check_pending_stmt->execute();
+    $missing_notifications = $check_pending_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $check_pending_stmt->close();
 
-foreach ($missing_notifications as $appointment) {
-    $message = "📅 New appointment request from " . $appointment['owner_name'] . " for " . $appointment['pet_name'] . " on " . 
-               date('M j, Y', strtotime($appointment['appointment_date'])) . " at " . 
-               date('g:i A', strtotime($appointment['appointment_time']));
-    
-    $insert_stmt = $conn->prepare("
-        INSERT INTO vet_notifications (vet_id, message, appointment_id, created_at) 
-        VALUES (?, ?, ?, NOW())
-    ");
-    $insert_stmt->bind_param("isi", $vet_id, $message, $appointment['appointment_id']);
-    $insert_stmt->execute();
+    foreach ($missing_notifications as $appointment) {
+        $message = "📅 New appointment request from " . $appointment['owner_name'] . " for " . $appointment['pet_name'] . " on " . 
+                   date('M j, Y', strtotime($appointment['appointment_date'])) . " at " . 
+                   date('g:i A', strtotime($appointment['appointment_time']));
+        
+        $insert_stmt = $conn->prepare("
+            INSERT INTO vet_notifications (vet_id, message, appointment_id, created_at) 
+            VALUES (?, ?, ?, NOW())
+        ");
+        if ($insert_stmt) {
+            $insert_stmt->bind_param("isi", $vet_id, $message, $appointment['appointment_id']);
+            $insert_stmt->execute();
+            $insert_stmt->close();
+        }
+    }
 }
 ?>
 
@@ -1391,5 +1511,3 @@ foreach ($missing_notifications as $appointment) {
 </script>
 </body>
 </html>
-
-
