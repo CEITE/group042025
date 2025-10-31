@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get recent appointments for veterinarians
 $recent_appointments_query = "
-    SELECT a.appointment_id, a.pet_idW, a.appointment_date, a.status, 
+    SELECT a.appointment_id, a.pet_id, a.appointment_date, a.status, 
            u.name as vet_name, p.name as pet_name, po.name as owner_name
     FROM appointments a
     JOIN users u ON a.vet_id = u.user_id
@@ -1220,4 +1220,5 @@ if ($recent_appointments_result) {
     </script>
 </body>
 </html>
+
 
