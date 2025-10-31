@@ -69,7 +69,7 @@ if (!validateSession()) {
     exit();
 }
 
-$vet_id = $_SESSION['user_id'];
+$user_id = $_SESSION['user_id'];
 
 // Handle profile picture upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_picture'])) {
@@ -2120,3 +2120,4 @@ if ($users_stmt) {
 </body>
 
 </html>
+
