@@ -142,27 +142,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        // Redirect back with search parameters
-        $redirect_url = "veterinarian.php";
-        $query_params = [];
-        if ($search_term) $query_params[] = "search=" . urlencode($search_term);
-        if ($status_filter) $query_params[] = "status=" . urlencode($status_filter);
-        if ($specialization_filter) $query_params[] = "specialization=" . urlencode($specialization_filter);
-        if ($query_params) $redirect_url .= "?" . implode('&', $query_params);
-        
-        header("Location: $redirect_url");
-        exit();
-    }
-}
-
-// Get recent appointments for veterinarians - CORRECTED QUERY
+       // Get recent appointments for veterinarians - CORRECTED QUERY
 $recent_appointments_query = "
     SELECT a.appointment_id, a.pet_id, a.appointment_date, a.appointment_time, a.status, 
            a.service_type, a.pet_name, u.name as vet_name, po.name as owner_name
     FROM appointments a
     JOIN users u ON a.user_id = u.user_id AND u.role = 'vet'
     LEFT JOIN pets p ON a.pet_id = p.pet_id
-    LEFT JOIN users po ON p.owner_id = po.user_id
+    LEFT JOIN users po ON p.user_id = po.user_id AND po.role = 'owner'
     WHERE a.appointment_date >= CURDATE() AND a.status IN ('pending', 'confirmed')
     ORDER BY a.appointment_date ASC, a.appointment_time ASC
     LIMIT 5
@@ -732,4 +719,5 @@ if ($recent_appointments_result) {
     </script>
 </body>
 </html>
+
 
