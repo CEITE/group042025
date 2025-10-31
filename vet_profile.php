@@ -74,7 +74,7 @@ $recent_appointments_query = "
     SELECT a.*, p.name as pet_name, p.breed, p.species, o.name as owner_name
     FROM appointments a
     JOIN pets p ON a.pet_id = p.pet_id
-    JOIN users o ON p.owner_id = o.user_id
+    JOIN users o ON p.user_id = o.user_id
     WHERE a.user_id = ?
     ORDER BY a.appointment_date DESC, a.appointment_time DESC
     LIMIT 10
@@ -604,4 +604,5 @@ $history_stmt->close();
         });
     </script>
 </body>
+
 </html>
