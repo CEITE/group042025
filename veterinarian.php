@@ -27,6 +27,77 @@ $admin_result = $admin_stmt->get_result();
 $admin = $admin_result->fetch_assoc();
 $admin_stmt->close();
 
+// Email sending function
+function sendVeterinarianEmail($to_email, $to_name, $subject, $message, $type = 'general') {
+    // In a real application, implement actual email sending here
+    // This is a simulation that always returns true
+    
+    // You would typically use PHPMailer, mail() function, or a service like SendGrid
+    /*
+    Example using PHPMailer:
+    
+    require 'PHPMailer/PHPMailer.php';
+    require 'PHPMailer/SMTP.php';
+    
+    $mail = new PHPMailer\PHPMailer\PHPMailer();
+    $mail->isSMTP();
+    $mail->Host = 'your-smtp-host';
+    $mail->SMTPAuth = true;
+    $mail->Username = 'your-email@domain.com';
+    $mail->Password = 'your-password';
+    $mail->SMTPSecure = 'tls';
+    $mail->Port = 587;
+    
+    $mail->setFrom('noreply@vetcareqr.com', 'VetCareQR System');
+    $mail->addAddress($to_email, $to_name);
+    $mail->Subject = $subject;
+    $mail->Body = formatEmailTemplate($to_name, $message, $type);
+    $mail->isHTML(true);
+    
+    return $mail->send();
+    */
+    
+    // For now, just log the email details and return true
+    error_log("Email prepared for: $to_email | Subject: $subject | Type: $type");
+    return true;
+}
+
+// Email template formatter
+function formatEmailTemplate($name, $message, $type) {
+    $template = "
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 20px; text-align: center; }
+            .content { background: #f8fafc; padding: 20px; border-radius: 0 0 8px 8px; }
+            .footer { text-align: center; padding: 20px; color: #64748b; font-size: 12px; }
+        </style>
+    </head>
+    <body>
+        <div class='container'>
+            <div class='header'>
+                <h1>VetCareQR</h1>
+                <p>Professional Veterinary Management System</p>
+            </div>
+            <div class='content'>
+                <h2>Hello Dr. $name,</h2>
+                <p>" . nl2br(htmlspecialchars($message)) . "</p>
+                <p><strong>Best regards,</strong><br>VetCareQR Administration Team</p>
+            </div>
+            <div class='footer'>
+                <p>This is an automated message from VetCareQR System. Please do not reply to this email.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    ";
+    
+    return $template;
+}
+
 // Initialize variables
 $search_term = '';
 $status_filter = '';
@@ -137,7 +208,7 @@ try {
     error_log("Error in veterinarian.php: " . $e->getMessage());
 }
 
-// Handle actions (activate/deactivate/delete/edit/view)
+// Handle actions (activate/deactivate/delete/edit/view/email)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action']) && isset($_POST['vet_id'])) {
         $vet_id = intval($_POST['vet_id']);
@@ -213,30 +284,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
                 
-            case 'send_welcome_email':
-                // Get veterinarian details
-                $vet_query = "SELECT name, email FROM users WHERE user_id = ? AND role = 'vet'";
-                $stmt = $conn->prepare($vet_query);
-                $stmt->bind_param("i", $vet_id);
-                $stmt->execute();
-                $vet_result = $stmt->get_result();
-                
-                if ($vet_result->num_rows > 0) {
-                    $vet = $vet_result->fetch_assoc();
+            case 'send_email':
+                if (isset($_POST['email_subject']) && isset($_POST['email_message'])) {
+                    $email_subject = trim($_POST['email_subject']);
+                    $email_message = trim($_POST['email_message']);
+                    $email_type = $_POST['email_type'] ?? 'general';
                     
-                    // In a real application, you would send an actual email here
-                    // This is just a simulation
-                    $email_sent = true; // Simulate email sending
+                    // Get veterinarian details
+                    $vet_query = "SELECT name, email FROM users WHERE user_id = ? AND role = 'vet'";
+                    $stmt = $conn->prepare($vet_query);
+                    $stmt->bind_param("i", $vet_id);
+                    $stmt->execute();
+                    $vet_result = $stmt->get_result();
                     
-                    if ($email_sent) {
-                        $_SESSION['success'] = "Welcome email sent to Dr. " . htmlspecialchars($vet['name']) . " at " . htmlspecialchars($vet['email']);
+                    if ($vet_result->num_rows > 0) {
+                        $vet = $vet_result->fetch_assoc();
+                        
+                        // Send email
+                        $email_sent = sendVeterinarianEmail(
+                            $vet['email'], 
+                            $vet['name'], 
+                            $email_subject, 
+                            $email_message,
+                            $email_type
+                        );
+                        
+                        if ($email_sent) {
+                            // Log the email in the database
+                            $log_query = "INSERT INTO email_logs (vet_id, subject, message, email_type, sent_by, sent_at) VALUES (?, ?, ?, ?, ?, NOW())";
+                            $log_stmt = $conn->prepare($log_query);
+                            $log_stmt->bind_param("isssi", $vet_id, $email_subject, $email_message, $email_type, $admin_id);
+                            $log_stmt->execute();
+                            $log_stmt->close();
+                            
+                            $_SESSION['success'] = "Email sent successfully to Dr. " . htmlspecialchars($vet['name']) . " at " . htmlspecialchars($vet['email']);
+                        } else {
+                            $_SESSION['error'] = "Failed to send email. Please try again.";
+                        }
                     } else {
-                        $_SESSION['error'] = "Failed to send welcome email. Please try again.";
+                        $_SESSION['error'] = "Veterinarian not found!";
                     }
-                } else {
-                    $_SESSION['error'] = "Veterinarian not found!";
+                    $stmt->close();
                 }
-                $stmt->close();
                 break;
                 
             case 'reset_password':
@@ -269,8 +358,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['error'] = "Invalid action!";
         }
         
-        // Execute the query for simple actions (not for update_profile which already executed)
-        if (isset($update_query) && $action !== 'update_profile' && $action !== 'delete_with_appointments') {
+        // Execute the query for simple actions (not for update_profile or send_email which already executed)
+        if (isset($update_query) && $action !== 'update_profile' && $action !== 'send_email' && $action !== 'delete_with_appointments') {
             $stmt = $conn->prepare($update_query);
             if ($stmt) {
                 $stmt->bind_param("i", $vet_id);
@@ -556,6 +645,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action']) && iss
             padding: 15px;
             margin-bottom: 20px;
             border: 1px solid #e2e8f0;
+        }
+
+        .email-template-btn {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: var(--brand);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.875rem;
+            transition: var(--transition);
+        }
+
+        .email-template-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: var(--brand);
         }
     </style>
 </head>
@@ -892,15 +996,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action']) && iss
                                                             </form>
                                                         <?php endif; ?>
                                                         
-                                                        <!-- Send Welcome Email -->
-                                                        <form method="POST" style="display: inline;">
-                                                            <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
-                                                            <input type="hidden" name="action" value="send_welcome_email">
-                                                            <button type="submit" class="btn btn-sm btn-outline-info me-1" title="Send Welcome Email"
-                                                                    onclick="return confirm('Send welcome email to this veterinarian?')">
-                                                                <i class="fas fa-envelope"></i>
-                                                            </button>
-                                                        </form>
+                                                        <!-- Send Email Button -->
+                                                        <button class="btn btn-sm btn-outline-info me-1" title="Send Email"
+                                                                onclick="openEmailModal(<?php echo $vet['user_id']; ?>, '<?php echo htmlspecialchars($vet['email']); ?>', '<?php echo htmlspecialchars($vet['name']); ?>')">
+                                                            <i class="fas fa-envelope"></i>
+                                                        </button>
                                                         
                                                         <!-- Reset Password -->
                                                         <form method="POST" style="display: inline;">
@@ -998,15 +1098,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action']) && iss
         </main>
     </div>
 
+    <!-- Email Modal -->
+    <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="emailModalLabel">Send Email to Veterinarian</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="emailForm" method="POST">
+                        <input type="hidden" name="vet_id" id="modalVetId">
+                        <input type="hidden" name="action" value="send_email">
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Recipient</label>
+                            <input type="text" class="form-control" id="recipientEmail" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Subject <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="email_subject" required 
+                                   placeholder="Enter email subject" id="emailSubject">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Message <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="email_message" rows="8" required 
+                                      placeholder="Enter your message here..." id="emailMessage"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Email Type</label>
+                            <select class="form-select" name="email_type" id="emailType">
+                                <option value="general">General Communication</option>
+                                <option value="welcome">Welcome Email</option>
+                                <option value="announcement">Announcement</option>
+                                <option value="reminder">Reminder</option>
+                                <option value="notification">Notification</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Quick Templates</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="email-template-btn" onclick="loadEmailTemplate('welcome')">
+                                    <i class="fas fa-hand-wave me-1"></i>Welcome
+                                </button>
+                                <button type="button" class="email-template-btn" onclick="loadEmailTemplate('announcement')">
+                                    <i class="fas fa-bullhorn me-1"></i>Announcement
+                                </button>
+                                <button type="button" class="email-template-btn" onclick="loadEmailTemplate('reminder')">
+                                    <i class="fas fa-bell me-1"></i>Reminder
+                                </button>
+                                <button type="button" class="email-template-btn" onclick="loadEmailTemplate('notification')">
+                                    <i class="fas fa-info-circle me-1"></i>Notification
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="emailForm" class="btn btn-brand">
+                        <i class="fas fa-paper-plane me-2"></i>Send Email
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function viewVetProfile(vetId) {
-            // In a real implementation, this would fetch and display vet details in a modal
             window.location.href = 'vet_profile.php?id=' + vetId;
         }
 
         function editVetProfile(vetId) {
-            // In a real implementation, this would open an edit modal
             window.location.href = 'edit_veterinarian.php?id=' + vetId;
         }
 
@@ -1042,6 +1210,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action']) && iss
         document.getElementById('bulkForm').onsubmit = function() {
             document.getElementById('bulkActionInput').value = document.getElementById('bulkAction').value;
         };
+
+        // Email modal functions
+        function openEmailModal(vetId, vetEmail, vetName) {
+            document.getElementById('modalVetId').value = vetId;
+            document.getElementById('recipientEmail').value = vetEmail + ' (Dr. ' + vetName + ')';
+            
+            // Set default subject based on vet name
+            document.getElementById('emailSubject').value = 'Message from VetCareQR Administration - Dr. ' + vetName;
+            
+            // Clear previous message and reset type
+            document.getElementById('emailMessage').value = '';
+            document.getElementById('emailType').value = 'general';
+            
+            // Show modal
+            const emailModal = new bootstrap.Modal(document.getElementById('emailModal'));
+            emailModal.show();
+        }
+
+        // Add email template options
+        function loadEmailTemplate(templateType) {
+            const messageTextarea = document.getElementById('emailMessage');
+            const subjectInput = document.getElementById('emailSubject');
+            const emailTypeSelect = document.getElementById('emailType');
+            
+            // Get vet name from recipient field
+            const recipientText = document.getElementById('recipientEmail').value;
+            const vetName = recipientText.split('(Dr. ')[1]?.replace(')', '') || 'Veterinarian';
+            
+            const templates = {
+                'welcome': {
+                    subject: 'Welcome to VetCareQR - Dr. ' + vetName,
+                    message: `Dear Dr. ${vetName},
+
+Welcome to VetCareQR! We're excited to have you join our veterinary team.
+
+Your account has been successfully created and you can now access the system using your credentials.
+
+Please take a moment to complete your profile and familiarize yourself with the platform features.
+
+If you have any questions or need assistance, please don't hesitate to contact our support team.
+
+Best regards,
+VetCareQR Administration Team`
+                },
+                
+                'announcement': {
+                    subject: 'Important Announcement - VetCareQR',
+                    message: `Dear Dr. ${vetName},
+
+Important Announcement
+
+We have some important updates regarding our clinic operations and procedures.
+
+Please review the following information carefully as it may affect your schedule and patient management.
+
+Thank you for your attention to this matter.
+
+Best regards,
+VetCareQR Administration Team`
+                },
+                
+                'reminder': {
+                    subject: 'Friendly Reminder - VetCareQR',
+                    message: `Dear Dr. ${vetName},
+
+Friendly Reminder
+
+This is a reminder about upcoming requirements or scheduled activities.
+
+Please ensure you have completed all necessary tasks and preparations.
+
+If you have any questions, please contact the administration.
+
+Best regards,
+VetCareQR Administration Team`
+                },
+                
+                'notification': {
+                    subject: 'System Notification - VetCareQR',
+                    message: `Dear Dr. ${vetName},
+
+System Notification
+
+This notification contains important information about system updates, schedule changes, or other relevant updates.
+
+Please review this information at your earliest convenience.
+
+Best regards,
+VetCareQR Administration Team`
+                }
+            };
+            
+            if (templates[templateType]) {
+                subjectInput.value = templates[templateType].subject;
+                messageTextarea.value = templates[templateType].message;
+                emailTypeSelect.value = templateType;
+            }
+        }
 
         // Initialize selected count
         document.addEventListener('DOMContentLoaded', function() {
