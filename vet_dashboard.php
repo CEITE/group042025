@@ -4,10 +4,11 @@ include("conn.php");
 
 // Check if user is logged in and is a vet
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'vet') {
-    header("Location: login_vet.php"); // Changed from login_vet.php to login.php
+    header("Location: login_vet.php");
     exit();
 }
-$user_id = $_SESSION['user_id']; // ✅ Use $user_id consistently
+
+$vet_id = $_SESSION['user_id'];
 
 // Handle profile picture upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_picture'])) {
@@ -39,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_picture'])) 
     elseif (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $target_file)) {
         // Update database
         $update_stmt = $conn->prepare("UPDATE users SET profile_picture = ? WHERE user_id = ?");
-        $update_stmt->bind_param("si", $target_file, $user_id); // ✅ Fixed: $user_id instead of $vet_id
+        $update_stmt->bind_param("si", $target_file, $vet_id);
         
         if ($update_stmt->execute()) {
             $_SESSION['profile_picture'] = $target_file;
@@ -58,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_picture'])) 
 
 // Fetch vet info
 $stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
-$stmt->bind_param("i", $user_id); // ✅ Fixed: $user_id instead of $vet_id
+$stmt->bind_param("i", $vet_id);
 $stmt->execute();
 $vet = $stmt->get_result()->fetch_assoc();
 
@@ -69,17 +70,57 @@ if (!$vet) {
 // Set default profile picture
 $profile_picture = !empty($vet['profile_picture']) ? $vet['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($vet['name']);
 
+// ✅ FIXED: Fetch pending appointment requests
+$pending_appointments_stmt = $conn->prepare("
+    SELECT a.*, p.name as pet_name, p.species, p.breed, p.age, p.gender, 
+           u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone
+    FROM appointments a 
+    LEFT JOIN pets p ON a.pet_id = p.pet_id 
+    LEFT JOIN users u ON a.user_id = u.user_id
+    WHERE a.status = 'pending' OR a.status = 'scheduled'
+    ORDER BY a.appointment_date ASC, a.appointment_time ASC
+");
+$pending_appointments_stmt->execute();
+$pending_appointments = $pending_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// ✅ FIXED: Fetch confirmed appointments (today and upcoming)
+$today = date('Y-m-d');
+$confirmed_appointments_stmt = $conn->prepare("
+    SELECT a.*, p.name as pet_name, p.species, p.breed, u.name as owner_name, u.email as owner_email, u.phone_number as owner_phone
+    FROM appointments a 
+    LEFT JOIN pets p ON a.pet_id = p.pet_id 
+    LEFT JOIN users u ON a.user_id = u.user_id
+    WHERE a.status = 'confirmed' AND a.appointment_date >= ?
+    ORDER BY a.appointment_date ASC, a.appointment_time ASC
+");
+$confirmed_appointments_stmt->bind_param("s", $today);
+$confirmed_appointments_stmt->execute();
+$confirmed_appointments = $confirmed_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// ✅ FIXED: Fetch today's appointments
+$today_appointments_stmt = $conn->prepare("
+    SELECT a.*, p.name as pet_name, p.species, u.name as owner_name, u.phone_number as owner_phone
+    FROM appointments a 
+    LEFT JOIN pets p ON a.pet_id = p.pet_id 
+    LEFT JOIN users u ON a.user_id = u.user_id
+    WHERE a.appointment_date = ? AND (a.status = 'confirmed' OR a.status = 'scheduled')
+    ORDER BY a.appointment_time ASC
+");
+$today_appointments_stmt->bind_param("s", $today);
+$today_appointments_stmt->execute();
+$today_appointments = $today_appointments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
 // ✅ FIXED: Fetch unread notifications for vet
 $notifications_stmt = $conn->prepare("
     SELECT * FROM vet_notifications 
     WHERE vet_id = ? AND is_read = 0 
     ORDER BY created_at DESC
 ");
-$notifications_stmt->bind_param("i", $user_id); // ✅ Fixed: $user_id instead of $vet_id
+$notifications_stmt->bind_param("i", $vet_id);
 $notifications_stmt->execute();
 $notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// ✅ FIXED: Fetch emails sent to veterinarian
+// ✅ NEW: Fetch emails sent to veterinarian
 $emails_stmt = $conn->prepare("
     SELECT el.*, u.name as sender_name 
     FROM email_logs el 
@@ -88,7 +129,7 @@ $emails_stmt = $conn->prepare("
     ORDER BY el.sent_at DESC 
     LIMIT 10
 ");
-$emails_stmt->bind_param("i", $user_id); // ✅ Fixed: $user_id instead of $vet_id
+$emails_stmt->bind_param("i", $vet_id);
 $emails_stmt->execute();
 $received_emails = $emails_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
@@ -154,7 +195,7 @@ if (isset($_POST['update_status'])) {
             
             // Mark related vet notifications as read
             $mark_read_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE appointment_id = ? AND vet_id = ?");
-            $mark_read_stmt->bind_param("ii", $appointment_id, $user_id); // ✅ Fixed: $user_id instead of $vet_id
+            $mark_read_stmt->bind_param("ii", $appointment_id, $vet_id);
             $mark_read_stmt->execute();
             
             header("Location: vet_dashboard.php");
@@ -168,7 +209,7 @@ if (isset($_POST['update_status'])) {
 // Handle mark all notifications as read
 if (isset($_GET['mark_all_read'])) {
     $mark_all_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE vet_id = ?");
-    $mark_all_stmt->bind_param("i", $user_id); // ✅ Fixed: $user_id instead of $vet_id
+    $mark_all_stmt->bind_param("i", $vet_id);
     if ($mark_all_stmt->execute()) {
         $_SESSION['success'] = "All notifications marked as read!";
         header("Location: vet_dashboard.php");
@@ -180,7 +221,7 @@ if (isset($_GET['mark_all_read'])) {
 if (isset($_GET['mark_read'])) {
     $notification_id = $_GET['mark_read'];
     $mark_stmt = $conn->prepare("UPDATE vet_notifications SET is_read = 1 WHERE notification_id = ? AND vet_id = ?");
-    $mark_stmt->bind_param("ii", $notification_id, $user_id); // ✅ Fixed: $user_id instead of $vet_id
+    $mark_stmt->bind_param("ii", $notification_id, $vet_id);
     $mark_stmt->execute();
     header("Location: vet_dashboard.php");
     exit();
@@ -190,13 +231,13 @@ if (isset($_GET['mark_read'])) {
 if (isset($_GET['mark_email_read'])) {
     $email_id = $_GET['mark_email_read'];
     $mark_email_stmt = $conn->prepare("UPDATE email_logs SET is_read = 1 WHERE id = ? AND vet_id = ?");
-    $mark_email_stmt->bind_param("ii", $email_id, $user_id); // ✅ Fixed: $user_id instead of $vet_id
+    $mark_email_stmt->bind_param("ii", $email_id, $vet_id);
     $mark_email_stmt->execute();
     header("Location: vet_dashboard.php");
     exit();
 }
 
-// ✅ FIXED: Create notifications for any pending appointments without notifications
+// ✅ FIXED: Create notifications for any pending appointments without notifications (Temporary fix)
 $check_pending_stmt = $conn->prepare("
     SELECT a.appointment_id, p.name as pet_name, a.appointment_date, a.appointment_time, u.name as owner_name
     FROM appointments a 
@@ -206,7 +247,7 @@ $check_pending_stmt = $conn->prepare("
     AND a.appointment_id NOT IN (SELECT appointment_id FROM vet_notifications WHERE vet_id = ?)
     AND a.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
 ");
-$check_pending_stmt->bind_param("i", $user_id); // ✅ Fixed: $user_id instead of $vet_id
+$check_pending_stmt->bind_param("i", $vet_id);
 $check_pending_stmt->execute();
 $missing_notifications = $check_pending_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
@@ -219,7 +260,7 @@ foreach ($missing_notifications as $appointment) {
         INSERT INTO vet_notifications (vet_id, message, appointment_id, created_at) 
         VALUES (?, ?, ?, NOW())
     ");
-    $insert_stmt->bind_param("isi", $user_id, $message, $appointment['appointment_id']); // ✅ Fixed: $user_id instead of $vet_id
+    $insert_stmt->bind_param("isi", $vet_id, $message, $appointment['appointment_id']);
     $insert_stmt->execute();
 }
 ?>
@@ -1350,11 +1391,5 @@ foreach ($missing_notifications as $appointment) {
 </script>
 </body>
 </html>
-
-
-
-
-
-
 
 
