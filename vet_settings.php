@@ -23,6 +23,24 @@ if (!$vet) {
 // Set default profile picture
 $profile_picture = !empty($vet['profile_picture']) ? $vet['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($vet['name']);
 
+// Password strength validation function
+function validatePasswordStrength($password) {
+    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
+    $pattern = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/';
+    return preg_match($pattern, $password);
+}
+
+// Log password change activity
+function logPasswordChange($vet_id, $conn) {
+    $activity = "Password changed successfully";
+    $ip_address = $_SERVER['REMOTE_ADDR'];
+    $user_agent = $_SERVER['HTTP_USER_AGENT'];
+    
+    $log_stmt = $conn->prepare("INSERT INTO user_activity_logs (user_id, activity, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, NOW())");
+    $log_stmt->bind_param("isss", $vet_id, $activity, $ip_address, $user_agent);
+    $log_stmt->execute();
+}
+
 // Handle profile updates
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['update_profile'])) {
@@ -76,6 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['error'] = "New passwords do not match.";
         } elseif (strlen($new_password) < 8) {
             $_SESSION['error'] = "New password must be at least 8 characters long.";
+        } elseif (!validatePasswordStrength($new_password)) {
+            $_SESSION['error'] = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.";
         } else {
             // Verify current password
             $check_password_stmt = $conn->prepare("SELECT password FROM users WHERE user_id = ?");
@@ -90,6 +110,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $update_password_stmt->bind_param("si", $hashed_password, $vet_id);
                 
                 if ($update_password_stmt->execute()) {
+                    // Log password change activity
+                    logPasswordChange($vet_id, $conn);
+                    
                     $_SESSION['success'] = "Password changed successfully!";
                     header("Location: vet_settings.php");
                     exit();
@@ -110,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $new_appointment_alerts = isset($_POST['new_appointment_alerts']) ? 1 : 0;
         $emergency_alerts = isset($_POST['emergency_alerts']) ? 1 : 0;
         
-        // Update notification preferences (you'll need to create this table)
+        // Update notification preferences
         $update_notifications_stmt = $conn->prepare("
             INSERT INTO vet_notification_preferences (vet_id, email_notifications, sms_notifications, appointment_reminders, new_appointment_alerts, emergency_alerts, updated_at) 
             VALUES (?, ?, ?, ?, ?, ?, NOW())
@@ -182,6 +205,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['error'] = "Error updating working hours: " . $conn->error;
         }
     }
+}
+
+// Handle forgot password redirect
+if (isset($_GET['forgot_password'])) {
+    $_SESSION['forgot_password_email'] = $vet['email'];
+    $_SESSION['forgot_password_redirect'] = 'vet_settings.php';
+    header("Location: forgot-password.php");
+    exit();
 }
 
 // Fetch notification preferences
@@ -435,6 +466,38 @@ if ($hours_stmt) {
             border: none;
         }
         
+        .password-strength {
+            margin-top: 0.5rem;
+        }
+        
+        .progress {
+            background-color: #e9ecef;
+            border-radius: 0.375rem;
+        }
+        
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        
+        .password-requirements {
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+        
+        .requirement {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+        
+        .requirement.met {
+            color: var(--success);
+        }
+        
+        .requirement.unmet {
+            color: var(--gray);
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -644,24 +707,66 @@ if ($hours_stmt) {
                 <div class="settings-card">
                     <h5 class="mb-3"><i class="fas fa-lock me-2"></i>Change Password</h5>
                     
-                    <form method="POST" action="vet_settings.php">
+                    <form method="POST" action="vet_settings.php" id="changePasswordForm">
                         <div class="mb-3">
                             <label class="form-label">Current Password</label>
-                            <input type="password" class="form-control" name="current_password" required>
+                            <input type="password" class="form-control" name="current_password" id="current_password" required>
+                            <div class="form-text">
+                                <a href="vet_settings.php?forgot_password=1" class="text-decoration-none">
+                                    <i class="fas fa-key me-1"></i>Forgot your current password?
+                                </a>
+                            </div>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">New Password</label>
-                            <input type="password" class="form-control" name="new_password" required minlength="8">
-                            <div class="form-text">Password must be at least 8 characters long.</div>
+                            <input type="password" class="form-control" name="new_password" id="new_password" required minlength="8">
+                            <div class="password-strength mt-2">
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar" id="passwordStrengthBar" role="progressbar" style="width: 0%;"></div>
+                                </div>
+                                <small class="text-muted" id="passwordStrengthText">Password strength: Very Weak</small>
+                            </div>
+                            <div class="password-requirements mt-2">
+                                <div class="requirement unmet" id="reqLength">
+                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
+                                    At least 8 characters
+                                </div>
+                                <div class="requirement unmet" id="reqUppercase">
+                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
+                                    One uppercase letter
+                                </div>
+                                <div class="requirement unmet" id="reqLowercase">
+                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
+                                    One lowercase letter
+                                </div>
+                                <div class="requirement unmet" id="reqNumber">
+                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
+                                    One number
+                                </div>
+                                <div class="requirement unmet" id="reqSpecial">
+                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
+                                    One special character
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">Confirm New Password</label>
-                            <input type="password" class="form-control" name="confirm_password" required minlength="8">
+                            <input type="password" class="form-control" name="confirm_password" id="confirm_password" required minlength="8">
+                            <div class="form-text">
+                                <span id="passwordMatch" class="d-none">
+                                    <i class="fas fa-check text-success me-1"></i>
+                                    <span class="text-success">Passwords match</span>
+                                </span>
+                                <span id="passwordMismatch" class="d-none">
+                                    <i class="fas fa-times text-danger me-1"></i>
+                                    <span class="text-danger">Passwords don't match</span>
+                                </span>
+                            </div>
                         </div>
                         
-                        <button type="submit" name="change_password" class="btn btn-primary w-100">
+                        <button type="submit" name="change_password" class="btn btn-primary w-100" id="changePasswordBtn">
                             <i class="fas fa-key me-2"></i>Change Password
                         </button>
                     </form>
@@ -843,6 +948,20 @@ if ($hours_stmt) {
             });
         });
         
+        // Password strength and validation
+        const newPasswordInput = document.getElementById('new_password');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+        const passwordStrengthBar = document.getElementById('passwordStrengthBar');
+        const passwordStrengthText = document.getElementById('passwordStrengthText');
+        const passwordMatch = document.getElementById('passwordMatch');
+        const passwordMismatch = document.getElementById('passwordMismatch');
+        const changePasswordBtn = document.getElementById('changePasswordBtn');
+        
+        if (newPasswordInput && confirmPasswordInput) {
+            newPasswordInput.addEventListener('input', validatePasswordStrength);
+            confirmPasswordInput.addEventListener('input', validatePasswordMatch);
+        }
+        
         // Auto-close alerts after 5 seconds
         setTimeout(() => {
             const alerts = document.querySelectorAll('.alert');
@@ -860,23 +979,140 @@ if ($hours_stmt) {
         document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US');
     }
 
-    // Form validation
-    function validatePassword(form) {
-        const newPassword = form.new_password.value;
-        const confirmPassword = form.confirm_password.value;
+    function validatePasswordStrength() {
+        const password = document.getElementById('new_password').value;
+        let strength = 0;
+        let requirements = {
+            length: false,
+            uppercase: false,
+            lowercase: false,
+            number: false,
+            special: false
+        };
+        
+        // Length requirement
+        if (password.length >= 8) {
+            strength += 20;
+            requirements.length = true;
+            document.getElementById('reqLength').className = 'requirement met';
+        } else {
+            document.getElementById('reqLength').className = 'requirement unmet';
+        }
+        
+        // Uppercase requirement
+        if (/[A-Z]/.test(password)) {
+            strength += 20;
+            requirements.uppercase = true;
+            document.getElementById('reqUppercase').className = 'requirement met';
+        } else {
+            document.getElementById('reqUppercase').className = 'requirement unmet';
+        }
+        
+        // Lowercase requirement
+        if (/[a-z]/.test(password)) {
+            strength += 20;
+            requirements.lowercase = true;
+            document.getElementById('reqLowercase').className = 'requirement met';
+        } else {
+            document.getElementById('reqLowercase').className = 'requirement unmet';
+        }
+        
+        // Number requirement
+        if (/[0-9]/.test(password)) {
+            strength += 20;
+            requirements.number = true;
+            document.getElementById('reqNumber').className = 'requirement met';
+        } else {
+            document.getElementById('reqNumber').className = 'requirement unmet';
+        }
+        
+        // Special character requirement
+        if (/[@$!%*?&]/.test(password)) {
+            strength += 20;
+            requirements.special = true;
+            document.getElementById('reqSpecial').className = 'requirement met';
+        } else {
+            document.getElementById('reqSpecial').className = 'requirement unmet';
+        }
+        
+        // Update progress bar and text
+        const progressBar = document.getElementById('passwordStrengthBar');
+        const strengthText = document.getElementById('passwordStrengthText');
+        
+        progressBar.style.width = strength + '%';
+        
+        if (strength <= 20) {
+            progressBar.className = 'progress-bar bg-danger';
+            strengthText.textContent = 'Password strength: Very Weak';
+        } else if (strength <= 40) {
+            progressBar.className = 'progress-bar bg-warning';
+            strengthText.textContent = 'Password strength: Weak';
+        } else if (strength <= 60) {
+            progressBar.className = 'progress-bar bg-info';
+            strengthText.textContent = 'Password strength: Fair';
+        } else if (strength <= 80) {
+            progressBar.className = 'progress-bar bg-primary';
+            strengthText.textContent = 'Password strength: Good';
+        } else {
+            progressBar.className = 'progress-bar bg-success';
+            strengthText.textContent = 'Password strength: Strong';
+        }
+        
+        validatePasswordMatch();
+    }
+
+    function validatePasswordMatch() {
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        const matchElement = document.getElementById('passwordMatch');
+        const mismatchElement = document.getElementById('passwordMismatch');
+        
+        if (confirmPassword === '') {
+            matchElement.classList.add('d-none');
+            mismatchElement.classList.add('d-none');
+            return;
+        }
+        
+        if (newPassword === confirmPassword && newPassword !== '') {
+            matchElement.classList.remove('d-none');
+            mismatchElement.classList.add('d-none');
+        } else {
+            matchElement.classList.add('d-none');
+            mismatchElement.classList.remove('d-none');
+        }
+    }
+
+    // Form validation before submission
+    document.getElementById('changePasswordForm')?.addEventListener('submit', function(e) {
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
         
         if (newPassword !== confirmPassword) {
+            e.preventDefault();
             alert('New passwords do not match!');
             return false;
         }
         
         if (newPassword.length < 8) {
+            e.preventDefault();
             alert('Password must be at least 8 characters long!');
             return false;
         }
         
+        // Check password strength requirements
+        const hasUppercase = /[A-Z]/.test(newPassword);
+        const hasLowercase = /[a-z]/.test(newPassword);
+        const hasNumber = /[0-9]/.test(newPassword);
+        const hasSpecial = /[@$!%*?&]/.test(newPassword);
+        
+        if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
+            e.preventDefault();
+            alert('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character!');
+            return false;
+        }
+        
         return true;
-    }
+    });
 </script>
 </body>
 </html>
