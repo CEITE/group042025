@@ -13,7 +13,7 @@ if (!$conn) {
 
 // Redirect if not logged in as admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: admin_login.php");
+    header("Location: login_admin.php");
     exit();
 }
 
@@ -1135,5 +1135,6 @@ $vet_stats = $vet_stats_result->fetch_assoc();
     </script>
 </body>
 </html>
+
 
 
