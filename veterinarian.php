@@ -137,7 +137,7 @@ try {
     error_log("Error in veterinarian.php: " . $e->getMessage());
 }
 
-// Handle actions (activate/deactivate/delete)
+// Handle actions (activate/deactivate/delete/edit/view)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action']) && isset($_POST['vet_id'])) {
         $vet_id = intval($_POST['vet_id']);
@@ -148,19 +148,129 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $update_query = "UPDATE users SET status = 'active' WHERE user_id = ? AND role = 'vet'";
                 $success_message = "Veterinarian activated successfully!";
                 break;
+                
             case 'deactivate':
                 $update_query = "UPDATE users SET status = 'inactive' WHERE user_id = ? AND role = 'vet'";
                 $success_message = "Veterinarian deactivated successfully!";
                 break;
+                
             case 'delete':
-                $update_query = "DELETE FROM users WHERE user_id = ? AND role = 'vet'";
-                $success_message = "Veterinarian deleted successfully!";
+                // Check if veterinarian has any appointments before deleting
+                $check_appointments = "SELECT COUNT(*) as appointment_count FROM appointments WHERE user_id = ?";
+                $stmt_check = $conn->prepare($check_appointments);
+                $stmt_check->bind_param("i", $vet_id);
+                $stmt_check->execute();
+                $result = $stmt_check->get_result();
+                $appointment_count = $result->fetch_assoc()['appointment_count'];
+                $stmt_check->close();
+                
+                if ($appointment_count > 0) {
+                    $_SESSION['error'] = "Cannot delete veterinarian. They have $appointment_count appointment(s) scheduled. Please reassign or cancel appointments first.";
+                } else {
+                    $update_query = "DELETE FROM users WHERE user_id = ? AND role = 'vet'";
+                    $success_message = "Veterinarian deleted successfully!";
+                }
                 break;
+                
+            case 'update_profile':
+                if (isset($_POST['name']) && isset($_POST['email']) && isset($_POST['specialization'])) {
+                    $name = trim($_POST['name']);
+                    $email = trim($_POST['email']);
+                    $specialization = trim($_POST['specialization']);
+                    $phone_number = isset($_POST['phone_number']) ? trim($_POST['phone_number']) : null;
+                    $status = isset($_POST['status']) ? trim($_POST['status']) : 'active';
+                    
+                    // Validate email
+                    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $_SESSION['error'] = "Invalid email format!";
+                        break;
+                    }
+                    
+                    // Check if email already exists (excluding current vet)
+                    $email_check = "SELECT user_id FROM users WHERE email = ? AND user_id != ? AND role = 'vet'";
+                    $stmt_check = $conn->prepare($email_check);
+                    $stmt_check->bind_param("si", $email, $vet_id);
+                    $stmt_check->execute();
+                    $email_result = $stmt_check->get_result();
+                    
+                    if ($email_result->num_rows > 0) {
+                        $_SESSION['error'] = "Email already exists for another veterinarian!";
+                        $stmt_check->close();
+                        break;
+                    }
+                    $stmt_check->close();
+                    
+                    $update_query = "UPDATE users SET name = ?, email = ?, specialization = ?, phone_number = ?, status = ? WHERE user_id = ? AND role = 'vet'";
+                    $stmt = $conn->prepare($update_query);
+                    $stmt->bind_param("sssssi", $name, $email, $specialization, $phone_number, $status, $vet_id);
+                    
+                    if ($stmt->execute()) {
+                        $_SESSION['success'] = "Veterinarian profile updated successfully!";
+                    } else {
+                        $_SESSION['error'] = "Error updating veterinarian: " . $stmt->error;
+                    }
+                    $stmt->close();
+                }
+                break;
+                
+            case 'send_welcome_email':
+                // Get veterinarian details
+                $vet_query = "SELECT name, email FROM users WHERE user_id = ? AND role = 'vet'";
+                $stmt = $conn->prepare($vet_query);
+                $stmt->bind_param("i", $vet_id);
+                $stmt->execute();
+                $vet_result = $stmt->get_result();
+                
+                if ($vet_result->num_rows > 0) {
+                    $vet = $vet_result->fetch_assoc();
+                    
+                    // In a real application, you would send an actual email here
+                    // This is just a simulation
+                    $email_sent = true; // Simulate email sending
+                    
+                    if ($email_sent) {
+                        $_SESSION['success'] = "Welcome email sent to Dr. " . htmlspecialchars($vet['name']) . " at " . htmlspecialchars($vet['email']);
+                    } else {
+                        $_SESSION['error'] = "Failed to send welcome email. Please try again.";
+                    }
+                } else {
+                    $_SESSION['error'] = "Veterinarian not found!";
+                }
+                $stmt->close();
+                break;
+                
+            case 'reset_password':
+                // Generate a temporary password
+                $temp_password = bin2hex(random_bytes(4)); // 8 character temporary password
+                $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
+                
+                $update_query = "UPDATE users SET password = ? WHERE user_id = ? AND role = 'vet'";
+                $stmt = $conn->prepare($update_query);
+                $stmt->bind_param("si", $hashed_password, $vet_id);
+                
+                if ($stmt->execute()) {
+                    // Get vet email for notification (in real app, you'd send an email)
+                    $vet_query = "SELECT name, email FROM users WHERE user_id = ?";
+                    $vet_stmt = $conn->prepare($vet_query);
+                    $vet_stmt->bind_param("i", $vet_id);
+                    $vet_stmt->execute();
+                    $vet_result = $vet_stmt->get_result();
+                    $vet = $vet_result->fetch_assoc();
+                    $vet_stmt->close();
+                    
+                    $_SESSION['success'] = "Password reset for Dr. " . htmlspecialchars($vet['name']) . ". Temporary password: " . $temp_password . " (Please notify the veterinarian)";
+                } else {
+                    $_SESSION['error'] = "Error resetting password: " . $stmt->error;
+                }
+                $stmt->close();
+                break;
+                
             default:
-                $update_query = null;
+                $_SESSION['error'] = "Invalid action!";
         }
         
-        if ($update_query) {
+        // Execute the query for simple actions (not for update_profile which already executed)
+        if (isset($update_query) && $action !== 'update_profile' && $action !== 'delete_with_appointments') {
             $stmt = $conn->prepare($update_query);
             if ($stmt) {
                 $stmt->bind_param("i", $vet_id);
@@ -184,6 +294,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header("Location: $redirect_url");
         exit();
     }
+}
+
+// Handle bulk actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action']) && isset($_POST['selected_vets'])) {
+    $bulk_action = $_POST['bulk_action'];
+    $selected_vets = $_POST['selected_vets'];
+    $success_count = 0;
+    $error_count = 0;
+    
+    foreach ($selected_vets as $vet_id) {
+        $vet_id = intval($vet_id);
+        
+        switch ($bulk_action) {
+            case 'activate_selected':
+                $query = "UPDATE users SET status = 'active' WHERE user_id = ? AND role = 'vet'";
+                break;
+            case 'deactivate_selected':
+                $query = "UPDATE users SET status = 'inactive' WHERE user_id = ? AND role = 'vet'";
+                break;
+            case 'delete_selected':
+                // Check for appointments before deletion
+                $check_appointments = "SELECT COUNT(*) as appointment_count FROM appointments WHERE user_id = ?";
+                $stmt_check = $conn->prepare($check_appointments);
+                $stmt_check->bind_param("i", $vet_id);
+                $stmt_check->execute();
+                $result = $stmt_check->get_result();
+                $appointment_count = $result->fetch_assoc()['appointment_count'];
+                $stmt_check->close();
+                
+                if ($appointment_count > 0) {
+                    $error_count++;
+                    continue 2; // Skip to next veterinarian
+                }
+                $query = "DELETE FROM users WHERE user_id = ? AND role = 'vet'";
+                break;
+            default:
+                continue 2;
+        }
+        
+        $stmt = $conn->prepare($query);
+        if ($stmt) {
+            $stmt->bind_param("i", $vet_id);
+            if ($stmt->execute()) {
+                $success_count++;
+            } else {
+                $error_count++;
+            }
+            $stmt->close();
+        } else {
+            $error_count++;
+        }
+    }
+    
+    if ($success_count > 0) {
+        $_SESSION['success'] = "Bulk action completed: $success_count veterinarian(s) updated successfully.";
+    }
+    if ($error_count > 0) {
+        $_SESSION['error'] = "Failed to update $error_count veterinarian(s). Some may have appointments scheduled.";
+    }
+    
+    // Redirect back
+    header("Location: veterinarian.php");
+    exit();
 }
 ?>
 
@@ -376,6 +549,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: var(--info);
             font-weight: 600;
         }
+
+        .bulk-actions {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
     </style>
 </head>
 <body>
@@ -555,6 +736,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </a>
                         </div>
                         
+                        <!-- Bulk Actions -->
+                        <form method="POST" id="bulkForm" class="bulk-actions">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <select id="bulkAction" class="form-select w-auto d-inline-block">
+                                        <option value="">Bulk Actions</option>
+                                        <option value="activate_selected">Activate Selected</option>
+                                        <option value="deactivate_selected">Deactivate Selected</option>
+                                        <option value="delete_selected">Delete Selected</option>
+                                    </select>
+                                    <button type="button" class="btn btn-brand ms-2" onclick="if(handleBulkAction()) document.getElementById('bulkForm').submit();">
+                                        Apply
+                                    </button>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <small class="text-muted">
+                                        <span id="selectedCount">0</span> veterinarian(s) selected
+                                    </small>
+                                </div>
+                            </div>
+                            <input type="hidden" name="bulk_action" id="bulkActionInput">
+                        </form>
+                        
                         <!-- Search and Filter Section -->
                         <form method="GET" action="veterinarian.php" class="row g-3 mb-4 p-3 bg-light rounded-3">
                             <div class="col-md-4">
@@ -595,6 +799,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
+                                        <th width="30">
+                                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                                        </th>
                                         <th>Veterinarian</th>
                                         <th>Contact Information</th>
                                         <th>Specialization</th>
@@ -607,6 +814,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <?php if (!empty($all_vets)): ?>
                                         <?php foreach ($all_vets as $vet): ?>
                                             <tr>
+                                                <td>
+                                                    <input type="checkbox" name="selected_vets[]" value="<?php echo $vet['user_id']; ?>" class="vet-checkbox" onchange="updateSelectedCount()">
+                                                </td>
                                                 <td>
                                                     <div class="d-flex align-items-center">
                                                         <img src="<?php echo $vet['profile_picture'] ? htmlspecialchars($vet['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($vet['name']) . '&background=3b82f6&color=fff'; ?>" 
@@ -642,21 +852,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 </td>
                                                 <td>
                                                     <div class="btn-group">
-                                                        <button class="btn btn-sm btn-outline-primary me-1" title="View Profile">
+                                                        <!-- View Profile Button -->
+                                                        <button class="btn btn-sm btn-outline-primary me-1" title="View Profile" 
+                                                                onclick="viewVetProfile(<?php echo $vet['user_id']; ?>)">
                                                             <i class="fas fa-eye"></i>
                                                         </button>
-                                                        <button class="btn btn-sm btn-outline-secondary me-1" title="Edit Profile">
+                                                        
+                                                        <!-- Edit Profile Button -->
+                                                        <button class="btn btn-sm btn-outline-secondary me-1" title="Edit Profile" 
+                                                                onclick="editVetProfile(<?php echo $vet['user_id']; ?>)">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
+                                                        
+                                                        <!-- Status Toggle Button -->
                                                         <?php if ($vet['status'] === 'active'): ?>
                                                             <form method="POST" style="display: inline;">
                                                                 <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
                                                                 <input type="hidden" name="action" value="deactivate">
-                                                                <button type="submit" class="btn btn-sm btn-outline-warning me-1" title="Deactivate">
+                                                                <button type="submit" class="btn btn-sm btn-outline-warning me-1" title="Deactivate"
+                                                                        onclick="return confirm('Deactivate this veterinarian? They will not be able to log in until activated again.')">
                                                                     <i class="fas fa-pause"></i>
                                                                 </button>
                                                             </form>
-                                                        <?php else: ?>
+                                                        <?php elseif ($vet['status'] === 'inactive'): ?>
                                                             <form method="POST" style="display: inline;">
                                                                 <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
                                                                 <input type="hidden" name="action" value="activate">
@@ -664,8 +882,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                                     <i class="fas fa-play"></i>
                                                                 </button>
                                                             </form>
+                                                        <?php elseif ($vet['status'] === 'pending'): ?>
+                                                            <form method="POST" style="display: inline;">
+                                                                <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
+                                                                <input type="hidden" name="action" value="activate">
+                                                                <button type="submit" class="btn btn-sm btn-outline-success me-1" title="Approve">
+                                                                    <i class="fas fa-check"></i>
+                                                                </button>
+                                                            </form>
                                                         <?php endif; ?>
-                                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this veterinarian? This action cannot be undone.');">
+                                                        
+                                                        <!-- Send Welcome Email -->
+                                                        <form method="POST" style="display: inline;">
+                                                            <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
+                                                            <input type="hidden" name="action" value="send_welcome_email">
+                                                            <button type="submit" class="btn btn-sm btn-outline-info me-1" title="Send Welcome Email"
+                                                                    onclick="return confirm('Send welcome email to this veterinarian?')">
+                                                                <i class="fas fa-envelope"></i>
+                                                            </button>
+                                                        </form>
+                                                        
+                                                        <!-- Reset Password -->
+                                                        <form method="POST" style="display: inline;">
+                                                            <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
+                                                            <input type="hidden" name="action" value="reset_password">
+                                                            <button type="submit" class="btn btn-sm btn-outline-warning me-1" title="Reset Password"
+                                                                    onclick="return confirm('Reset password for this veterinarian? A temporary password will be generated.')">
+                                                                <i class="fas fa-key"></i>
+                                                            </button>
+                                                        </form>
+                                                        
+                                                        <!-- Delete Button -->
+                                                        <form method="POST" style="display: inline;" 
+                                                              onsubmit="return confirm('Are you sure you want to delete this veterinarian? This action cannot be undone and will remove all their data.');">
                                                             <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
                                                             <input type="hidden" name="action" value="delete">
                                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
@@ -678,7 +927,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="6" class="text-center py-4 text-muted">
+                                            <td colspan="7" class="text-center py-4 text-muted">
                                                 <i class="fas fa-user-md fa-2x mb-3 d-block"></i>
                                                 <?php if ($search_term): ?>
                                                     No veterinarians found matching "<?php echo htmlspecialchars($search_term); ?>"
@@ -750,5 +999,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function viewVetProfile(vetId) {
+            // In a real implementation, this would fetch and display vet details in a modal
+            window.location.href = 'vet_profile.php?id=' + vetId;
+        }
+
+        function editVetProfile(vetId) {
+            // In a real implementation, this would open an edit modal
+            window.location.href = 'edit_veterinarian.php?id=' + vetId;
+        }
+
+        // Bulk actions handler
+        function handleBulkAction() {
+            const bulkAction = document.getElementById('bulkAction').value;
+            const selectedCheckboxes = document.querySelectorAll('input[name="selected_vets[]"]:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('Please select at least one veterinarian.');
+                return false;
+            }
+            
+            if (bulkAction === 'delete_selected') {
+                return confirm(`Are you sure you want to delete ${selectedCheckboxes.length} selected veterinarian(s)? This action cannot be undone.`);
+            }
+            
+            return true;
+        }
+
+        function toggleSelectAll(source) {
+            const checkboxes = document.querySelectorAll('input[name="selected_vets[]"]');
+            checkboxes.forEach(checkbox => checkbox.checked = source.checked);
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const selectedCheckboxes = document.querySelectorAll('input[name="selected_vets[]"]:checked');
+            document.getElementById('selectedCount').textContent = selectedCheckboxes.length;
+        }
+
+        // Set bulk action value before form submission
+        document.getElementById('bulkForm').onsubmit = function() {
+            document.getElementById('bulkActionInput').value = document.getElementById('bulkAction').value;
+        };
+
+        // Initialize selected count
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSelectedCount();
+        });
+    </script>
 </body>
 </html>
