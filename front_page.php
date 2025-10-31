@@ -201,16 +201,16 @@
             filter: brightness(0.7);
         }
 
-                        .slide-1 {
-                    background-image: url('images/backgroundphoto1.jpg');
+                .slide-1 {
+                    background-image: url('images/background1.jpeg');
                 }
                 
                 .slide-2 {
-                    background-image: url('images/background2.jpg');
+                    background-image: url('images/background2.jpeg');
                 }
                 
                 .slide-3 {
-                    background-image: url('images/background3.jpg');
+                    background-image: url('images/background3.jpeg');
                 }
                 
                 .slide-4 {
@@ -2083,5 +2083,6 @@
 </script>
 </body>
 </html>
+
 
 
