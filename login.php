@@ -8,7 +8,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
 
-   
     $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
     if (!$stmt) {
         die("SQL Error: " . $conn->error);
@@ -28,27 +27,45 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $password === $dbPassword                   // plain text
         ) {
             // Normalize role
-            $role = strtolower($user['role']);
+            $role = strtolower(trim($user['role']));
 
+            // ✅ CLEAR EXISTING SESSION COMPLETELY
+            $_SESSION = array();
+            session_regenerate_id(true);
+
+            // ✅ SET COMPLETE SESSION DATA
             $_SESSION['user_id'] = $user['user_id']; 
             $_SESSION['name'] = $user['name'];
+            $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $role;
+            $_SESSION['profile_picture'] = $user['profile_picture'] ?? '';
+            $_SESSION['logged_in'] = true;
+            $_SESSION['login_time'] = time();
 
-            // Redirect by role
+            // ✅ Update last login
+            $update_stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
+            $update_stmt->bind_param("i", $user['user_id']);
+            $update_stmt->execute();
+            $update_stmt->close();
+
+            // ✅ Redirect by role with proper headers
             if ($role === "admin") {
                 header("Location: admin_dashboard.php");
+                exit();
             } elseif ($role === "vet") {
                 header("Location: vet_dashboard.php");
+                exit();
             } else {
                 header("Location: user_dashboard.php");
+                exit();
             }
-            exit;
         } else {
             $error = "Invalid password!";
         }
     } else {
         $error = "No account found with that email!";
     }
+    $stmt->close();
 }
 ?>
 
@@ -462,7 +479,7 @@ footer {
           </div>
         </div>
         
-        <button type="submit" class="btn btn-pink w-100 mb-3" id="loginButton">
+        <button type="submit" class="btn btn-primary w-100 mb-3" id="loginButton">
           <i class="fas fa-sign-in-alt me-2"></i>Sign In to Your Account
         </button>
       </form>
@@ -471,7 +488,7 @@ footer {
       
       <div class="text-center mb-4">
         <p class="mb-3">Don't have an account yet?</p>
-        <a href="register.php" class="btn btn-outline-pink w-100">
+        <a href="register.php" class="btn btn-outline-primary w-100">
           <i class="fas fa-user-plus me-2"></i>Create New Account
         </a>
       </div>
@@ -516,15 +533,8 @@ footer {
       const originalText = loginButton.innerHTML;
       
       // Show loading state
-      loginButton.classList.add('btn-loading');
+      loginButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Signing In...';
       loginButton.disabled = true;
-      
-      // Simulate loading for demo (remove in production)
-      setTimeout(() => {
-        loginButton.classList.remove('btn-loading');
-        loginButton.innerHTML = originalText;
-        loginButton.disabled = false;
-      }, 1500);
     });
 
     // Remember me functionality
@@ -549,48 +559,10 @@ footer {
       }
     });
 
-    // Auto-save email when typing
-    let emailTimeout;
-    document.querySelector('input[name="email"]').addEventListener('input', function() {
-      clearTimeout(emailTimeout);
-      emailTimeout = setTimeout(() => {
-        if (document.getElementById('rememberMe').checked) {
-          localStorage.setItem('savedEmail', this.value);
-        }
-      }, 1000);
-    });
-
-    // Add some interactive effects
-    document.querySelectorAll('.form-control').forEach(input => {
-      input.addEventListener('focus', function() {
-        this.parentElement.querySelector('.input-icon').style.color = 'var(--pink-dark)';
-      });
-      
-      input.addEventListener('blur', function() {
-        this.parentElement.querySelector('.input-icon').style.color = '#6c757d';
-      });
-    });
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-      // Ctrl + H for home
-      if (e.ctrlKey && e.key === 'h') {
-        e.preventDefault();
-        window.location.href = 'front_page.php';
-      }
-      
-      // Escape key to go back
-      if (e.key === 'Escape') {
-        window.location.href = 'front_page.php';
-      }
-    });
-
     // Add console welcome message
     console.log(`%c🐾 Welcome to VetCareQR Login! %c\nSecure Pet Health Management System`, 
-                'color: #bf3b78; font-size: 16px; font-weight: bold;', 
+                'color: #0ea5e9; font-size: 16px; font-weight: bold;', 
                 'color: #666; font-size: 12px;');
   </script>
 </body>
-
 </html>
-
