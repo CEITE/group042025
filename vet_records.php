@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $insert_stmt->bind_param("isisssssssssssssssssssssssss", 
                         $pet_info['owner_id'], $pet_info['owner_name'], $pet_id, $pet_info['name'],
                         $pet_info['species'], $pet_info['breed'], $pet_info['color'], $pet_info['gender'],
-                        $pet_info['date_of_birth'], $pet_info['age'], $weight, $pet_info['status'],
+                        $pet_info['dob'], $pet_info['age'], $weight, $pet_info['status'],
                         $pet_info['tag_number'], $pet_info['microchip_number'], $service_date,
                         $reminder_description, $reminder_due_date, $service_date, $service_time,
                         $service_type, $service_description, $vet['name'], $notes,
@@ -172,7 +172,7 @@ if (isset($_GET['delete'])) {
 // Fetch all pets for dropdown
 $pets_stmt = $conn->prepare("
     SELECT p.pet_id, p.name as pet_name, p.species, p.breed, p.age, p.gender, p.color,
-           p.date_of_birth, p.status, p.tag_number, p.microchip_number,
+           p.dob, p.status, p.tag_number, p.microchip_number,
            u.name as owner_name, u.email as owner_email, u.user_id as owner_id
     FROM pets p 
     JOIN users u ON p.owner_id = u.user_id 
@@ -883,3 +883,4 @@ foreach ($medical_records as $record) {
 </script>
 </body>
 </html>
+
