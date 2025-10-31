@@ -2073,28 +2073,6 @@
                 </div>
             </div>
 
-            <!-- Additional FAQs -->
-            <div class="faq-item" data-category="getting-started" data-aos="fade-up" data-aos-delay="500">
-                <button class="faq-question">
-                    How much does VetCare cost?
-                    <div class="faq-icon">
-                        <i class="bi bi-chevron-down"></i>
-                    </div>
-                </button>
-                <div class="faq-answer">
-                    <div class="faq-answer-content">
-                        <p>VetCare offers flexible pricing options:</p>
-                        <ul>
-                            <li><strong>Basic Plan:</strong> Free - Includes one pet profile, QR code, and basic health tracking</li>
-                            <li><strong>Premium Plan:</strong> $9.99/month - Unlimited pets, advanced analytics, priority support</li>
-                            <li><strong>Veterinarian Plan:</strong> $49.99/month - Clinic management, multiple staff accounts</li>
-                            <li><strong>Enterprise Plan:</strong> Custom pricing - For large clinics and hospitals</li>
-                        </ul>
-                        <p>All plans include our core features: QR codes, emergency access, and secure data storage.</p>
-                    </div>
-                </div>
-            </div>
-
             <div class="faq-item" data-category="qr-codes" data-aos="fade-up" data-aos-delay="550">
                 <button class="faq-question">
                     Can multiple pets use the same account?
@@ -2106,8 +2084,8 @@
                     <div class="faq-answer-content">
                         <p>Absolutely! VetCare is designed for multi-pet households:</p>
                         <ul>
-                            <li>Free accounts support up to 2 pets</li>
-                            <li>Premium accounts support unlimited pets</li>
+                            <li>Yes! You can Register multiple pets in you same Account</li>
+                            <li>Accounts support unlimited pets</li>
                             <li>Each pet gets their own unique QR code</li>
                             <li>Manage all pets from a single dashboard</li>
                             <li>Set different privacy settings for each pet</li>
@@ -2542,3 +2520,4 @@
 </script>
 </body>
 </html>
+
