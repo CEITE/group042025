@@ -14,7 +14,7 @@ $vet_id = $_SESSION['user_id'];
 if (isset($_GET['forgot_password'])) {
     $_SESSION['forgot_password_email'] = $vet['email'] ?? '';
     $_SESSION['forgot_password_redirect'] = 'vet_settings.php';
-    header("Location: forgot-password.php");
+    header("Location: vet-forgot-password.php");
     exit();
 }
 
@@ -916,3 +916,4 @@ if ($hours_stmt) {
 // Close database connection
 $conn->close();
 ?>
+
