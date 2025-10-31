@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get recent appointments for veterinarians
+// Get recent appointments for veterinarians - FIXED THE COLUMN NAME HERE
 $recent_appointments_query = "
     SELECT a.appointment_id, a.pet_id, a.appointment_date, a.status, 
            u.name as vet_name, p.name as pet_name, po.name as owner_name
@@ -186,24 +186,24 @@ if ($recent_appointments_result) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg: #fff5f8;
+            --bg: #f0f8ff;
             --card: #ffffff;
-            --ink: #4a0e2e;
-            --muted: #6b7280;
-            --brand: #f06292;
-            --brand-2: #ec407a;
+            --ink: #1e3a8a;
+            --muted: #64748b;
+            --brand: #3b82f6;
+            --brand-2: #2563eb;
             --warning: #f59e0b;
-            --danger: #e11d48;
-            --lav: #d63384;
-            --success: #10b981;
+            --danger: #dc2626;
+            --lav: #1d4ed8;
+            --success: #059669;
             --info: #0ea5e9;
-            --shadow: 0 10px 30px rgba(236,64,122,.1);
+            --shadow: 0 10px 30px rgba(59, 130, 246, 0.1);
             --radius: 1.25rem;
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body {
-            background: linear-gradient(180deg, #fff0f6 0%, #fff5f8 40%, #fff5f8 100%);
+            background: linear-gradient(180deg, #f0f9ff 0%, #f0f8ff 40%, #f0f8ff 100%);
             color: var(--ink);
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
@@ -246,7 +246,7 @@ if ($recent_appointments_result) {
         }
 
         .sidebar .nav-link {
-            color: #ffe6ef;
+            color: #e0f2fe;
             border-radius: 12px;
             padding: 14px 16px;
             font-weight: 600;
@@ -335,7 +335,7 @@ if ($recent_appointments_result) {
         .form-control.search-input:focus {
             background: white;
             border-color: var(--brand);
-            box-shadow: 0 0 0 3px rgba(240, 98, 146, 0.1);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
             transform: translateY(-2px);
         }
 
@@ -352,7 +352,7 @@ if ($recent_appointments_result) {
 
         .card-soft:hover {
             transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(236,64,122,.15);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15);
         }
 
         /* Enhanced KPI Cards */
@@ -511,12 +511,12 @@ if ($recent_appointments_result) {
         }
 
         .status-active {
-            background: rgba(16, 185, 129, 0.1);
+            background: rgba(5, 150, 105, 0.1);
             color: var(--success);
         }
 
         .status-inactive {
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(220, 38, 38, 0.1);
             color: var(--danger);
         }
 
@@ -545,7 +545,7 @@ if ($recent_appointments_result) {
         }
 
         .btn-activate {
-            background: rgba(16, 185, 129, 0.1);
+            background: rgba(5, 150, 105, 0.1);
             color: var(--success);
         }
 
@@ -565,7 +565,7 @@ if ($recent_appointments_result) {
         }
 
         .btn-delete {
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(220, 38, 38, 0.1);
             color: var(--danger);
         }
 
@@ -616,7 +616,7 @@ if ($recent_appointments_result) {
 
         .toolbar .form-select:focus, .toolbar .form-control:focus {
             border-color: var(--brand);
-            box-shadow: 0 0 0 3px rgba(240, 98, 146, 0.1);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .btn-brand {
@@ -627,12 +627,12 @@ if ($recent_appointments_result) {
             border-radius: 14px;
             padding: 12px 20px;
             transition: var(--transition);
-            box-shadow: 0 4px 12px rgba(240, 98, 146, 0.3);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
         .btn-brand:hover {
             transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(240, 98, 146, 0.4);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
             background: linear-gradient(135deg, var(--lav), var(--brand));
         }
 
@@ -679,7 +679,7 @@ if ($recent_appointments_result) {
         }
 
         .specialization-tag {
-            background: rgba(240, 98, 146, 0.1);
+            background: rgba(59, 130, 246, 0.1);
             color: var(--brand);
             padding: 0.25rem 0.5rem;
             border-radius: 6px;
@@ -801,7 +801,7 @@ if ($recent_appointments_result) {
 
             <div class="mt-auto pt-4">
                 <div class="admin-profile d-flex align-items-center p-3 rounded-3" style="background: rgba(255,255,255,0.1);">
-                    <img src="<?php echo $admin['profile_picture'] ? htmlspecialchars($admin['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($admin['name']) . '&background=f06292&color=fff'; ?>" 
+                    <img src="<?php echo $admin['profile_picture'] ? htmlspecialchars($admin['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($admin['name']) . '&background=3b82f6&color=fff'; ?>" 
                          class="rounded-circle me-3" width="50" height="50" alt="Admin" />
                     <div class="flex-grow-1">
                         <div class="fw-bold text-white"><?php echo htmlspecialchars($admin['name']); ?></div>
@@ -839,7 +839,7 @@ if ($recent_appointments_result) {
 
                 <div class="dropdown">
                     <button class="btn btn-light d-flex align-items-center gap-2" data-bs-toggle="dropdown">
-                        <img src="<?php echo $admin['profile_picture'] ? htmlspecialchars($admin['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($admin['name']) . '&background=f06292&color=fff'; ?>" 
+                        <img src="<?php echo $admin['profile_picture'] ? htmlspecialchars($admin['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($admin['name']) . '&background=3b82f6&color=fff'; ?>" 
                              class="rounded-circle" width="40" height="40" alt="Admin" />
                         <span class="fw-bold d-none d-md-inline"><?php echo htmlspecialchars($admin['name']); ?></span>
                         <i class="fa-solid fa-chevron-down text-muted"></i>
@@ -1018,7 +1018,7 @@ if ($recent_appointments_result) {
                                             <tr>
                                                 <td>
                                                     <div class="user-info">
-                                                        <img src="<?php echo $vet['profile_picture'] ? htmlspecialchars($vet['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($vet['name']) . '&background=f06292&color=fff'; ?>" 
+                                                        <img src="<?php echo $vet['profile_picture'] ? htmlspecialchars($vet['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($vet['name']) . '&background=3b82f6&color=fff'; ?>" 
                                                              alt="<?php echo htmlspecialchars($vet['name']); ?>" 
                                                              class="user-avatar">
                                                         <div>
@@ -1220,5 +1220,3 @@ if ($recent_appointments_result) {
     </script>
 </body>
 </html>
-
-
