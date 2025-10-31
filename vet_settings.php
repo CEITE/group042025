@@ -103,75 +103,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    if (isset($_POST['change_password'])) {
-        // Handle password change
-        $current_password = $_POST['current_password'];
-        $new_password = $_POST['new_password'];
-        $confirm_password = $_POST['confirm_password'];
-        
-        // Validate passwords
-        if (empty($current_password) || empty($new_password) || empty($confirm_password)) {
-            $_SESSION['error'] = "All password fields are required.";
-        } elseif ($new_password !== $confirm_password) {
-            $_SESSION['error'] = "New passwords do not match.";
-        } elseif (strlen($new_password) < 8) {
-            $_SESSION['error'] = "New password must be at least 8 characters long.";
-        } else {
-            // Verify current password
-            $check_password_stmt = $conn->prepare("SELECT user_id, password FROM users WHERE user_id = ?");
-            
-            if ($check_password_stmt) {
-                $check_password_stmt->bind_param("i", $vet_id);
-                
-                if ($check_password_stmt->execute()) {
-                    $result = $check_password_stmt->get_result();
-                    
-                    if ($result->num_rows > 0) {
-                        $user_data = $result->fetch_assoc();
-                        $stored_hash = $user_data['password'];
-                        
-                        // Verify the current password
-                        if (password_verify($current_password, $stored_hash)) {
-                            // Current password is correct, update to new password
-                            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                            
-                            $update_password_stmt = $conn->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE user_id = ?");
-                            
-                            if ($update_password_stmt) {
-                                $update_password_stmt->bind_param("si", $hashed_password, $vet_id);
-                                
-                                if ($update_password_stmt->execute()) {
-                                    // Log password change activity
-                                    logPasswordChange($vet_id, $conn);
-                                    
-                                    $_SESSION['success'] = "Password changed successfully!";
-                                    
-                                    $update_password_stmt->close();
-                                    header("Location: vet_settings.php");
-                                    exit();
-                                } else {
-                                    $_SESSION['error'] = "Error updating password in database: " . $conn->error;
-                                }
-                            } else {
-                                $_SESSION['error'] = "Database error: " . $conn->error;
-                            }
-                        } else {
-                            $_SESSION['error'] = "Current password is incorrect. Please try again.";
-                        }
-                    } else {
-                        $_SESSION['error'] = "User not found in database.";
-                    }
-                } else {
-                    $_SESSION['error'] = "Database query failed: " . $conn->error;
-                }
-                
-                $check_password_stmt->close();
-            } else {
-                $_SESSION['error'] = "Database connection error: " . $conn->error;
-            }
-        }
-    }
-    
     if (isset($_POST['update_notifications'])) {
         // Handle notification preferences
         $email_notifications = isset($_POST['email_notifications']) ? 1 : 0;
@@ -549,38 +480,6 @@ if ($hours_stmt) {
             border: none;
         }
         
-        .password-strength {
-            margin-top: 0.5rem;
-        }
-        
-        .progress {
-            background-color: #e9ecef;
-            border-radius: 0.375rem;
-        }
-        
-        .progress-bar {
-            transition: width 0.3s ease;
-        }
-        
-        .password-requirements {
-            font-size: 0.875rem;
-            margin-top: 0.5rem;
-        }
-        
-        .requirement {
-            display: flex;
-            align-items: center;
-            margin-bottom: 0.25rem;
-        }
-        
-        .requirement.met {
-            color: var(--success);
-        }
-        
-        .requirement.unmet {
-            color: var(--gray);
-        }
-        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -786,73 +685,42 @@ if ($hours_stmt) {
             </div>
 
             <div class="col-lg-4">
-                <!-- Password Change -->
+                <!-- Password Reset -->
                 <div class="settings-card">
-                    <h5 class="mb-3"><i class="fas fa-lock me-2"></i>Change Password</h5>
+                    <h5 class="mb-3"><i class="fas fa-lock me-2"></i>Password Reset</h5>
                     
-                    <form method="POST" action="vet_settings.php" id="changePasswordForm">
-                        <div class="mb-3">
-                            <label class="form-label">Current Password</label>
-                            <input type="password" class="form-control" name="current_password" id="current_password" required>
-                            <div class="form-text">
-                                <a href="vet_settings.php?forgot_password=1" class="text-decoration-none">
-                                    <i class="fas fa-key me-1"></i>Forgot your current password?
-                                </a>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">New Password</label>
-                            <input type="password" class="form-control" name="new_password" id="new_password" required minlength="8">
-                            <div class="password-strength mt-2">
-                                <div class="progress" style="height: 6px;">
-                                    <div class="progress-bar" id="passwordStrengthBar" role="progressbar" style="width: 0%;"></div>
-                                </div>
-                                <small class="text-muted" id="passwordStrengthText">Password strength: Very Weak</small>
-                            </div>
-                            <div class="password-requirements mt-2">
-                                <div class="requirement unmet" id="reqLength">
-                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
-                                    At least 8 characters
-                                </div>
-                                <div class="requirement unmet" id="reqUppercase">
-                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
-                                    One uppercase letter
-                                </div>
-                                <div class="requirement unmet" id="reqLowercase">
-                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
-                                    One lowercase letter
-                                </div>
-                                <div class="requirement unmet" id="reqNumber">
-                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
-                                    One number
-                                </div>
-                                <div class="requirement unmet" id="reqSpecial">
-                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
-                                    One special character
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Confirm New Password</label>
-                            <input type="password" class="form-control" name="confirm_password" id="confirm_password" required minlength="8">
-                            <div class="form-text">
-                                <span id="passwordMatch" class="d-none">
-                                    <i class="fas fa-check text-success me-1"></i>
-                                    <span class="text-success">Passwords match</span>
-                                </span>
-                                <span id="passwordMismatch" class="d-none">
-                                    <i class="fas fa-times text-danger me-1"></i>
-                                    <span class="text-danger">Passwords don't match</span>
-                                </span>
-                            </div>
-                        </div>
-                        
-                        <button type="submit" name="change_password" class="btn btn-primary w-100" id="changePasswordBtn">
-                            <i class="fas fa-key me-2"></i>Change Password
-                        </button>
-                    </form>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Need to update your password?</strong>
+                        <p class="mb-0 mt-1">Click the button below to reset your password using our secure system.</p>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="vet_settings.php?forgot_password=1" class="btn btn-primary">
+                            <i class="fas fa-key me-2"></i>Reset My Password
+                        </a>
+                    </div>
+                    
+                    <div class="mt-3 text-center">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            Last updated: 
+                            <?php
+                            // Get last update date
+                            $update_stmt = $conn->prepare("SELECT updated_at FROM users WHERE user_id = ?");
+                            $update_stmt->bind_param("i", $vet_id);
+                            $update_stmt->execute();
+                            $update_result = $update_stmt->get_result();
+                            if ($update_result->num_rows > 0) {
+                                $user_data = $update_result->fetch_assoc();
+                                echo date('M j, Y', strtotime($user_data['updated_at']));
+                            } else {
+                                echo 'Unknown';
+                            }
+                            $update_stmt->close();
+                            ?>
+                        </small>
+                    </div>
                 </div>
 
                 <!-- Notification Preferences -->
@@ -864,7 +732,7 @@ if ($hours_stmt) {
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" 
                                        name="email_notifications" 
-                                       id="email_notifications"
+                                       id="email_notifications" 
                                        <?php echo $notification_preferences['email_notifications'] ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="email_notifications">
                                     Email Notifications
@@ -936,10 +804,6 @@ if ($hours_stmt) {
                     <h5 class="mb-3"><i class="fas fa-shield-alt me-2"></i>Account Security</h5>
                     
                     <div class="d-grid gap-2">
-                        <a href="vet_settings.php?forgot_password=1" class="btn btn-outline-primary">
-                            <i class="fas fa-key me-2"></i>Reset Password via Email
-                        </a>
-                        
                         <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#twoFAModal">
                             <i class="fas fa-mobile-alt me-2"></i>Two-Factor Authentication
                         </button>
@@ -1019,84 +883,6 @@ if ($hours_stmt) {
     updateDateTime();
     setInterval(updateDateTime, 60000);
 
-    // Password strength checker
-    document.getElementById('new_password').addEventListener('input', function() {
-        const password = this.value;
-        checkPasswordStrength(password);
-        checkPasswordMatch();
-    });
-
-    document.getElementById('confirm_password').addEventListener('input', checkPasswordMatch);
-
-    function checkPasswordStrength(password) {
-        let strength = 0;
-        const requirements = {
-            length: password.length >= 8,
-            uppercase: /[A-Z]/.test(password),
-            lowercase: /[a-z]/.test(password),
-            number: /[0-9]/.test(password),
-            special: /[^A-Za-z0-9]/.test(password)
-        };
-
-        // Update requirement indicators
-        document.getElementById('reqLength').className = requirements.length ? 'requirement met' : 'requirement unmet';
-        document.getElementById('reqUppercase').className = requirements.uppercase ? 'requirement met' : 'requirement unmet';
-        document.getElementById('reqLowercase').className = requirements.lowercase ? 'requirement met' : 'requirement unmet';
-        document.getElementById('reqNumber').className = requirements.number ? 'requirement met' : 'requirement unmet';
-        document.getElementById('reqSpecial').className = requirements.special ? 'requirement met' : 'requirement unmet';
-
-        // Calculate strength
-        if (requirements.length) strength += 20;
-        if (requirements.uppercase) strength += 20;
-        if (requirements.lowercase) strength += 20;
-        if (requirements.number) strength += 20;
-        if (requirements.special) strength += 20;
-
-        // Update progress bar
-        const strengthBar = document.getElementById('passwordStrengthBar');
-        const strengthText = document.getElementById('passwordStrengthText');
-        
-        strengthBar.style.width = strength + '%';
-        
-        if (strength < 40) {
-            strengthBar.className = 'progress-bar bg-danger';
-            strengthText.textContent = 'Password strength: Very Weak';
-        } else if (strength < 60) {
-            strengthBar.className = 'progress-bar bg-warning';
-            strengthText.textContent = 'Password strength: Weak';
-        } else if (strength < 80) {
-            strengthBar.className = 'progress-bar bg-info';
-            strengthText.textContent = 'Password strength: Good';
-        } else if (strength < 100) {
-            strengthBar.className = 'progress-bar bg-primary';
-            strengthText.textContent = 'Password strength: Strong';
-        } else {
-            strengthBar.className = 'progress-bar bg-success';
-            strengthText.textContent = 'Password strength: Very Strong';
-        }
-    }
-
-    function checkPasswordMatch() {
-        const password = document.getElementById('new_password').value;
-        const confirmPassword = document.getElementById('confirm_password').value;
-        const matchElement = document.getElementById('passwordMatch');
-        const mismatchElement = document.getElementById('passwordMismatch');
-        
-        if (confirmPassword === '') {
-            matchElement.classList.add('d-none');
-            mismatchElement.classList.add('d-none');
-            return;
-        }
-        
-        if (password === confirmPassword) {
-            matchElement.classList.remove('d-none');
-            mismatchElement.classList.add('d-none');
-        } else {
-            matchElement.classList.add('d-none');
-            mismatchElement.classList.remove('d-none');
-        }
-    }
-
     // Enable/disable time inputs based on day toggle
     document.querySelectorAll('.form-check-input[type="checkbox"]').forEach(checkbox => {
         if (checkbox.name.includes('_enabled')) {
@@ -1110,24 +896,6 @@ if ($hours_stmt) {
                     endInput.disabled = !this.checked;
                 }
             });
-        }
-    });
-
-    // Form validation
-    document.getElementById('changePasswordForm').addEventListener('submit', function(e) {
-        const newPassword = document.getElementById('new_password').value;
-        const confirmPassword = document.getElementById('confirm_password').value;
-        
-        if (newPassword !== confirmPassword) {
-            e.preventDefault();
-            alert('Passwords do not match. Please make sure both password fields are identical.');
-            return;
-        }
-        
-        if (newPassword.length < 8) {
-            e.preventDefault();
-            alert('Password must be at least 8 characters long.');
-            return;
         }
     });
 
