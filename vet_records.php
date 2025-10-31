@@ -68,11 +68,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reminder_description = trim($_POST['reminder_description']);
         $reminder_due_date = $_POST['reminder_due_date'] ?: null;
         
-        // Get pet and owner info
+        // Get pet and owner info - FIXED: changed p.owner_id to p.user_id
         $pet_info_stmt = $conn->prepare("
             SELECT p.*, u.name as owner_name, u.email as owner_email 
             FROM pets p 
-            JOIN users u ON p.owner_id = u.user_id 
+            JOIN users u ON p.user_id = u.user_id 
             WHERE p.pet_id = ?
         ");
         if ($pet_info_stmt) {
@@ -81,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pet_info = $pet_info_stmt->get_result()->fetch_assoc();
             $pet_info_stmt->close();
             
+            if ($pet_info) {
                 $insert_stmt = $conn->prepare("
                     INSERT INTO pet_medical_records 
                     (owner_id, owner_name, pet_id, pet_name, species, breed, color, sex, dob, age, 
@@ -89,27 +90,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      generated_date, clinic_name, clinic_address, clinic_contact, owner_email) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)
                 ");
-                                        if ($insert_stmt) {
-                            $clinic_name = "BrightView Veterinary Clinic";
-                            $clinic_address = "123 Veterinary Street, City";
-                            $clinic_contact = "(555) 123-4567";
-                            
-                            $insert_stmt->bind_param("isissssssssssssssssssssss", 
-                                $pet_info['owner_id'], $pet_info['owner_name'], $pet_id, $pet_info['name'],
-                                $pet_info['species'], $pet_info['breed'], $pet_info['color'], $pet_info['gender'],
-                                $pet_info['birth_date'], $pet_info['age'], $weight, $pet_info['status'],
-                                $service_date, $reminder_description, $reminder_due_date, $service_date, $service_time,
-                                $service_type, $service_description, $vet['name'], $notes,
-                                $clinic_name, $clinic_address, $clinic_contact, $pet_info['owner_email']
-                            );
-                                            
-                                             if ($insert_stmt->execute()) {
-                                $_SESSION['success'] = "Medical record added successfully!";
-                            } else {
-                                $_SESSION['error'] = "Error adding medical record: " . $insert_stmt->error;
-                            }
-                            $insert_stmt->close();
-                        }
+                if ($insert_stmt) {
+                    $clinic_name = "BrightView Veterinary Clinic";
+                    $clinic_address = "123 Veterinary Street, City";
+                    $clinic_contact = "(555) 123-4567";
+                    
+                    $insert_stmt->bind_param("isissssssssssssssssssssss", 
+                        $pet_info['user_id'], $pet_info['owner_name'], $pet_id, $pet_info['name'],
+                        $pet_info['species'], $pet_info['breed'], $pet_info['color'], $pet_info['gender'],
+                        $pet_info['birth_date'], $pet_info['age'], $weight, $pet_info['status'],
+                        $service_date, $reminder_description, $reminder_due_date, $service_date, $service_time,
+                        $service_type, $service_description, $vet['name'], $notes,
+                        $clinic_name, $clinic_address, $clinic_contact, $pet_info['owner_email']
+                    );
+                    
+                    if ($insert_stmt->execute()) {
+                        $_SESSION['success'] = "Medical record added successfully!";
+                    } else {
+                        $_SESSION['error'] = "Error adding medical record: " . $insert_stmt->error;
+                    }
+                    $insert_stmt->close();
+                }
             }
         }
     } elseif (isset($_POST['update_record'])) {
@@ -167,7 +168,6 @@ if (isset($_GET['delete'])) {
     exit();
 }
 
-// Fetch all pets for dropdown
 // Fetch all pets for dropdown - CORRECTED VERSION
 $pets_stmt = $conn->prepare("
     SELECT p.pet_id, p.name as pet_name, p.species, p.breed, p.age, p.gender, p.color,
@@ -882,5 +882,3 @@ foreach ($medical_records as $record) {
 </script>
 </body>
 </html>
-
-
