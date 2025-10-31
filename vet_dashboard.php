@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'vet') {
     exit();
 }
 
-$vet_id = $_SESSION['user_id'];
+$user_id = $_SESSION['user_id'];
 
 // Handle profile picture upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_picture'])) {
@@ -1391,4 +1391,5 @@ foreach ($missing_notifications as $appointment) {
 </script>
 </body>
 </html>
+
 
