@@ -699,8 +699,8 @@ if (isset($_POST['cancel_appointment'])) {
         <!-- Topbar -->
         <div class="topbar">
             <div>
-                <h5 class="mb-0">Welcome Back, <span id="ownerName"><?php echo htmlspecialchars($user['name']); ?></span>! 👋</h5>
-                <small class="text-muted">Here's your pet health overview</small>
+                <h5 class="mb-0">Welcome to BrightView Veterinary Clinic👋</h5>
+                <small class="text-muted">Here's your Dashboard overview</small>
             </div>
             <div class="d-flex align-items-center gap-3">
                 <!-- Notification Bell -->
@@ -1600,6 +1600,7 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
 
 
 
