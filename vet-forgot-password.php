@@ -508,7 +508,7 @@ if (isset($_POST['resend_otp'])) {
 
   <section class="password-section">
     <div class="password-card">
-      <a href="login.php" class="back-link">
+      <a href="login_vet.php" class="back-link">
         <i class="fas fa-arrow-left me-2"></i>Back to Login
       </a>
 
@@ -827,4 +827,5 @@ if (isset($_POST['resend_otp'])) {
   </script>
 </body>
 </html>
+
 
