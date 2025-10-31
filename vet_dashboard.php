@@ -4,7 +4,7 @@ include("conn.php");
 
 // Check if user is logged in and is a vet
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'vet') {
-    header("Location: login.php"); // Changed from login_vet.php to login.php
+    header("Location: login_vet.php"); // Changed from login_vet.php to login.php
     exit();
 }
 $user_id = $_SESSION['user_id']; // ✅ Use $user_id consistently
@@ -1350,6 +1350,7 @@ foreach ($missing_notifications as $appointment) {
 </script>
 </body>
 </html>
+
 
 
 
