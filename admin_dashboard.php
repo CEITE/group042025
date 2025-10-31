@@ -740,7 +740,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                     <span class="icon"><i class="fa-solid fa-user-doctor"></i></span>
                     <span>Veterinarians</span>
                 </a>
-                <a class="nav-link d-flex align-items-center" href="pet_owners.php">
+                <a class="nav-link d-flex align-items-center" href="pet_owner.php">
                     <span class="icon"><i class="fa-solid fa-users"></i></span>
                     <span>Pet Owners</span>
                 </a>
@@ -1136,6 +1136,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
     </script>
 </body>
 </html>
+
 
 
 
