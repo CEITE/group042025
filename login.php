@@ -55,7 +55,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             } elseif ($role === "vet") {
                 header("Location: vet_dashboard.php");
                 exit();
-            } else {
+            } else {$role ==="owner") { 
                 header("Location: user_dashboard.php");
                 exit();
             }
@@ -1135,3 +1135,4 @@ footer {
   </script>
 </body>
 </html>
+
