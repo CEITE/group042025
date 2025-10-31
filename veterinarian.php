@@ -732,3 +732,4 @@ if ($recent_appointments_result) {
     </script>
 </body>
 </html>
+
