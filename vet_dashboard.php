@@ -120,11 +120,25 @@ $notifications_stmt->bind_param("i", $vet_id);
 $notifications_stmt->execute();
 $notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
+// ✅ NEW: Fetch emails sent to veterinarian
+$emails_stmt = $conn->prepare("
+    SELECT el.*, u.name as sender_name 
+    FROM email_logs el 
+    LEFT JOIN users u ON el.sent_by = u.user_id 
+    WHERE el.vet_id = ? 
+    ORDER BY el.sent_at DESC 
+    LIMIT 10
+");
+$emails_stmt->bind_param("i", $vet_id);
+$emails_stmt->execute();
+$received_emails = $emails_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
 // Count statistics
 $pending_count = count($pending_appointments);
 $today_count = count($today_appointments);
 $confirmed_count = count($confirmed_appointments);
 $notification_count = count($notifications);
+$email_count = count($received_emails);
 
 // ✅ FIXED: Handle appointment status update
 if (isset($_POST['update_status'])) {
@@ -213,6 +227,16 @@ if (isset($_GET['mark_read'])) {
     exit();
 }
 
+// Handle mark email as read
+if (isset($_GET['mark_email_read'])) {
+    $email_id = $_GET['mark_email_read'];
+    $mark_email_stmt = $conn->prepare("UPDATE email_logs SET is_read = 1 WHERE id = ? AND vet_id = ?");
+    $mark_email_stmt->bind_param("ii", $email_id, $vet_id);
+    $mark_email_stmt->execute();
+    header("Location: vet_dashboard.php");
+    exit();
+}
+
 // ✅ FIXED: Create notifications for any pending appointments without notifications (Temporary fix)
 $check_pending_stmt = $conn->prepare("
     SELECT a.appointment_id, p.name as pet_name, a.appointment_date, a.appointment_time, u.name as owner_name
@@ -246,7 +270,7 @@ foreach ($missing_notifications as $appointment) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vet Dashboard - VetCareQR</title>
+    <title>Vet Dashboard - BrightView Veterinary Clinic</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -505,6 +529,26 @@ foreach ($missing_notifications as $appointment) {
             transform: translateX(5px);
         }
         
+        .email-item {
+            border-left: 4px solid var(--secondary);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: white;
+            border-radius: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .email-item.unread {
+            background: var(--primary-light);
+            border-left-color: var(--secondary);
+        }
+        
+        .email-item:hover {
+            transform: translateX(5px);
+            background: #f8f9fa;
+        }
+        
         /* Action Buttons */
         .btn-confirm { 
             background: linear-gradient(135deg, var(--success), #27ae60);
@@ -537,6 +581,15 @@ foreach ($missing_notifications as $appointment) {
             flex-wrap: wrap;
         }
         
+        .client-badge {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -563,7 +616,9 @@ foreach ($missing_notifications as $appointment) {
 <div class="wrapper">
     <!-- Sidebar -->
     <div class="sidebar">
-        <div class="brand"><i class="fa-solid fa-paw"></i> VetCareQR</div>
+        <div class="brand">
+            <i class="fa-solid fa-paw"></i> BrightView<br>Veterinary Clinic
+        </div>
         <div class="profile">
             <div class="profile-picture-container" data-bs-toggle="modal" data-bs-target="#profilePictureModal">
                 <img src="<?php echo htmlspecialchars($profile_picture); ?>" 
@@ -603,9 +658,59 @@ foreach ($missing_notifications as $appointment) {
         <div class="topbar">
             <div>
                 <h5 class="mb-0">Veterinary Dashboard</h5>
-                <small class="text-muted">Manage appointments and patient care</small>
+                <small class="text-muted">Welcome to BrightView Veterinary Clinic Management System</small>
             </div>
             <div class="d-flex align-items-center gap-3">
+                <!-- Email Inbox -->
+                <div class="dropdown">
+                    <a href="#" class="btn btn-outline-info position-relative" data-bs-toggle="dropdown">
+                        <i class="fas fa-envelope"></i>
+                        <?php if ($email_count > 0): ?>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                <?php echo $email_count; ?>
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end" style="width: 400px;">
+                        <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                            <h6 class="mb-0"><i class="fas fa-envelope me-2"></i>Messages</h6>
+                            <small class="text-muted"><?php echo $email_count; ?> new</small>
+                        </div>
+                        <div class="email-list" style="max-height: 300px; overflow-y: auto;">
+                            <?php if (empty($received_emails)): ?>
+                                <div class="p-3 text-center text-muted">
+                                    <i class="fas fa-envelope-open fa-2x mb-2"></i>
+                                    <p class="mb-0">No new messages</p>
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($received_emails as $email): ?>
+                                    <div class="email-item <?php echo $email['is_read'] == 0 ? 'unread' : ''; ?>" 
+                                         onclick="viewEmail(<?php echo $email['id']; ?>)">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1 small fw-bold"><?php echo htmlspecialchars($email['subject']); ?></h6>
+                                                <p class="mb-1 small text-truncate"><?php echo htmlspecialchars(substr($email['message'], 0, 100)); ?>...</p>
+                                                <small class="text-muted">
+                                                    From: <?php echo htmlspecialchars($email['sender_name'] ?? 'Administration'); ?> | 
+                                                    <?php echo date('M j, g:i A', strtotime($email['sent_at'])); ?>
+                                                </small>
+                                            </div>
+                                            <?php if ($email['is_read'] == 0): ?>
+                                                <span class="badge bg-danger ms-2">New</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                        <div class="p-2 border-top">
+                            <a href="vet_messages.php" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="fas fa-inbox me-2"></i>View All Messages
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Notification Bell -->
                 <div class="dropdown">
                     <a href="#" class="btn btn-outline-primary position-relative" data-bs-toggle="dropdown">
@@ -697,9 +802,9 @@ foreach ($missing_notifications as $appointment) {
             </div>
             <div class="col-md-3">
                 <div class="stats-card" style="background: linear-gradient(135deg, var(--secondary), #38f9d7);">
-                    <div class="stats-number"><?php echo $notification_count; ?></div>
-                    <div class="stats-label">Notifications</div>
-                    <i class="fas fa-bell"></i>
+                    <div class="stats-number"><?php echo $email_count; ?></div>
+                    <div class="stats-label">New Messages</div>
+                    <i class="fas fa-envelope"></i>
                 </div>
             </div>
         </div>
@@ -1025,6 +1130,9 @@ foreach ($missing_notifications as $appointment) {
                         <a href="vet_records.php" class="btn btn-outline-info text-start">
                             <i class="fas fa-file-medical me-2"></i>Medical Records
                         </a>
+                        <a href="vet_messages.php" class="btn btn-outline-warning text-start">
+                            <i class="fas fa-envelope me-2"></i>View Messages
+                        </a>
                         <a href="vet_settings.php" class="btn btn-outline-secondary text-start">
                             <i class="fas fa-gear me-2"></i>Clinic Settings
                         </a>
@@ -1085,11 +1193,40 @@ foreach ($missing_notifications as $appointment) {
                         </div>
                         <div class="col-6">
                             <div class="p-2 border rounded">
-                                <h4 class="mb-0 text-primary"><?php echo $notification_count; ?></h4>
-                                <small>Alerts</small>
+                                <h4 class="mb-0 text-primary"><?php echo $email_count; ?></h4>
+                                <small>Messages</small>
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Recent Messages Preview -->
+                <div class="card-custom mt-4">
+                    <h5 class="mb-3"><i class="fas fa-envelope me-2"></i>Recent Messages</h5>
+                    <?php if (empty($received_emails)): ?>
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-envelope-open fa-2x mb-2"></i>
+                            <p class="mb-0">No messages</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="messages-preview">
+                            <?php foreach (array_slice($received_emails, 0, 3) as $email): ?>
+                                <div class="d-flex align-items-start mb-3 p-2 border rounded">
+                                    <div class="flex-grow-1">
+                                        <strong class="d-block small"><?php echo htmlspecialchars($email['subject']); ?></strong>
+                                        <small class="text-muted">From: <?php echo htmlspecialchars($email['sender_name'] ?? 'Admin'); ?></small>
+                                        <small class="d-block text-truncate"><?php echo htmlspecialchars(substr($email['message'], 0, 50)); ?>...</small>
+                                    </div>
+                                    <?php if ($email['is_read'] == 0): ?>
+                                        <span class="badge bg-danger ms-2">New</span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
+                            <div class="text-center mt-2">
+                                <a href="vet_messages.php" class="btn btn-sm btn-outline-primary">View All Messages</a>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -1132,6 +1269,27 @@ foreach ($missing_notifications as $appointment) {
                     <button type="submit" class="btn btn-primary">Update Profile Picture</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Email View Modal -->
+<div class="modal fade" id="emailViewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="emailModalTitle">Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="emailModalContent">
+                    <!-- Email content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="vet_messages.php" class="btn btn-primary">Go to Messages</a>
+            </div>
         </div>
     </div>
 </div>
@@ -1191,6 +1349,19 @@ foreach ($missing_notifications as $appointment) {
         console.log('Refreshing vet dashboard...');
         // In a real implementation, you might want to use AJAX to refresh data
         // For now, we'll just log to console
+    }
+
+    // View email function
+    function viewEmail(emailId) {
+        // Mark email as read
+        window.location.href = 'vet_dashboard.php?mark_email_read=' + emailId;
+        
+        // In a real implementation, you would fetch the email content via AJAX
+        // and display it in the modal
+        console.log('Viewing email:', emailId);
+        
+        // For now, redirect to messages page
+        // window.location.href = 'vet_messages.php?email_id=' + emailId;
     }
 
     // Quick action functions
