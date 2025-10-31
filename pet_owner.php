@@ -55,7 +55,7 @@ $owners_query = "
     SELECT u.user_id, u.name, u.email, u.profile_picture, u.created_at, u.last_login, u.status, u.phone_number,
            COUNT(p.pet_id) as pet_count
     FROM users u
-    LEFT JOIN pets p ON u.user_id = p.owner_id
+    LEFT JOIN pets p ON u.user_id = p.user_id
     WHERE $where_clause
     GROUP BY u.user_id
     ORDER BY u.created_at DESC
@@ -78,8 +78,8 @@ $stmt->close();
 
 // Handle actions (activate/deactivate/delete)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['action']) && isset($_POST['owner_id'])) {
-        $owner_id = intval($_POST['owner_id']);
+    if (isset($_POST['action']) && isset($_POST['user_id'])) {
+        $user_id = intval($_POST['user_id']);
         $action = $_POST['action'];
         
         switch ($action) {
@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($update_query) {
             $stmt = $conn->prepare($update_query);
             if ($stmt) {
-                $stmt->bind_param("i", $owner_id);
+                $stmt->bind_param("i", $user_id);
                 if ($stmt->execute()) {
                     $_SESSION['success'] = $success_message;
                 } else {
@@ -1014,7 +1014,7 @@ $stats = $stats_result->fetch_assoc();
                                                 </button>
                                                 <?php if ($owner['status'] === 'active'): ?>
                                                     <form method="POST" style="display: inline;">
-                                                        <input type="hidden" name="owner_id" value="<?php echo $owner['user_id']; ?>">
+                                                        <input type="hidden" name="user_id" value="<?php echo $owner['user_id']; ?>">
                                                         <input type="hidden" name="action" value="deactivate">
                                                         <button type="submit" class="btn btn-action btn-deactivate me-1" title="Deactivate">
                                                             <i class="fas fa-pause"></i>
@@ -1022,7 +1022,7 @@ $stats = $stats_result->fetch_assoc();
                                                     </form>
                                                 <?php else: ?>
                                                     <form method="POST" style="display: inline;">
-                                                        <input type="hidden" name="owner_id" value="<?php echo $owner['user_id']; ?>">
+                                                        <input type="hidden" name="user_id" value="<?php echo $owner['user_id']; ?>">
                                                         <input type="hidden" name="action" value="activate">
                                                         <button type="submit" class="btn btn-action btn-activate me-1" title="Activate">
                                                             <i class="fas fa-play"></i>
@@ -1030,7 +1030,7 @@ $stats = $stats_result->fetch_assoc();
                                                     </form>
                                                 <?php endif; ?>
                                                 <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this pet owner? This action cannot be undone.');">
-                                                    <input type="hidden" name="owner_id" value="<?php echo $owner['user_id']; ?>">
+                                                    <input type="hidden" name="user_id" value="<?php echo $owner['user_id']; ?>">
                                                     <input type="hidden" name="action" value="delete">
                                                     <button type="submit" class="btn btn-action btn-delete" title="Delete">
                                                         <i class="fas fa-trash"></i>
@@ -1109,4 +1109,5 @@ $stats = $stats_result->fetch_assoc();
         }
     </script>
 </body>
+
 </html>
