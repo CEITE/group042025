@@ -10,6 +10,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'vet') {
 
 $vet_id = $_SESSION['user_id'];
 
+// Handle forgot password redirect
+if (isset($_GET['forgot_password'])) {
+    $_SESSION['forgot_password_email'] = $vet['email'] ?? '';
+    $_SESSION['forgot_password_redirect'] = 'vet_settings.php';
+    header("Location: forgot-password.php");
+    exit();
+}
+
 // Fetch vet info
 $stmt = $conn->prepare("SELECT name, role, email, profile_picture, phone_number, clinic_name, license_number, specialization, bio FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $vet_id);
@@ -23,22 +31,29 @@ if (!$vet) {
 // Set default profile picture
 $profile_picture = !empty($vet['profile_picture']) ? $vet['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($vet['name']);
 
-// Password strength validation function
-function validatePasswordStrength($password) {
-    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
-    $pattern = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/';
-    return preg_match($pattern, $password);
-}
-
 // Log password change activity
 function logPasswordChange($vet_id, $conn) {
     $activity = "Password changed successfully";
     $ip_address = $_SERVER['REMOTE_ADDR'];
     $user_agent = $_SERVER['HTTP_USER_AGENT'];
     
+    // Create activity logs table if it doesn't exist
+    $create_table_sql = "CREATE TABLE IF NOT EXISTS user_activity_logs (
+        log_id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        activity VARCHAR(255),
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )";
+    $conn->query($create_table_sql);
+    
     $log_stmt = $conn->prepare("INSERT INTO user_activity_logs (user_id, activity, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, NOW())");
-    $log_stmt->bind_param("isss", $vet_id, $activity, $ip_address, $user_agent);
-    $log_stmt->execute();
+    if ($log_stmt) {
+        $log_stmt->bind_param("isss", $vet_id, $activity, $ip_address, $user_agent);
+        $log_stmt->execute();
+        $log_stmt->close();
+    }
 }
 
 // Handle profile updates
@@ -77,7 +92,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $_SESSION['error'] = "Error updating profile: " . $conn->error;
                 }
+                $update_stmt->close();
             }
+            $check_email_stmt->close();
         }
     }
     
@@ -94,8 +111,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['error'] = "New passwords do not match.";
         } elseif (strlen($new_password) < 8) {
             $_SESSION['error'] = "New password must be at least 8 characters long.";
-        } elseif (!validatePasswordStrength($new_password)) {
-            $_SESSION['error'] = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.";
         } else {
             // Verify current password
             $check_password_stmt = $conn->prepare("SELECT password FROM users WHERE user_id = ?");
@@ -103,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $check_password_stmt->execute();
             $result = $check_password_stmt->get_result()->fetch_assoc();
             
-            if (password_verify($current_password, $result['password'])) {
+            if ($result && password_verify($current_password, $result['password'])) {
                 // Update password
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
                 $update_password_stmt = $conn->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE user_id = ?");
@@ -119,9 +134,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $_SESSION['error'] = "Error changing password: " . $conn->error;
                 }
+                $update_password_stmt->close();
             } else {
                 $_SESSION['error'] = "Current password is incorrect.";
             }
+            $check_password_stmt->close();
         }
     }
     
@@ -132,6 +149,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $appointment_reminders = isset($_POST['appointment_reminders']) ? 1 : 0;
         $new_appointment_alerts = isset($_POST['new_appointment_alerts']) ? 1 : 0;
         $emergency_alerts = isset($_POST['emergency_alerts']) ? 1 : 0;
+        
+        // Create notification preferences table if it doesn't exist
+        $create_table_sql = "CREATE TABLE IF NOT EXISTS vet_notification_preferences (
+            vet_id INT PRIMARY KEY,
+            email_notifications TINYINT DEFAULT 1,
+            sms_notifications TINYINT DEFAULT 0,
+            appointment_reminders TINYINT DEFAULT 1,
+            new_appointment_alerts TINYINT DEFAULT 1,
+            emergency_alerts TINYINT DEFAULT 1,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )";
+        $conn->query($create_table_sql);
         
         // Update notification preferences
         $update_notifications_stmt = $conn->prepare("
@@ -150,6 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $_SESSION['error'] = "Error updating notification preferences: " . $conn->error;
         }
+        $update_notifications_stmt->close();
     }
     
     if (isset($_POST['update_working_hours'])) {
@@ -192,6 +222,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]
         ]);
         
+        // Create working hours table if it doesn't exist
+        $create_table_sql = "CREATE TABLE IF NOT EXISTS vet_working_hours (
+            vet_id INT PRIMARY KEY,
+            working_hours JSON,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )";
+        $conn->query($create_table_sql);
+        
         $update_hours_stmt = $conn->prepare("
             INSERT INTO vet_working_hours (vet_id, working_hours, updated_at) 
             VALUES (?, ?, NOW())
@@ -204,15 +242,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $_SESSION['error'] = "Error updating working hours: " . $conn->error;
         }
+        $update_hours_stmt->close();
     }
-}
-
-// Handle forgot password redirect
-if (isset($_GET['forgot_password'])) {
-    $_SESSION['forgot_password_email'] = $vet['email'];
-    $_SESSION['forgot_password_redirect'] = 'vet_settings.php';
-    header("Location: forgot-password.php");
-    exit();
 }
 
 // Fetch notification preferences
@@ -224,6 +255,18 @@ $notification_preferences = [
     'emergency_alerts' => 1
 ];
 
+// Create notification preferences table if it doesn't exist
+$create_table_sql = "CREATE TABLE IF NOT EXISTS vet_notification_preferences (
+    vet_id INT PRIMARY KEY,
+    email_notifications TINYINT DEFAULT 1,
+    sms_notifications TINYINT DEFAULT 0,
+    appointment_reminders TINYINT DEFAULT 1,
+    new_appointment_alerts TINYINT DEFAULT 1,
+    emergency_alerts TINYINT DEFAULT 1,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+)";
+$conn->query($create_table_sql);
+
 $preferences_stmt = $conn->prepare("SELECT * FROM vet_notification_preferences WHERE vet_id = ?");
 if ($preferences_stmt) {
     $preferences_stmt->bind_param("i", $vet_id);
@@ -232,6 +275,7 @@ if ($preferences_stmt) {
     if ($preferences_result->num_rows > 0) {
         $notification_preferences = $preferences_result->fetch_assoc();
     }
+    $preferences_stmt->close();
 }
 
 // Fetch working hours
@@ -245,6 +289,14 @@ $default_hours = [
     'sunday' => ['enabled' => false, 'start' => '09:00', 'end' => '12:00']
 ];
 
+// Create working hours table if it doesn't exist
+$create_table_sql = "CREATE TABLE IF NOT EXISTS vet_working_hours (
+    vet_id INT PRIMARY KEY,
+    working_hours JSON,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+)";
+$conn->query($create_table_sql);
+
 $hours_stmt = $conn->prepare("SELECT working_hours FROM vet_working_hours WHERE vet_id = ?");
 if ($hours_stmt) {
     $hours_stmt->bind_param("i", $vet_id);
@@ -257,6 +309,7 @@ if ($hours_stmt) {
             $default_hours = $working_hours;
         }
     }
+    $hours_stmt->close();
 }
 ?>
 
@@ -955,7 +1008,6 @@ if ($hours_stmt) {
         const passwordStrengthText = document.getElementById('passwordStrengthText');
         const passwordMatch = document.getElementById('passwordMatch');
         const passwordMismatch = document.getElementById('passwordMismatch');
-        const changePasswordBtn = document.getElementById('changePasswordBtn');
         
         if (newPasswordInput && confirmPasswordInput) {
             newPasswordInput.addEventListener('input', validatePasswordStrength);
@@ -982,18 +1034,10 @@ if ($hours_stmt) {
     function validatePasswordStrength() {
         const password = document.getElementById('new_password').value;
         let strength = 0;
-        let requirements = {
-            length: false,
-            uppercase: false,
-            lowercase: false,
-            number: false,
-            special: false
-        };
         
         // Length requirement
         if (password.length >= 8) {
             strength += 20;
-            requirements.length = true;
             document.getElementById('reqLength').className = 'requirement met';
         } else {
             document.getElementById('reqLength').className = 'requirement unmet';
@@ -1002,7 +1046,6 @@ if ($hours_stmt) {
         // Uppercase requirement
         if (/[A-Z]/.test(password)) {
             strength += 20;
-            requirements.uppercase = true;
             document.getElementById('reqUppercase').className = 'requirement met';
         } else {
             document.getElementById('reqUppercase').className = 'requirement unmet';
@@ -1011,7 +1054,6 @@ if ($hours_stmt) {
         // Lowercase requirement
         if (/[a-z]/.test(password)) {
             strength += 20;
-            requirements.lowercase = true;
             document.getElementById('reqLowercase').className = 'requirement met';
         } else {
             document.getElementById('reqLowercase').className = 'requirement unmet';
@@ -1020,7 +1062,6 @@ if ($hours_stmt) {
         // Number requirement
         if (/[0-9]/.test(password)) {
             strength += 20;
-            requirements.number = true;
             document.getElementById('reqNumber').className = 'requirement met';
         } else {
             document.getElementById('reqNumber').className = 'requirement unmet';
@@ -1029,7 +1070,6 @@ if ($hours_stmt) {
         // Special character requirement
         if (/[@$!%*?&]/.test(password)) {
             strength += 20;
-            requirements.special = true;
             document.getElementById('reqSpecial').className = 'requirement met';
         } else {
             document.getElementById('reqSpecial').className = 'requirement unmet';
@@ -1039,33 +1079,37 @@ if ($hours_stmt) {
         const progressBar = document.getElementById('passwordStrengthBar');
         const strengthText = document.getElementById('passwordStrengthText');
         
-        progressBar.style.width = strength + '%';
-        
-        if (strength <= 20) {
-            progressBar.className = 'progress-bar bg-danger';
-            strengthText.textContent = 'Password strength: Very Weak';
-        } else if (strength <= 40) {
-            progressBar.className = 'progress-bar bg-warning';
-            strengthText.textContent = 'Password strength: Weak';
-        } else if (strength <= 60) {
-            progressBar.className = 'progress-bar bg-info';
-            strengthText.textContent = 'Password strength: Fair';
-        } else if (strength <= 80) {
-            progressBar.className = 'progress-bar bg-primary';
-            strengthText.textContent = 'Password strength: Good';
-        } else {
-            progressBar.className = 'progress-bar bg-success';
-            strengthText.textContent = 'Password strength: Strong';
+        if (progressBar && strengthText) {
+            progressBar.style.width = strength + '%';
+            
+            if (strength <= 20) {
+                progressBar.className = 'progress-bar bg-danger';
+                strengthText.textContent = 'Password strength: Very Weak';
+            } else if (strength <= 40) {
+                progressBar.className = 'progress-bar bg-warning';
+                strengthText.textContent = 'Password strength: Weak';
+            } else if (strength <= 60) {
+                progressBar.className = 'progress-bar bg-info';
+                strengthText.textContent = 'Password strength: Fair';
+            } else if (strength <= 80) {
+                progressBar.className = 'progress-bar bg-primary';
+                strengthText.textContent = 'Password strength: Good';
+            } else {
+                progressBar.className = 'progress-bar bg-success';
+                strengthText.textContent = 'Password strength: Strong';
+            }
         }
         
         validatePasswordMatch();
     }
 
     function validatePasswordMatch() {
-        const newPassword = document.getElementById('new_password').value;
-        const confirmPassword = document.getElementById('confirm_password').value;
+        const newPassword = document.getElementById('new_password')?.value || '';
+        const confirmPassword = document.getElementById('confirm_password')?.value || '';
         const matchElement = document.getElementById('passwordMatch');
         const mismatchElement = document.getElementById('passwordMismatch');
+        
+        if (!matchElement || !mismatchElement) return;
         
         if (confirmPassword === '') {
             matchElement.classList.add('d-none');
@@ -1084,8 +1128,15 @@ if ($hours_stmt) {
 
     // Form validation before submission
     document.getElementById('changePasswordForm')?.addEventListener('submit', function(e) {
-        const newPassword = document.getElementById('new_password').value;
-        const confirmPassword = document.getElementById('confirm_password').value;
+        const newPassword = document.getElementById('new_password')?.value || '';
+        const confirmPassword = document.getElementById('confirm_password')?.value || '';
+        const currentPassword = document.getElementById('current_password')?.value || '';
+        
+        if (!currentPassword) {
+            e.preventDefault();
+            alert('Please enter your current password!');
+            return false;
+        }
         
         if (newPassword !== confirmPassword) {
             e.preventDefault();
@@ -1096,18 +1147,6 @@ if ($hours_stmt) {
         if (newPassword.length < 8) {
             e.preventDefault();
             alert('Password must be at least 8 characters long!');
-            return false;
-        }
-        
-        // Check password strength requirements
-        const hasUppercase = /[A-Z]/.test(newPassword);
-        const hasLowercase = /[a-z]/.test(newPassword);
-        const hasNumber = /[0-9]/.test(newPassword);
-        const hasSpecial = /[@$!%*?&]/.test(newPassword);
-        
-        if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
-            e.preventDefault();
-            alert('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character!');
             return false;
         }
         
