@@ -11,18 +11,26 @@ if (!$conn) {
     die("Database connection failed: " . htmlspecialchars($conn->connect_error));
 }
 
-// Check if user is logged in and is a vet
+// Simple session check - same as vet_dashboard.php
 if (!isset($_SESSION['user_id'])) {
     header("Location: login_vet.php");
     exit();
 }
 
-// Check if user has the correct role
+// Check if user has the correct role - use same logic as vet_dashboard.php
 if ($_SESSION['role'] !== 'vet') {
     session_unset();
     session_destroy();
     header("Location: login_vet.php");
     exit();
+}
+
+// Basic session security - same as vet_dashboard.php
+if (!isset($_SESSION['created'])) {
+    $_SESSION['created'] = time();
+} elseif (time() - $_SESSION['created'] > 1800) {
+    session_regenerate_id(true);
+    $_SESSION['created'] = time();
 }
 
 $vet_id = $_SESSION['user_id'];
@@ -46,6 +54,10 @@ if (!$vet) {
 // Set default profile picture
 $profile_picture = !empty($vet['profile_picture']) ? $vet['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($vet['name']);
 
+// Check if recipient_id column exists
+$check_recipient = $conn->query("SHOW COLUMNS FROM email_logs LIKE 'recipient_id'");
+$has_recipient_column = ($check_recipient->num_rows > 0);
+
 // Handle sending new message
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
     $recipient_id = $_POST['recipient_id'];
@@ -55,22 +67,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
     if (empty($subject) || empty($message)) {
         $_SESSION['error'] = "Subject and message are required.";
     } else {
-        $insert_stmt = $conn->prepare("
-            INSERT INTO email_logs (vet_id, sent_by, recipient_id, subject, message, sent_at, is_read) 
-            VALUES (?, ?, ?, ?, ?, NOW(), 0)
-        ");
-        
-        if ($insert_stmt) {
-            $insert_stmt->bind_param("iiiss", $vet_id, $vet_id, $recipient_id, $subject, $message);
-            if ($insert_stmt->execute()) {
-                $_SESSION['success'] = "Message sent successfully!";
-            } else {
-                $_SESSION['error'] = "Error sending message: " . $insert_stmt->error;
+        if ($has_recipient_column) {
+            // New structure with recipient_id
+            $insert_stmt = $conn->prepare("
+                INSERT INTO email_logs (vet_id, sent_by, recipient_id, subject, message, email_type, is_read, status) 
+                VALUES (?, ?, ?, ?, ?, 'message', 0, 'sent')
+            ");
+            if ($insert_stmt) {
+                $insert_stmt->bind_param("iiiss", $vet_id, $vet_id, $recipient_id, $subject, $message);
             }
-            $insert_stmt->close();
         } else {
-            $_SESSION['error'] = "Database error: " . $conn->error;
+            // Fallback to current structure (vet_id acts as both vet_id and recipient)
+            $insert_stmt = $conn->prepare("
+                INSERT INTO email_logs (vet_id, sent_by, subject, message, email_type, is_read, status) 
+                VALUES (?, ?, ?, ?, 'message', 0, 'sent')
+            ");
+            if ($insert_stmt) {
+                $insert_stmt->bind_param("iiss", $vet_id, $vet_id, $subject, $message);
+            }
         }
+        
+        if ($insert_stmt && $insert_stmt->execute()) {
+            $_SESSION['success'] = "Message sent successfully!";
+        } else {
+            $_SESSION['error'] = "Error sending message: " . ($insert_stmt ? $insert_stmt->error : $conn->error);
+        }
+        if ($insert_stmt) $insert_stmt->close();
     }
     
     header("Location: vet_messages.php");
@@ -85,6 +107,7 @@ if (isset($_GET['mark_read'])) {
         $mark_stmt->bind_param("ii", $email_id, $vet_id);
         $mark_stmt->execute();
         $mark_stmt->close();
+        $_SESSION['success'] = "Message marked as read!";
     }
     header("Location: vet_messages.php");
     exit();
@@ -105,18 +128,33 @@ if (isset($_GET['delete'])) {
 }
 
 // Fetch all messages for this vet
-$messages_stmt = $conn->prepare("
-    SELECT el.*, 
-           u.name as sender_name,
-           u.role as sender_role,
-           r.name as recipient_name,
-           r.role as recipient_role
-    FROM email_logs el 
-    LEFT JOIN users u ON el.sent_by = u.user_id 
-    LEFT JOIN users r ON el.recipient_id = r.user_id
-    WHERE el.vet_id = ? 
-    ORDER BY el.sent_at DESC
-");
+if ($has_recipient_column) {
+    // With recipient_id column
+    $messages_stmt = $conn->prepare("
+        SELECT el.*, 
+               u.name as sender_name,
+               u.role as sender_role,
+               r.name as recipient_name,
+               r.role as recipient_role
+        FROM email_logs el 
+        LEFT JOIN users u ON el.sent_by = u.user_id 
+        LEFT JOIN users r ON el.recipient_id = r.user_id
+        WHERE el.vet_id = ? 
+        ORDER BY el.sent_at DESC
+    ");
+} else {
+    // Current structure without recipient_id
+    $messages_stmt = $conn->prepare("
+        SELECT el.*, 
+               u.name as sender_name,
+               u.role as sender_role
+        FROM email_logs el 
+        LEFT JOIN users u ON el.sent_by = u.user_id 
+        WHERE el.vet_id = ? 
+        ORDER BY el.sent_at DESC
+    ");
+}
+
 if (!$messages_stmt) {
     die("Prepare failed: " . $conn->error);
 }
@@ -459,10 +497,12 @@ if ($users_stmt) {
                                                         <?php echo ucfirst($message['sender_role'] ?? 'Admin'); ?>
                                                     </span>
                                                 </small>
-                                                <small class="text-muted">
-                                                    <strong>To:</strong> 
-                                                    <?php echo htmlspecialchars($message['recipient_name'] ?? 'You'); ?>
-                                                </small>
+                                                <?php if ($has_recipient_column && isset($message['recipient_name'])): ?>
+                                                    <small class="text-muted">
+                                                        <strong>To:</strong> 
+                                                        <?php echo htmlspecialchars($message['recipient_name'] ?? 'You'); ?>
+                                                    </small>
+                                                <?php endif; ?>
                                                 <small class="text-muted">
                                                     <i class="far fa-clock me-1"></i>
                                                     <?php echo date('M j, Y g:i A', strtotime($message['sent_at'])); ?>
