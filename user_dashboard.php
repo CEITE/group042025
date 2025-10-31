@@ -1,5 +1,5 @@
 <?php
-include("session_config.php");
+session_start();
 include("conn.php");
 
 // ✅ 1. Check if user is logged in
@@ -1598,5 +1598,6 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
 
 
