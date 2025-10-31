@@ -1,3 +1,173 @@
+<?php
+session_start();
+include("conn.php");
+
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Check database connection
+if (!$conn) {
+    die("Database connection failed: " . htmlspecialchars($conn->connect_error));
+}
+
+// Redirect if not logged in as admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+    header("Location: admin_login.php");
+    exit();
+}
+
+// Get admin data
+$admin_id = $_SESSION['user_id'];
+$admin_query = "SELECT name, email, profile_picture FROM users WHERE user_id = ?";
+$admin_stmt = $conn->prepare($admin_query);
+$admin_stmt->bind_param("i", $admin_id);
+$admin_stmt->execute();
+$admin_result = $admin_stmt->get_result();
+$admin = $admin_result->fetch_assoc();
+$admin_stmt->close();
+
+// Get statistics
+$stats = [];
+$stats_query = "
+    SELECT 
+        (SELECT COUNT(*) FROM users WHERE role = 'vet') as total_vets,
+        (SELECT COUNT(*) FROM users WHERE role = 'owner') as total_owners,
+        (SELECT COUNT(*) FROM pets) as total_pets,
+        (SELECT COUNT(*) FROM appointments WHERE status = 'scheduled') as upcoming_appointments,
+        (SELECT COUNT(*) FROM appointments WHERE DATE(created_at) = CURDATE()) as today_appointments,
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND DATE(created_at) = CURDATE()) as new_vets_today
+";
+
+$stats_result = $conn->query($stats_query);
+if ($stats_result) {
+    $stats = $stats_result->fetch_assoc();
+}
+
+// Handle search functionality
+$search_term = '';
+$status_filter = '';
+$where_conditions = ["role = 'vet'"];
+$params = [];
+$types = '';
+
+if (isset($_GET['search']) && !empty($_GET['search'])) {
+    $search_term = trim($_GET['search']);
+    $where_conditions[] = "(name LIKE ? OR email LIKE ?)";
+    $params[] = "%$search_term%";
+    $params[] = "%$search_term%";
+    $types .= 'ss';
+}
+
+if (isset($_GET['status']) && !empty($_GET['status'])) {
+    $status_filter = $_GET['status'];
+    $where_conditions[] = "status = ?";
+    $params[] = $status_filter;
+    $types .= 's';
+}
+
+// Build the query
+$where_clause = implode(' AND ', $where_conditions);
+$vets_query = "
+    SELECT user_id, name, email, profile_picture, created_at, last_login, status, phone_number, specialization
+    FROM users 
+    WHERE $where_clause
+    ORDER BY created_at DESC
+";
+
+// Get all veterinarians
+$stmt = $conn->prepare($vets_query);
+if ($params) {
+    $stmt->bind_param($types, ...$params);
+}
+$stmt->execute();
+$vets_result = $stmt->get_result();
+$all_vets = [];
+if ($vets_result) {
+    while ($row = $vets_result->fetch_assoc()) {
+        $all_vets[] = $row;
+    }
+}
+$stmt->close();
+
+// Handle actions (activate/deactivate/delete)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['action']) && isset($_POST['vet_id'])) {
+        $vet_id = intval($_POST['vet_id']);
+        $action = $_POST['action'];
+        
+        switch ($action) {
+            case 'activate':
+                $update_query = "UPDATE users SET status = 'active' WHERE user_id = ? AND role = 'vet'";
+                $success_message = "Veterinarian activated successfully!";
+                break;
+            case 'deactivate':
+                $update_query = "UPDATE users SET status = 'inactive' WHERE user_id = ? AND role = 'vet'";
+                $success_message = "Veterinarian deactivated successfully!";
+                break;
+            case 'delete':
+                $update_query = "DELETE FROM users WHERE user_id = ? AND role = 'vet'";
+                $success_message = "Veterinarian deleted successfully!";
+                break;
+            default:
+                $update_query = null;
+        }
+        
+        if ($update_query) {
+            $stmt = $conn->prepare($update_query);
+            if ($stmt) {
+                $stmt->bind_param("i", $vet_id);
+                if ($stmt->execute()) {
+                    $_SESSION['success'] = $success_message;
+                } else {
+                    $_SESSION['error'] = "Error updating veterinarian: " . $stmt->error;
+                }
+                $stmt->close();
+            }
+        }
+        
+        // Redirect back with search parameters
+        $redirect_url = "admin_dashboard.php";
+        $query_params = [];
+        if ($search_term) $query_params[] = "search=" . urlencode($search_term);
+        if ($status_filter) $query_params[] = "status=" . urlencode($status_filter);
+        if ($query_params) $redirect_url .= "?" . implode('&', $query_params);
+        
+        header("Location: $redirect_url");
+        exit();
+    }
+}
+
+// Get recent veterinarians (for the sidebar/cards)
+$recent_vets_query = "
+    SELECT user_id, name, email, profile_picture, created_at, last_login, status
+    FROM users 
+    WHERE role = 'vet' 
+    ORDER BY created_at DESC 
+    LIMIT 5
+";
+$recent_vets_result = $conn->query($recent_vets_query);
+$recent_vets = [];
+if ($recent_vets_result) {
+    while ($row = $recent_vets_result->fetch_assoc()) {
+        $recent_vets[] = $row;
+    }
+}
+
+// Get veterinarian statistics
+$vet_stats_query = "
+    SELECT 
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'active') as active_vets,
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'inactive') as inactive_vets,
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'pending') as pending_vets,
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND last_login IS NULL) as never_logged_in,
+        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND DATE(created_at) = CURDATE()) as new_today
+";
+$vet_stats_result = $conn->query($vet_stats_query);
+$vet_stats = $vet_stats_result->fetch_assoc();
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1004,3 +1174,4 @@
     </script>
 </body>
 </html>
+
