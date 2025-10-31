@@ -201,21 +201,21 @@
             filter: brightness(0.7);
         }
 
-        .slide-1 {
-            background-image: url('https://as2.ftcdn.net/v2/jpg/02/69/47/89/1000_F_269478900_EEEXPJa7ohrxraL6L6V2GlmltteALheQ.jpg');
-        }
-
-        .slide-2 {
-            background-image: url('https://as1.ftcdn.net/v2/jpg/06/04/54/70/1000_F_604547093_FmuK2VH2Gq5zoXzeJkygDsejsUxXZaOg.jpg');
-        }
-
-        .slide-3 {
-            background-image: url('https://as1.ftcdn.net/v2/jpg/06/40/77/70/1000_F_640777038_MZdcqwcQeRnlPtRRWP4oNT6oBhFJmXY0.jpg');
-        }
-
-        .slide-4 {
-            background-image: url('https://as2.ftcdn.net/v2/jpg/02/84/36/59/1000_F_284365935_RQAZNpqkgzIyCRWibM3a3t2tgwWpkHP1.jpg');
-        }
+                        .slide-1 {
+                    background-image: url('images/backgroundphoto1.jpg');
+                }
+                
+                .slide-2 {
+                    background-image: url('images/background2.jpg');
+                }
+                
+                .slide-3 {
+                    background-image: url('images/background3.jpg');
+                }
+                
+                .slide-4 {
+                    background-image: url('images/background4.png');
+                }
 
         .slide-nav {
             position: absolute;
@@ -2083,4 +2083,5 @@
 </script>
 </body>
 </html>
+
 
