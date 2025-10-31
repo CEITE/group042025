@@ -1,173 +1,3 @@
-<?php
-session_start();
-include("conn.php");
-
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Check database connection
-if (!$conn) {
-    die("Database connection failed: " . htmlspecialchars($conn->connect_error));
-}
-
-// Redirect if not logged in as admin
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: admin_login.php");
-    exit();
-}
-
-// Get admin data
-$admin_id = $_SESSION['user_id'];
-$admin_query = "SELECT name, email, profile_picture FROM users WHERE user_id = ?";
-$admin_stmt = $conn->prepare($admin_query);
-$admin_stmt->bind_param("i", $admin_id);
-$admin_stmt->execute();
-$admin_result = $admin_stmt->get_result();
-$admin = $admin_result->fetch_assoc();
-$admin_stmt->close();
-
-// Get statistics
-$stats = [];
-$stats_query = "
-    SELECT 
-        (SELECT COUNT(*) FROM users WHERE role = 'vet') as total_vets,
-        (SELECT COUNT(*) FROM users WHERE role = 'owner') as total_owners,
-        (SELECT COUNT(*) FROM pets) as total_pets,
-        (SELECT COUNT(*) FROM appointments WHERE status = 'scheduled') as upcoming_appointments,
-        (SELECT COUNT(*) FROM appointments WHERE DATE(created_at) = CURDATE()) as today_appointments,
-        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND DATE(created_at) = CURDATE()) as new_vets_today
-";
-
-$stats_result = $conn->query($stats_query);
-if ($stats_result) {
-    $stats = $stats_result->fetch_assoc();
-}
-
-// Handle search functionality
-$search_term = '';
-$status_filter = '';
-$where_conditions = ["role = 'vet'"];
-$params = [];
-$types = '';
-
-if (isset($_GET['search']) && !empty($_GET['search'])) {
-    $search_term = trim($_GET['search']);
-    $where_conditions[] = "(name LIKE ? OR email LIKE ?)";
-    $params[] = "%$search_term%";
-    $params[] = "%$search_term%";
-    $types .= 'ss';
-}
-
-if (isset($_GET['status']) && !empty($_GET['status'])) {
-    $status_filter = $_GET['status'];
-    $where_conditions[] = "status = ?";
-    $params[] = $status_filter;
-    $types .= 's';
-}
-
-// Build the query
-$where_clause = implode(' AND ', $where_conditions);
-$vets_query = "
-    SELECT user_id, name, email, profile_picture, created_at, last_login, status, phone_number, specialization
-    FROM users 
-    WHERE $where_clause
-    ORDER BY created_at DESC
-";
-
-// Get all veterinarians
-$stmt = $conn->prepare($vets_query);
-if ($params) {
-    $stmt->bind_param($types, ...$params);
-}
-$stmt->execute();
-$vets_result = $stmt->get_result();
-$all_vets = [];
-if ($vets_result) {
-    while ($row = $vets_result->fetch_assoc()) {
-        $all_vets[] = $row;
-    }
-}
-$stmt->close();
-
-// Handle actions (activate/deactivate/delete)
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['action']) && isset($_POST['vet_id'])) {
-        $vet_id = intval($_POST['vet_id']);
-        $action = $_POST['action'];
-        
-        switch ($action) {
-            case 'activate':
-                $update_query = "UPDATE users SET status = 'active' WHERE user_id = ? AND role = 'vet'";
-                $success_message = "Veterinarian activated successfully!";
-                break;
-            case 'deactivate':
-                $update_query = "UPDATE users SET status = 'inactive' WHERE user_id = ? AND role = 'vet'";
-                $success_message = "Veterinarian deactivated successfully!";
-                break;
-            case 'delete':
-                $update_query = "DELETE FROM users WHERE user_id = ? AND role = 'vet'";
-                $success_message = "Veterinarian deleted successfully!";
-                break;
-            default:
-                $update_query = null;
-        }
-        
-        if ($update_query) {
-            $stmt = $conn->prepare($update_query);
-            if ($stmt) {
-                $stmt->bind_param("i", $vet_id);
-                if ($stmt->execute()) {
-                    $_SESSION['success'] = $success_message;
-                } else {
-                    $_SESSION['error'] = "Error updating veterinarian: " . $stmt->error;
-                }
-                $stmt->close();
-            }
-        }
-        
-        // Redirect back with search parameters
-        $redirect_url = "admin_dashboard.php";
-        $query_params = [];
-        if ($search_term) $query_params[] = "search=" . urlencode($search_term);
-        if ($status_filter) $query_params[] = "status=" . urlencode($status_filter);
-        if ($query_params) $redirect_url .= "?" . implode('&', $query_params);
-        
-        header("Location: $redirect_url");
-        exit();
-    }
-}
-
-// Get recent veterinarians (for the sidebar/cards)
-$recent_vets_query = "
-    SELECT user_id, name, email, profile_picture, created_at, last_login, status
-    FROM users 
-    WHERE role = 'vet' 
-    ORDER BY created_at DESC 
-    LIMIT 5
-";
-$recent_vets_result = $conn->query($recent_vets_query);
-$recent_vets = [];
-if ($recent_vets_result) {
-    while ($row = $recent_vets_result->fetch_assoc()) {
-        $recent_vets[] = $row;
-    }
-}
-
-// Get veterinarian statistics
-$vet_stats_query = "
-    SELECT 
-        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'active') as active_vets,
-        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'inactive') as inactive_vets,
-        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND status = 'pending') as pending_vets,
-        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND last_login IS NULL) as never_logged_in,
-        (SELECT COUNT(*) FROM users WHERE role = 'vet' AND DATE(created_at) = CURDATE()) as new_today
-";
-$vet_stats_result = $conn->query($vet_stats_query);
-$vet_stats = $vet_stats_result->fetch_assoc();
-?>
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -198,7 +28,6 @@ $vet_stats = $vet_stats_result->fetch_assoc();
             background: linear-gradient(180deg, #f0f9ff 0%, #f0f8ff 40%, #f0f8ff 100%);
             color: var(--ink);
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            min-height: 100vh;
         }
 
         /* Shell layout */
@@ -773,28 +602,28 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                 <h6 class="text-white mb-3">Veterinarian Stats</h6>
                 <div class="stat-item">
                     <span>Active</span>
-                    <span class="stat-value">42</span>
+                    <span class="stat-value"><?php echo $vet_stats['active_vets']; ?></span>
                 </div>
                 <div class="stat-item">
                     <span>Inactive</span>
-                    <span class="stat-value">8</span>
+                    <span class="stat-value"><?php echo $vet_stats['inactive_vets']; ?></span>
                 </div>
                 <div class="stat-item">
                     <span>Pending</span>
-                    <span class="stat-value">5</span>
+                    <span class="stat-value"><?php echo $vet_stats['pending_vets']; ?></span>
                 </div>
                 <div class="stat-item">
                     <span>New Today</span>
-                    <span class="stat-value">3</span>
+                    <span class="stat-value"><?php echo $vet_stats['new_today']; ?></span>
                 </div>
             </div>
 
             <div class="mt-auto pt-4">
                 <div class="admin-profile d-flex align-items-center p-3 rounded-3" style="background: rgba(255,255,255,0.1);">
-                    <img src="https://ui-avatars.com/api/?name=Admin+User&background=3b82f6&color=fff" 
+                    <img src="<?php echo $admin['profile_picture'] ? htmlspecialchars($admin['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($admin['name']) . '&background=3b82f6&color=fff'; ?>" 
                          class="rounded-circle me-3" width="50" height="50" alt="Admin" />
                     <div class="flex-grow-1">
-                        <div class="fw-bold text-white">Admin User</div>
+                        <div class="fw-bold text-white"><?php echo htmlspecialchars($admin['name']); ?></div>
                         <small class="text-white-50">Administrator</small>
                     </div>
                     <a href="logout.php" class="text-white-50"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
@@ -829,9 +658,9 @@ $vet_stats = $vet_stats_result->fetch_assoc();
 
                 <div class="dropdown">
                     <button class="btn btn-light d-flex align-items-center gap-2" data-bs-toggle="dropdown">
-                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=3b82f6&color=fff" 
+                        <img src="<?php echo $admin['profile_picture'] ? htmlspecialchars($admin['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($admin['name']) . '&background=3b82f6&color=fff'; ?>" 
                              class="rounded-circle" width="40" height="40" alt="Admin" />
-                        <span class="fw-bold d-none d-md-inline">Admin User</span>
+                        <span class="fw-bold d-none d-md-inline"><?php echo htmlspecialchars($admin['name']); ?></span>
                         <i class="fa-solid fa-chevron-down text-muted"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -844,11 +673,23 @@ $vet_stats = $vet_stats_result->fetch_assoc();
             </div>
 
             <!-- Success/Error Messages -->
-            <div class="alert alert-success alert-dismissible fade show">
-                <i class="fas fa-check-circle me-2"></i>
-                Veterinarian activated successfully!
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+            <?php if (isset($_SESSION['success'])): ?>
+                <div class="alert alert-success alert-dismissible fade show">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <?php echo $_SESSION['success']; ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php unset($_SESSION['success']); ?>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <?php echo $_SESSION['error']; ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php unset($_SESSION['error']); ?>
+            <?php endif; ?>
 
             <!-- Statistics Cards -->
             <div class="stats-grid">
@@ -860,8 +701,8 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                         <div class="flex-grow-1">
                             <small>Total Veterinarians</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value">55</div>
-                                <span class="badge-dot" style="color:#10b981">+3 today</span>
+                                <div class="stat-value"><?php echo $stats['total_vets'] ?? '0'; ?></div>
+                                <span class="badge-dot" style="color:#10b981">+<?php echo $stats['new_vets_today'] ?? '0'; ?> today</span>
                             </div>
                         </div>
                     </div>
@@ -875,8 +716,8 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                         <div class="flex-grow-1">
                             <small>Today's Appointments</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value">24</div>
-                                <span class="badge-dot" style="color:#f59e0b">42 upcoming</span>
+                                <div class="stat-value"><?php echo $stats['today_appointments'] ?? '0'; ?></div>
+                                <span class="badge-dot" style="color:#f59e0b"><?php echo $stats['upcoming_appointments'] ?? '0'; ?> upcoming</span>
                             </div>
                         </div>
                     </div>
@@ -890,7 +731,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                         <div class="flex-grow-1">
                             <small>Registered Pets</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value">312</div>
+                                <div class="stat-value"><?php echo $stats['total_pets'] ?? '0'; ?></div>
                                 <span class="badge-dot" style="color:#8b5cf6">Active</span>
                             </div>
                         </div>
@@ -905,7 +746,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                         <div class="flex-grow-1">
                             <small>Pet Owners</small>
                             <div class="d-flex align-items-end gap-2">
-                                <div class="stat-value">187</div>
+                                <div class="stat-value"><?php echo $stats['total_owners'] ?? '0'; ?></div>
                                 <span class="badge-dot" style="color:#ef4444">Registered</span>
                             </div>
                         </div>
@@ -918,7 +759,13 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="section-title">Veterinarian Management</div>
                     <div class="search-results">
-                        Total Veterinarians: 55
+                        <?php if ($search_term || $status_filter): ?>
+                            Showing <?php echo count($all_vets); ?> results
+                            <?php if ($search_term): ?> for "<?php echo htmlspecialchars($search_term); ?>"<?php endif; ?>
+                            <?php if ($status_filter): ?> with status "<?php echo htmlspecialchars($status_filter); ?>"<?php endif; ?>
+                        <?php else: ?>
+                            Total Veterinarians: <?php echo count($all_vets); ?>
+                        <?php endif; ?>
                     </div>
                 </div>
                 
@@ -930,19 +777,22 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                             </span>
                             <input type="text" class="form-control border-start-0" name="search" 
                                    placeholder="Search veterinarians by name or email..." 
-                                   value="">
+                                   value="<?php echo htmlspecialchars($search_term); ?>">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <select class="form-select" name="status">
                             <option value="">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="pending">Pending</option>
+                            <option value="active" <?php echo ($status_filter === 'active') ? 'selected' : ''; ?>>Active</option>
+                            <option value="inactive" <?php echo ($status_filter === 'inactive') ? 'selected' : ''; ?>>Inactive</option>
+                            <option value="pending" <?php echo ($status_filter === 'pending') ? 'selected' : ''; ?>>Pending</option>
                         </select>
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-brand w-100">Search</button>
+                        <?php if ($search_term || $status_filter): ?>
+                            <a href="admin_dashboard.php" class="btn btn-outline-secondary w-100 mt-2">Clear</a>
+                        <?php endif; ?>
                     </div>
                 </form>
             </div>
@@ -963,159 +813,97 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>
-                                    <div class="user-info">
-                                        <img src="https://ui-avatars.com/api/?name=Dr.+Sarah+Johnson&background=3b82f6&color=fff" 
-                                             alt="Dr. Sarah Johnson" 
-                                             class="user-avatar">
-                                        <div>
-                                            <div class="user-name">Dr. Sarah Johnson</div>
-                                            <div class="user-email">ID: VET0042</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="user-email">sarah.johnson@vetcare.com</div>
-                                    <small class="text-muted">(555) 123-4567</small>
-                                </td>
-                                <td>
-                                    <span class="specialization-tag">Surgery</span>
-                                </td>
-                                <td>Mar 15, 2023</td>
-                                <td>
-                                    Today, 9:24 AM
-                                </td>
-                                <td>
-                                    <span class="status-badge status-active">Active</span>
-                                </td>
-                                <td>
-                                    <div class="btn-group">
-                                        <button class="btn btn-action btn-view me-1" title="View Profile">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button class="btn btn-action btn-edit me-1" title="Edit Profile">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <form method="POST" style="display: inline;">
-                                            <input type="hidden" name="vet_id" value="42">
-                                            <input type="hidden" name="action" value="deactivate">
-                                            <button type="submit" class="btn btn-action btn-deactivate me-1" title="Deactivate">
-                                                <i class="fas fa-pause"></i>
-                                            </button>
-                                        </form>
-                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this veterinarian? This action cannot be undone.');">
-                                            <input type="hidden" name="vet_id" value="42">
-                                            <input type="hidden" name="action" value="delete">
-                                            <button type="submit" class="btn btn-action btn-delete" title="Delete">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="user-info">
-                                        <img src="https://ui-avatars.com/api/?name=Dr.+Michael+Chen&background=3b82f6&color=fff" 
-                                             alt="Dr. Michael Chen" 
-                                             class="user-avatar">
-                                        <div>
-                                            <div class="user-name">Dr. Michael Chen</div>
-                                            <div class="user-email">ID: VET0038</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="user-email">michael.chen@vetcare.com</div>
-                                    <small class="text-muted">(555) 987-6543</small>
-                                </td>
-                                <td>
-                                    <span class="specialization-tag">Dermatology</span>
-                                </td>
-                                <td>Feb 28, 2023</td>
-                                <td>
-                                    Yesterday, 4:15 PM
-                                </td>
-                                <td>
-                                    <span class="status-badge status-active">Active</span>
-                                </td>
-                                <td>
-                                    <div class="btn-group">
-                                        <button class="btn btn-action btn-view me-1" title="View Profile">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button class="btn btn-action btn-edit me-1" title="Edit Profile">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <form method="POST" style="display: inline;">
-                                            <input type="hidden" name="vet_id" value="38">
-                                            <input type="hidden" name="action" value="deactivate">
-                                            <button type="submit" class="btn btn-action btn-deactivate me-1" title="Deactivate">
-                                                <i class="fas fa-pause"></i>
-                                            </button>
-                                        </form>
-                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this veterinarian? This action cannot be undone.');">
-                                            <input type="hidden" name="vet_id" value="38">
-                                            <input type="hidden" name="action" value="delete">
-                                            <button type="submit" class="btn btn-action btn-delete" title="Delete">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="user-info">
-                                        <img src="https://ui-avatars.com/api/?name=Dr.+Emily+Rodriguez&background=3b82f6&color=fff" 
-                                             alt="Dr. Emily Rodriguez" 
-                                             class="user-avatar">
-                                        <div>
-                                            <div class="user-name">Dr. Emily Rodriguez</div>
-                                            <div class="user-email">ID: VET0051</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="user-email">emily.rodriguez@vetcare.com</div>
-                                    <small class="text-muted">(555) 456-7890</small>
-                                </td>
-                                <td>
-                                    <span class="specialization-tag">Cardiology</span>
-                                </td>
-                                <td>Apr 5, 2023</td>
-                                <td>
-                                    <span class="text-muted">Never logged in</span>
-                                </td>
-                                <td>
-                                    <span class="status-badge status-pending">Pending</span>
-                                </td>
-                                <td>
-                                    <div class="btn-group">
-                                        <button class="btn btn-action btn-view me-1" title="View Profile">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button class="btn btn-action btn-edit me-1" title="Edit Profile">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <form method="POST" style="display: inline;">
-                                            <input type="hidden" name="vet_id" value="51">
-                                            <input type="hidden" name="action" value="activate">
-                                            <button type="submit" class="btn btn-action btn-activate me-1" title="Activate">
-                                                <i class="fas fa-play"></i>
-                                            </button>
-                                        </form>
-                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this veterinarian? This action cannot be undone.');">
-                                            <input type="hidden" name="vet_id" value="51">
-                                            <input type="hidden" name="action" value="delete">
-                                            <button type="submit" class="btn btn-action btn-delete" title="Delete">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
+                            <?php if (!empty($all_vets)): ?>
+                                <?php foreach ($all_vets as $vet): ?>
+                                    <tr>
+                                        <td>
+                                            <div class="user-info">
+                                                <img src="<?php echo $vet['profile_picture'] ? htmlspecialchars($vet['profile_picture']) : 'https://ui-avatars.com/api/?name=' . urlencode($vet['name']) . '&background=3b82f6&color=fff'; ?>" 
+                                                     alt="<?php echo htmlspecialchars($vet['name']); ?>" 
+                                                     class="user-avatar">
+                                                <div>
+                                                    <div class="user-name">Dr. <?php echo htmlspecialchars($vet['name']); ?></div>
+                                                    <div class="user-email">ID: VET<?php echo str_pad($vet['user_id'], 4, '0', STR_PAD_LEFT); ?></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="user-email"><?php echo htmlspecialchars($vet['email']); ?></div>
+                                            <small class="text-muted"><?php echo $vet['phone_number'] ? htmlspecialchars($vet['phone_number']) : 'N/A'; ?></small>
+                                        </td>
+                                        <td>
+                                            <span class="specialization-tag"><?php echo $vet['specialization'] ? htmlspecialchars($vet['specialization']) : 'General Practice'; ?></span>
+                                        </td>
+                                        <td><?php echo date('M j, Y', strtotime($vet['created_at'])); ?></td>
+                                        <td>
+                                            <?php if ($vet['last_login']): ?>
+                                                <?php echo date('M j, Y g:i A', strtotime($vet['last_login'])); ?>
+                                            <?php else: ?>
+                                                <span class="text-muted">Never logged in</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php 
+                                            $status_class = 'status-active';
+                                            $status_text = 'Active';
+                                            if ($vet['status'] === 'inactive') {
+                                                $status_class = 'status-inactive';
+                                                $status_text = 'Inactive';
+                                            } elseif ($vet['status'] === 'pending') {
+                                                $status_class = 'status-pending';
+                                                $status_text = 'Pending';
+                                            }
+                                            ?>
+                                            <span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <button class="btn btn-action btn-view me-1" title="View Profile">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-action btn-edit me-1" title="Edit Profile">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <?php if ($vet['status'] === 'active'): ?>
+                                                    <form method="POST" style="display: inline;">
+                                                        <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
+                                                        <input type="hidden" name="action" value="deactivate">
+                                                        <button type="submit" class="btn btn-action btn-deactivate me-1" title="Deactivate">
+                                                            <i class="fas fa-pause"></i>
+                                                        </button>
+                                                    </form>
+                                                <?php else: ?>
+                                                    <form method="POST" style="display: inline;">
+                                                        <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
+                                                        <input type="hidden" name="action" value="activate">
+                                                        <button type="submit" class="btn btn-action btn-activate me-1" title="Activate">
+                                                            <i class="fas fa-play"></i>
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
+                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this veterinarian? This action cannot be undone.');">
+                                                    <input type="hidden" name="vet_id" value="<?php echo $vet['user_id']; ?>">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <button type="submit" class="btn btn-action btn-delete" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">
+                                        <i class="fas fa-user-md fa-2x mb-3 d-block"></i>
+                                        <?php if ($search_term): ?>
+                                            No veterinarians found matching "<?php echo htmlspecialchars($search_term); ?>"
+                                        <?php else: ?>
+                                            No veterinarians found in the system.
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -1174,4 +962,3 @@ $vet_stats = $vet_stats_result->fetch_assoc();
     </script>
 </body>
 </html>
-
