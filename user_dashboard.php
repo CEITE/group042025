@@ -1,9 +1,11 @@
 <?php
-session_start();
+include("session_config.php");
 include("conn.php");
 
-// ✅ 1. Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
+// STRICT OWNER ACCESS CONTROL
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'owner') {
+    // Clear session and redirect to login
+    session_destroy();
     header("Location: login.php");
     exit();
 }
@@ -1598,3 +1600,4 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
