@@ -48,17 +48,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $update_stmt->execute();
             $update_stmt->close();
 
-            // ✅ Redirect by role with proper headers - FIXED SYNTAX
-            if ($role === "admin") {
-                header("Location: admin_dashboard.php");
-                exit();
-            } elseif ($role === "vet") {
-                header("Location: vet_dashboard.php");
-                exit();
-            } else {
-                header("Location: user_dashboard.php");
-                exit();
-            }
+            // ✅ Redirect to user dashboard only
+            header("Location: user_dashboard.php");
+            exit();
         } else {
             $error = "Invalid password!";
         }
@@ -74,7 +66,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VetCareQR — Login</title>
+  <title>VetCareQR — User Login</title>
 
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
