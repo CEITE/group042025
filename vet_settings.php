@@ -34,25 +34,30 @@ $profile_picture = !empty($vet['profile_picture']) ? $vet['profile_picture'] : "
 // Log password change activity
 function logPasswordChange($vet_id, $conn) {
     $activity = "Password changed successfully";
-    $ip_address = $_SERVER['REMOTE_ADDR'];
-    $user_agent = $_SERVER['HTTP_USER_AGENT'];
+    $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
     
-    // Create activity logs table if it doesn't exist
-    $create_table_sql = "CREATE TABLE IF NOT EXISTS user_activity_logs (
-        log_id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT,
-        activity VARCHAR(255),
-        ip_address VARCHAR(45),
-        user_agent TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )";
-    $conn->query($create_table_sql);
-    
-    $log_stmt = $conn->prepare("INSERT INTO user_activity_logs (user_id, activity, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, NOW())");
-    if ($log_stmt) {
-        $log_stmt->bind_param("isss", $vet_id, $activity, $ip_address, $user_agent);
-        $log_stmt->execute();
-        $log_stmt->close();
+    try {
+        // Create activity logs table if it doesn't exist
+        $create_table_sql = "CREATE TABLE IF NOT EXISTS user_activity_logs (
+            log_id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT,
+            activity VARCHAR(255),
+            ip_address VARCHAR(45),
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )";
+        $conn->query($create_table_sql);
+        
+        $log_stmt = $conn->prepare("INSERT INTO user_activity_logs (user_id, activity, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, NOW())");
+        if ($log_stmt) {
+            $log_stmt->bind_param("isss", $vet_id, $activity, $ip_address, $user_agent);
+            $log_stmt->execute();
+            $log_stmt->close();
+        }
+    } catch (Exception $e) {
+        // Silently fail - logging shouldn't break the main functionality
+        error_log("Failed to log password change: " . $e->getMessage());
     }
 }
 
@@ -113,32 +118,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['error'] = "New password must be at least 8 characters long.";
         } else {
             // Verify current password
-            $check_password_stmt = $conn->prepare("SELECT password FROM users WHERE user_id = ?");
-            $check_password_stmt->bind_param("i", $vet_id);
-            $check_password_stmt->execute();
-            $result = $check_password_stmt->get_result()->fetch_assoc();
+            $check_password_stmt = $conn->prepare("SELECT user_id, password FROM users WHERE user_id = ?");
             
-            if ($result && password_verify($current_password, $result['password'])) {
-                // Update password
-                $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                $update_password_stmt = $conn->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE user_id = ?");
-                $update_password_stmt->bind_param("si", $hashed_password, $vet_id);
+            if ($check_password_stmt) {
+                $check_password_stmt->bind_param("i", $vet_id);
                 
-                if ($update_password_stmt->execute()) {
-                    // Log password change activity
-                    logPasswordChange($vet_id, $conn);
+                if ($check_password_stmt->execute()) {
+                    $result = $check_password_stmt->get_result();
                     
-                    $_SESSION['success'] = "Password changed successfully!";
-                    header("Location: vet_settings.php");
-                    exit();
+                    if ($result->num_rows > 0) {
+                        $user_data = $result->fetch_assoc();
+                        $stored_hash = $user_data['password'];
+                        
+                        // Verify the current password
+                        if (password_verify($current_password, $stored_hash)) {
+                            // Current password is correct, update to new password
+                            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+                            
+                            $update_password_stmt = $conn->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE user_id = ?");
+                            
+                            if ($update_password_stmt) {
+                                $update_password_stmt->bind_param("si", $hashed_password, $vet_id);
+                                
+                                if ($update_password_stmt->execute()) {
+                                    // Log password change activity
+                                    logPasswordChange($vet_id, $conn);
+                                    
+                                    $_SESSION['success'] = "Password changed successfully!";
+                                    
+                                    $update_password_stmt->close();
+                                    header("Location: vet_settings.php");
+                                    exit();
+                                } else {
+                                    $_SESSION['error'] = "Error updating password in database: " . $conn->error;
+                                }
+                            } else {
+                                $_SESSION['error'] = "Database error: " . $conn->error;
+                            }
+                        } else {
+                            $_SESSION['error'] = "Current password is incorrect. Please try again.";
+                        }
+                    } else {
+                        $_SESSION['error'] = "User not found in database.";
+                    }
                 } else {
-                    $_SESSION['error'] = "Error changing password: " . $conn->error;
+                    $_SESSION['error'] = "Database query failed: " . $conn->error;
                 }
-                $update_password_stmt->close();
+                
+                $check_password_stmt->close();
             } else {
-                $_SESSION['error'] = "Current password is incorrect.";
+                $_SESSION['error'] = "Database connection error: " . $conn->error;
             }
-            $check_password_stmt->close();
         }
     }
     
@@ -840,54 +870,59 @@ if ($hours_stmt) {
                                     Email Notifications
                                 </label>
                             </div>
+                            <small class="text-muted">Receive notifications via email</small>
                         </div>
                         
                         <div class="mb-3">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" 
                                        name="sms_notifications" 
-                                       id="sms_notifications"
+                                       id="sms_notifications" 
                                        <?php echo $notification_preferences['sms_notifications'] ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="sms_notifications">
                                     SMS Notifications
                                 </label>
                             </div>
+                            <small class="text-muted">Receive notifications via text message</small>
                         </div>
                         
                         <div class="mb-3">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" 
                                        name="appointment_reminders" 
-                                       id="appointment_reminders"
+                                       id="appointment_reminders" 
                                        <?php echo $notification_preferences['appointment_reminders'] ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="appointment_reminders">
                                     Appointment Reminders
                                 </label>
                             </div>
+                            <small class="text-muted">Get reminded about upcoming appointments</small>
                         </div>
                         
                         <div class="mb-3">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" 
                                        name="new_appointment_alerts" 
-                                       id="new_appointment_alerts"
+                                       id="new_appointment_alerts" 
                                        <?php echo $notification_preferences['new_appointment_alerts'] ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="new_appointment_alerts">
                                     New Appointment Alerts
                                 </label>
                             </div>
+                            <small class="text-muted">Alert when new appointments are booked</small>
                         </div>
                         
                         <div class="mb-3">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" 
                                        name="emergency_alerts" 
-                                       id="emergency_alerts"
+                                       id="emergency_alerts" 
                                        <?php echo $notification_preferences['emergency_alerts'] ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="emergency_alerts">
                                     Emergency Alerts
                                 </label>
                             </div>
+                            <small class="text-muted">Critical and emergency case notifications</small>
                         </div>
                         
                         <button type="submit" name="update_notifications" class="btn btn-primary w-100">
@@ -898,15 +933,19 @@ if ($hours_stmt) {
 
                 <!-- Account Actions -->
                 <div class="settings-card">
-                    <h5 class="mb-3"><i class="fas fa-shield-alt me-2"></i>Account Actions</h5>
+                    <h5 class="mb-3"><i class="fas fa-shield-alt me-2"></i>Account Security</h5>
                     
                     <div class="d-grid gap-2">
-                        <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#exportDataModal">
-                            <i class="fas fa-download me-2"></i>Export My Data
+                        <a href="vet_settings.php?forgot_password=1" class="btn btn-outline-primary">
+                            <i class="fas fa-key me-2"></i>Reset Password via Email
+                        </a>
+                        
+                        <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#twoFAModal">
+                            <i class="fas fa-mobile-alt me-2"></i>Two-Factor Authentication
                         </button>
                         
-                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
-                            <i class="fas fa-trash me-2"></i>Delete Account
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                            <i class="fas fa-trash-alt me-2"></i>Delete Account
                         </button>
                     </div>
                 </div>
@@ -915,201 +954,133 @@ if ($hours_stmt) {
     </div>
 </div>
 
-<!-- Export Data Modal -->
-<div class="modal fade" id="exportDataModal" tabindex="-1">
+<!-- Two-Factor Authentication Modal -->
+<div class="modal fade" id="twoFAModal" tabindex="-1" aria-labelledby="twoFAModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Export Your Data</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="twoFAModalLabel">Two-Factor Authentication</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>This will generate a downloadable file containing all your account data, including:</p>
-                <ul>
-                    <li>Profile information</li>
-                    <li>Appointment history</li>
-                    <li>Patient records</li>
-                    <li>Medical notes</li>
-                </ul>
+                <p>Enhance your account security by enabling two-factor authentication.</p>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
-                    The export process may take a few minutes depending on the amount of data.
+                    This feature will require you to enter a verification code from your mobile device when logging in.
                 </div>
+                <p class="text-muted small">Coming soon in the next update.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary">
-                    <i class="fas fa-download me-2"></i>Start Export
-                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" disabled>Enable 2FA</button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Delete Account Modal -->
-<div class="modal fade" id="deleteAccountModal" tabindex="-1">
+<div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title text-danger">Delete Account</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="deleteAccountModalLabel">Delete Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Warning:</strong> This action cannot be undone!
+                    <strong>Warning:</strong> This action cannot be undone.
                 </div>
-                <p>Deleting your account will permanently remove:</p>
+                <p>Deleting your account will:</p>
                 <ul>
-                    <li>All your profile information</li>
-                    <li>Appointment history</li>
-                    <li>Patient records associated with your account</li>
-                    <li>All medical notes and data</li>
+                    <li>Permanently remove all your personal information</li>
+                    <li>Delete all your appointments and medical records</li>
+                    <li>Remove your access to the VetCareQR system</li>
                 </ul>
-                <p class="mb-0">Please download your data before proceeding if you wish to keep any records.</p>
+                <p class="text-muted">If you're sure you want to proceed, please contact system administration.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" disabled>
-                    <i class="fas fa-trash me-2"></i>Delete Account
-                </button>
+                <button type="button" class="btn btn-danger" disabled>Contact Admin to Delete</button>
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Set current date and time
-        updateDateTime();
-        setInterval(updateDateTime, 60000);
-        
-        // Enable/disable time inputs based on day toggle
-        document.querySelectorAll('.form-check-input[type="checkbox"]').forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                const dayKey = this.id.replace('_enabled', '');
-                const startInput = document.querySelector(`input[name="${dayKey}_start"]`);
-                const endInput = document.querySelector(`input[name="${dayKey}_end"]`);
-                
-                if (startInput && endInput) {
-                    startInput.disabled = !this.checked;
-                    endInput.disabled = !this.checked;
-                }
-            });
-        });
-        
-        // Password strength and validation
-        const newPasswordInput = document.getElementById('new_password');
-        const confirmPasswordInput = document.getElementById('confirm_password');
-        const passwordStrengthBar = document.getElementById('passwordStrengthBar');
-        const passwordStrengthText = document.getElementById('passwordStrengthText');
-        const passwordMatch = document.getElementById('passwordMatch');
-        const passwordMismatch = document.getElementById('passwordMismatch');
-        
-        if (newPasswordInput && confirmPasswordInput) {
-            newPasswordInput.addEventListener('input', validatePasswordStrength);
-            confirmPasswordInput.addEventListener('input', validatePasswordMatch);
-        }
-        
-        // Auto-close alerts after 5 seconds
-        setTimeout(() => {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            });
-        }, 5000);
-    });
-
+    // Update date and time
     function updateDateTime() {
         const now = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
-        document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US');
+        document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     }
+    updateDateTime();
+    setInterval(updateDateTime, 60000);
 
-    function validatePasswordStrength() {
-        const password = document.getElementById('new_password').value;
+    // Password strength checker
+    document.getElementById('new_password').addEventListener('input', function() {
+        const password = this.value;
+        checkPasswordStrength(password);
+        checkPasswordMatch();
+    });
+
+    document.getElementById('confirm_password').addEventListener('input', checkPasswordMatch);
+
+    function checkPasswordStrength(password) {
         let strength = 0;
-        
-        // Length requirement
-        if (password.length >= 8) {
-            strength += 20;
-            document.getElementById('reqLength').className = 'requirement met';
-        } else {
-            document.getElementById('reqLength').className = 'requirement unmet';
-        }
-        
-        // Uppercase requirement
-        if (/[A-Z]/.test(password)) {
-            strength += 20;
-            document.getElementById('reqUppercase').className = 'requirement met';
-        } else {
-            document.getElementById('reqUppercase').className = 'requirement unmet';
-        }
-        
-        // Lowercase requirement
-        if (/[a-z]/.test(password)) {
-            strength += 20;
-            document.getElementById('reqLowercase').className = 'requirement met';
-        } else {
-            document.getElementById('reqLowercase').className = 'requirement unmet';
-        }
-        
-        // Number requirement
-        if (/[0-9]/.test(password)) {
-            strength += 20;
-            document.getElementById('reqNumber').className = 'requirement met';
-        } else {
-            document.getElementById('reqNumber').className = 'requirement unmet';
-        }
-        
-        // Special character requirement
-        if (/[@$!%*?&]/.test(password)) {
-            strength += 20;
-            document.getElementById('reqSpecial').className = 'requirement met';
-        } else {
-            document.getElementById('reqSpecial').className = 'requirement unmet';
-        }
-        
-        // Update progress bar and text
-        const progressBar = document.getElementById('passwordStrengthBar');
+        const requirements = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[^A-Za-z0-9]/.test(password)
+        };
+
+        // Update requirement indicators
+        document.getElementById('reqLength').className = requirements.length ? 'requirement met' : 'requirement unmet';
+        document.getElementById('reqUppercase').className = requirements.uppercase ? 'requirement met' : 'requirement unmet';
+        document.getElementById('reqLowercase').className = requirements.lowercase ? 'requirement met' : 'requirement unmet';
+        document.getElementById('reqNumber').className = requirements.number ? 'requirement met' : 'requirement unmet';
+        document.getElementById('reqSpecial').className = requirements.special ? 'requirement met' : 'requirement unmet';
+
+        // Calculate strength
+        if (requirements.length) strength += 20;
+        if (requirements.uppercase) strength += 20;
+        if (requirements.lowercase) strength += 20;
+        if (requirements.number) strength += 20;
+        if (requirements.special) strength += 20;
+
+        // Update progress bar
+        const strengthBar = document.getElementById('passwordStrengthBar');
         const strengthText = document.getElementById('passwordStrengthText');
         
-        if (progressBar && strengthText) {
-            progressBar.style.width = strength + '%';
-            
-            if (strength <= 20) {
-                progressBar.className = 'progress-bar bg-danger';
-                strengthText.textContent = 'Password strength: Very Weak';
-            } else if (strength <= 40) {
-                progressBar.className = 'progress-bar bg-warning';
-                strengthText.textContent = 'Password strength: Weak';
-            } else if (strength <= 60) {
-                progressBar.className = 'progress-bar bg-info';
-                strengthText.textContent = 'Password strength: Fair';
-            } else if (strength <= 80) {
-                progressBar.className = 'progress-bar bg-primary';
-                strengthText.textContent = 'Password strength: Good';
-            } else {
-                progressBar.className = 'progress-bar bg-success';
-                strengthText.textContent = 'Password strength: Strong';
-            }
-        }
+        strengthBar.style.width = strength + '%';
         
-        validatePasswordMatch();
+        if (strength < 40) {
+            strengthBar.className = 'progress-bar bg-danger';
+            strengthText.textContent = 'Password strength: Very Weak';
+        } else if (strength < 60) {
+            strengthBar.className = 'progress-bar bg-warning';
+            strengthText.textContent = 'Password strength: Weak';
+        } else if (strength < 80) {
+            strengthBar.className = 'progress-bar bg-info';
+            strengthText.textContent = 'Password strength: Good';
+        } else if (strength < 100) {
+            strengthBar.className = 'progress-bar bg-primary';
+            strengthText.textContent = 'Password strength: Strong';
+        } else {
+            strengthBar.className = 'progress-bar bg-success';
+            strengthText.textContent = 'Password strength: Very Strong';
+        }
     }
 
-    function validatePasswordMatch() {
-        const newPassword = document.getElementById('new_password')?.value || '';
-        const confirmPassword = document.getElementById('confirm_password')?.value || '';
+    function checkPasswordMatch() {
+        const password = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
         const matchElement = document.getElementById('passwordMatch');
         const mismatchElement = document.getElementById('passwordMismatch');
-        
-        if (!matchElement || !mismatchElement) return;
         
         if (confirmPassword === '') {
             matchElement.classList.add('d-none');
@@ -1117,7 +1088,7 @@ if ($hours_stmt) {
             return;
         }
         
-        if (newPassword === confirmPassword && newPassword !== '') {
+        if (password === confirmPassword) {
             matchElement.classList.remove('d-none');
             mismatchElement.classList.add('d-none');
         } else {
@@ -1126,32 +1097,54 @@ if ($hours_stmt) {
         }
     }
 
-    // Form validation before submission
-    document.getElementById('changePasswordForm')?.addEventListener('submit', function(e) {
-        const newPassword = document.getElementById('new_password')?.value || '';
-        const confirmPassword = document.getElementById('confirm_password')?.value || '';
-        const currentPassword = document.getElementById('current_password')?.value || '';
-        
-        if (!currentPassword) {
-            e.preventDefault();
-            alert('Please enter your current password!');
-            return false;
+    // Enable/disable time inputs based on day toggle
+    document.querySelectorAll('.form-check-input[type="checkbox"]').forEach(checkbox => {
+        if (checkbox.name.includes('_enabled')) {
+            checkbox.addEventListener('change', function() {
+                const dayKey = this.name.replace('_enabled', '');
+                const startInput = document.querySelector(`input[name="${dayKey}_start"]`);
+                const endInput = document.querySelector(`input[name="${dayKey}_end"]`);
+                
+                if (startInput && endInput) {
+                    startInput.disabled = !this.checked;
+                    endInput.disabled = !this.checked;
+                }
+            });
         }
+    });
+
+    // Form validation
+    document.getElementById('changePasswordForm').addEventListener('submit', function(e) {
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
         
         if (newPassword !== confirmPassword) {
             e.preventDefault();
-            alert('New passwords do not match!');
-            return false;
+            alert('Passwords do not match. Please make sure both password fields are identical.');
+            return;
         }
         
         if (newPassword.length < 8) {
             e.preventDefault();
-            alert('Password must be at least 8 characters long!');
-            return false;
+            alert('Password must be at least 8 characters long.');
+            return;
         }
-        
-        return true;
+    });
+
+    // Auto-dismiss alerts after 5 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
     });
 </script>
 </body>
 </html>
+<?php
+// Close database connection
+$conn->close();
+?>
