@@ -803,11 +803,12 @@ $vet_stats = $vet_stats_result->fetch_assoc();
         <!-- Main Content -->
         <main class="d-flex flex-column gap-4">
             <!-- Topbar -->
-            <div class="topbar">
+                       <div class="topbar">
                 <div class="d-flex align-items-center">
                     <h1 class="h4 mb-0 fw-bold">Admin Dashboard</h1>
-                    <span class="badge bg-light text-dark ms-3">Veterinarian Management</span>
+                    <span class="badge bg-light text-dark ms-3">BrightView Veterinary Clinic</span>
                 </div>
+
 
                 <div class="search ms-auto">
                     <div class="input-group">
@@ -1135,6 +1136,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
     </script>
 </body>
 </html>
+
 
 
 
