@@ -201,21 +201,21 @@
             filter: brightness(0.7);
         }
 
-                .slide-1 {
-                    background-image: url('images/background1.jpeg');
-                }
-                
-                .slide-2 {
-                    background-image: url('images/background2.jpeg');
-                }
-                
-                .slide-3 {
-                    background-image: url('images/background3.jpeg');
-                }
-                
-                .slide-4 {
-                    background-image: url('images/background4.png');
-                }
+        .slide-1 {
+            background-image: url('images/background1.jpeg');
+        }
+
+        .slide-2 {
+            background-image: url('images/background2.jpeg');
+        }
+
+        .slide-3 {
+            background-image: url('images/background3.jpeg');
+        }
+
+        .slide-4 {
+            background-image: url('images/background4.png');
+        }
 
         .slide-nav {
             position: absolute;
@@ -1011,6 +1011,171 @@
             font-size: 1rem;
         }
 
+        /* FAQ Section Styles */
+        .faq-section {
+            background: linear-gradient(135deg, #f8fbff 0%, #f0f9ff 100%);
+            position: relative;
+        }
+
+        .faq-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary-gradient);
+        }
+
+        .faq-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(14, 165, 233, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .faq-item:hover {
+            box-shadow: var(--shadow-md);
+            border-color: rgba(14, 165, 233, 0.2);
+        }
+
+        .faq-question {
+            padding: 2rem;
+            background: var(--white);
+            border: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--ink);
+            transition: all 0.3s ease;
+        }
+
+        .faq-question:hover {
+            background: rgba(14, 165, 233, 0.02);
+        }
+
+        .faq-question.active {
+            background: rgba(14, 165, 233, 0.05);
+            color: var(--primary);
+        }
+
+        .faq-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            margin-left: 1rem;
+        }
+
+        .faq-question.active .faq-icon {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            padding: 0 2rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.4s ease;
+            background: var(--white);
+            border-top: 1px solid transparent;
+        }
+
+        .faq-answer.active {
+            padding: 0 2rem 2rem;
+            max-height: 500px;
+            border-top-color: rgba(14, 165, 233, 0.1);
+        }
+
+        .faq-answer-content {
+            color: var(--ink-light);
+            line-height: 1.7;
+        }
+
+        .faq-answer-content ul {
+            padding-left: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .faq-answer-content li {
+            margin-bottom: 0.5rem;
+            color: var(--ink-light);
+        }
+
+        .faq-categories {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .faq-category-btn {
+            background: var(--white);
+            border: 2px solid #e0f2fe;
+            border-radius: 50px;
+            padding: 0.8rem 2rem;
+            font-weight: 600;
+            color: var(--ink-light);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .faq-category-btn.active,
+        .faq-category-btn:hover {
+            background: var(--primary-gradient);
+            color: var(--white);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .faq-contact-cta {
+            background: var(--white);
+            border-radius: var(--border-radius-lg);
+            padding: 3rem;
+            text-align: center;
+            margin-top: 4rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(14, 165, 233, 0.1);
+        }
+
+        .faq-contact-cta h4 {
+            color: var(--ink);
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .faq-contact-cta p {
+            color: var(--ink-light);
+            margin-bottom: 2rem;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
         /* Enhanced Contact Section */
         .contact-section {
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
@@ -1241,6 +1406,16 @@
                 height: 40px;
                 font-size: 1.2rem;
             }
+            
+            .faq-categories {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .faq-category-btn {
+                width: 200px;
+                justify-content: center;
+            }
         }
 
         @media (max-width: 768px) {
@@ -1305,6 +1480,15 @@
             .slide-arrow.next {
                 right: 10px;
             }
+            
+            .faq-question {
+                padding: 1.5rem;
+                font-size: 1rem;
+            }
+            
+            .faq-answer.active {
+                padding: 0 1.5rem 1.5rem;
+            }
         }
 
         @media (max-width: 576px) {
@@ -1332,6 +1516,11 @@
             
             .stats {
                 grid-template-columns: 1fr;
+            }
+            
+            .faq-category-btn {
+                width: 100%;
+                max-width: 280px;
             }
         }
 
@@ -1480,6 +1669,7 @@
                 <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
                 <li class="nav-item"><a class="nav-link" href="#research">Research</a></li>
                 <li class="nav-item"><a class="nav-link" href="#team">Team</a></li>
+                <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
                 <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
                 <li class="nav-item ms-2"><a class="btn btn-outline-primary mt-1 mt-lg-0" href="#" onclick="showRoleModal()">Login</a></li>
                 <li class="nav-item ms-2"><a class="btn btn-primary mt-1 mt-lg-0" href="#">Get Started</a></li>
@@ -1693,7 +1883,6 @@
         <div class="row g-4">
             <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
                 <div class="team-card">
-                    <!-- REPLACE WITH AIRA'S LOCAL IMAGE -->
                     <img src="images/aira.jpg" alt="Ms. Aira L. Alimorom" class="team-img">
                     <div class="team-content">
                         <h4>Ms. Aira L. Alimorom</h4>
@@ -1704,7 +1893,6 @@
             </div>
             <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
                 <div class="team-card">
-                    <!-- REPLACE WITH ALEXANDER'S LOCAL IMAGE -->
                     <img src="images/alex.jpg" alt="Prof. Alexander G. Avendaño" class="team-img">
                     <div class="team-content">
                         <h4>Prof. Alexander G. Avendaño</h4>
@@ -1715,7 +1903,6 @@
             </div>
             <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
                 <div class="team-card">
-                    <!-- REPLACE WITH REGINA'S LOCAL IMAGE -->
                     <img src="images/red.jpg" alt="Ms. Regina R. Narbarte" class="team-img">
                     <div class="team-content">
                         <h4>Ms. Regina R. Narbarte</h4>
@@ -1724,6 +1911,220 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</section>
+
+<!-- FAQ Section -->
+<section id="faq" class="section faq-section">
+    <div class="container">
+        <div class="text-center mb-5" data-aos="fade-up">
+            <h2 class="section-title">Frequently Asked Questions</h2>
+            <p class="section-subtitle">Find answers to common questions about using VetCare for your pet's healthcare needs</p>
+        </div>
+
+        <div class="faq-categories" data-aos="fade-up" data-aos-delay="100">
+            <button class="faq-category-btn active" data-category="all">
+                <i class="bi bi-grid-fill"></i>All Questions
+            </button>
+            <button class="faq-category-btn" data-category="getting-started">
+                <i class="bi bi-rocket-takeoff"></i>Getting Started
+            </button>
+            <button class="faq-category-btn" data-category="qr-codes">
+                <i class="bi bi-qr-code"></i>QR Codes
+            </button>
+            <button class="faq-category-btn" data-category="privacy">
+                <i class="bi bi-shield-check"></i>Privacy & Security
+            </button>
+        </div>
+
+        <div class="faq-container">
+            <!-- Getting Started FAQs -->
+            <div class="faq-item" data-category="getting-started" data-aos="fade-up" data-aos-delay="200">
+                <button class="faq-question">
+                    How do I create an account for my pet?
+                    <div class="faq-icon">
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <p>Creating an account for your pet is simple:</p>
+                        <ul>
+                            <li>Click "Get Started Free" on our homepage</li>
+                            <li>Select "Pet Owner" as your role</li>
+                            <li>Fill in your basic information</li>
+                            <li>Add your pet's details (name, breed, age, etc.)</li>
+                            <li>Upload any existing medical records</li>
+                            <li>You'll receive your pet's unique QR code</li>
+                        </ul>
+                        <p>The entire process takes less than 5 minutes!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="getting-started" data-aos="fade-up" data-aos-delay="250">
+                <button class="faq-question">
+                    What information do I need to set up my pet's profile?
+                    <div class="faq-icon">
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <p>To create a comprehensive pet profile, we recommend having:</p>
+                        <ul>
+                            <li>Basic information: Name, breed, age, weight, gender</li>
+                            <li>Medical history: Previous illnesses, surgeries, chronic conditions</li>
+                            <li>Vaccination records: Dates and types of vaccinations</li>
+                            <li>Medication details: Current medications and dosages</li>
+                            <li>Allergy information: Any known allergies or sensitivities</li>
+                            <li>Emergency contact: Your veterinarian's contact information</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR Code FAQs -->
+            <div class="faq-item" data-category="qr-codes" data-aos="fade-up" data-aos-delay="300">
+                <button class="faq-question">
+                    How do the QR codes work for pet identification?
+                    <div class="faq-icon">
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <p>Our QR code system provides instant access to your pet's medical information:</p>
+                        <ul>
+                            <li>Each pet receives a unique, secure QR code</li>
+                            <li>The QR code can be printed and attached to your pet's collar</li>
+                            <li>When scanned by a veterinarian or emergency responder, it shows critical medical information</li>
+                            <li>Access is secure - only authorized professionals can view full medical history</li>
+                            <li>You can update information anytime, and the QR code automatically reflects changes</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="qr-codes" data-aos="fade-up" data-aos-delay="350">
+                <button class="faq-question">
+                    What happens if my pet's QR code gets lost or damaged?
+                    <div class="faq-icon">
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <p>Don't worry! We've got you covered:</p>
+                        <ul>
+                            <li>You can instantly deactivate the lost QR code from your dashboard</li>
+                            <li>Generate a new QR code immediately - it's free and takes seconds</li>
+                            <li>The old QR code will no longer work once deactivated</li>
+                            <li>We recommend printing multiple copies and keeping spares</li>
+                            <li>Consider using waterproof QR code tags for durability</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy & Security FAQs -->
+            <div class="faq-item" data-category="privacy" data-aos="fade-up" data-aos-delay="400">
+                <button class="faq-question">
+                    Is my pet's medical information secure and private?
+                    <div class="faq-icon">
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <p>Yes, security and privacy are our top priorities:</p>
+                        <ul>
+                            <li>All data is encrypted using military-grade encryption</li>
+                            <li>We comply with healthcare data protection regulations</li>
+                            <li>Only authorized veterinarians can access full medical records</li>
+                            <li>Emergency responders see only critical information (allergies, medications, etc.)</li>
+                            <li>You control what information is visible to whom</li>
+                            <li>Regular security audits and updates ensure ongoing protection</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="privacy" data-aos="fade-up" data-aos-delay="450">
+                <button class="faq-question">
+                    Who can access my pet's medical information?
+                    <div class="faq-icon">
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <p>Access is carefully controlled through a tiered system:</p>
+                        <ul>
+                            <li><strong>You (Owner):</strong> Full access to all information</li>
+                            <li><strong>Primary Veterinarian:</strong> Full medical record access</li>
+                            <li><strong>Emergency Clinics:</strong> Critical information only during emergencies</li>
+                            <li><strong>Pet Sitters/Walkers:</strong> Basic info and emergency contacts only (if you choose to share)</li>
+                            <li><strong>General Public:</strong> No access - QR scanning requires professional verification</li>
+                        </ul>
+                        <p>You can modify these permissions anytime in your settings.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional FAQs -->
+            <div class="faq-item" data-category="getting-started" data-aos="fade-up" data-aos-delay="500">
+                <button class="faq-question">
+                    How much does VetCare cost?
+                    <div class="faq-icon">
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <p>VetCare offers flexible pricing options:</p>
+                        <ul>
+                            <li><strong>Basic Plan:</strong> Free - Includes one pet profile, QR code, and basic health tracking</li>
+                            <li><strong>Premium Plan:</strong> $9.99/month - Unlimited pets, advanced analytics, priority support</li>
+                            <li><strong>Veterinarian Plan:</strong> $49.99/month - Clinic management, multiple staff accounts</li>
+                            <li><strong>Enterprise Plan:</strong> Custom pricing - For large clinics and hospitals</li>
+                        </ul>
+                        <p>All plans include our core features: QR codes, emergency access, and secure data storage.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="qr-codes" data-aos="fade-up" data-aos-delay="550">
+                <button class="faq-question">
+                    Can multiple pets use the same account?
+                    <div class="faq-icon">
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <p>Absolutely! VetCare is designed for multi-pet households:</p>
+                        <ul>
+                            <li>Free accounts support up to 2 pets</li>
+                            <li>Premium accounts support unlimited pets</li>
+                            <li>Each pet gets their own unique QR code</li>
+                            <li>Manage all pets from a single dashboard</li>
+                            <li>Set different privacy settings for each pet</li>
+                            <li>Track medications and appointments separately</li>
+                        </ul>
+                        <p>Perfect for families with multiple furry friends!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="faq-contact-cta" data-aos="fade-up" data-aos-delay="600">
+            <h4>Still have questions?</h4>
+            <p>Can't find the answer you're looking for? Our support team is here to help you get the most out of VetCare.</p>
+            <a href="#contact" class="btn btn-primary">
+                <i class="bi bi-envelope me-2"></i>Contact Support
+            </a>
         </div>
     </div>
 </section>
@@ -1838,13 +2239,14 @@
                     <li class="mb-2"><a href="#about" class="text-muted text-decoration-none">About</a></li>
                     <li class="mb-2"><a href="#features" class="text-muted text-decoration-none">Features</a></li>
                     <li class="mb-2"><a href="#research" class="text-muted text-decoration-none">Research</a></li>
+                    <li class="mb-2"><a href="#faq" class="text-muted text-decoration-none">FAQ</a></li>
                 </ul>
             </div>
             <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
                 <h5 class="mb-3">Support</h5>
                 <ul class="list-unstyled">
                     <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Help Center</a></li>
-                    <li class="mb-2"><a href="#" class="text-muted text-decoration-none">FAQs</a></li>
+                    <li class="mb-2"><a href="#faq" class="text-muted text-decoration-none">FAQs</a></li>
                     <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Privacy Policy</a></li>
                     <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Terms of Service</a></li>
                 </ul>
@@ -1953,6 +2355,63 @@
                         behavior: 'smooth'
                     });
                 }
+            });
+        });
+
+        // FAQ Functionality
+        // FAQ Accordion
+        const faqQuestions = document.querySelectorAll('.faq-question');
+        
+        faqQuestions.forEach(question => {
+            question.addEventListener('click', function() {
+                const answer = this.nextElementSibling;
+                const isActive = this.classList.contains('active');
+                
+                // Close all other FAQs
+                faqQuestions.forEach(q => {
+                    q.classList.remove('active');
+                    q.nextElementSibling.classList.remove('active');
+                });
+                
+                // Toggle current FAQ
+                if (!isActive) {
+                    this.classList.add('active');
+                    answer.classList.add('active');
+                }
+            });
+        });
+
+        // FAQ Category Filtering
+        const categoryButtons = document.querySelectorAll('.faq-category-btn');
+        const faqItems = document.querySelectorAll('.faq-item');
+
+        categoryButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const category = this.getAttribute('data-category');
+                
+                // Update active category button
+                categoryButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Filter FAQ items
+                faqItems.forEach(item => {
+                    const itemCategory = item.getAttribute('data-category');
+                    
+                    if (category === 'all' || itemCategory === category) {
+                        item.style.display = 'block';
+                        // Add slight delay for smooth animation
+                        setTimeout(() => {
+                            item.style.opacity = '1';
+                            item.style.transform = 'translateY(0)';
+                        }, 50);
+                    } else {
+                        item.style.opacity = '0';
+                        item.style.transform = 'translateY(10px)';
+                        setTimeout(() => {
+                            item.style.display = 'none';
+                        }, 300);
+                    }
+                });
             });
         });
     });
@@ -2083,6 +2542,3 @@
 </script>
 </body>
 </html>
-
-
-
