@@ -137,7 +137,7 @@ if (isset($_GET['delete'])) {
 $pets_stmt = $conn->prepare("
     SELECT p.pet_id, p.name as pet_name, p.species, p.breed, u.name as owner_name 
     FROM pets p 
-    JOIN users u ON p.owner_id = u.user_id 
+    JOIN users u ON p.user_id = u.user_id 
     ORDER BY p.name
 ");
 if ($pets_stmt) {
@@ -803,4 +803,5 @@ foreach ($medical_records as $record) {
     }, 5000);
 </script>
 </body>
+
 </html>
