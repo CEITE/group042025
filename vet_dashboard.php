@@ -768,7 +768,7 @@ if ($check_pending_stmt) {
         <a href="vet_settings.php">
             <div class="icon"><i class="fa-solid fa-gear"></i></div> Settings
         </a>
-        <a href="logout.php" class="logout">
+        <a href="logout_vet.php" class="logout">
             <i class="fa-solid fa-right-from-bracket me-2"></i> Logout
         </a>
     </div>
@@ -1511,3 +1511,4 @@ if ($check_pending_stmt) {
 </script>
 </body>
 </html>
+
