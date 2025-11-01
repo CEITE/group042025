@@ -1,52 +1,10 @@
-
-
 <?php
 session_start();
 include("conn.php");
 
-// ✅ 1. Check if user is logged in AND has correct role (owner)
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'owner') {
-    // Store role for redirect before destroying session
-    $user_role = $_SESSION['role'] ?? '';
-    
-    // Clear session
-    session_unset();
-    session_destroy();
-    
-    // Redirect based on role
-    switch ($user_role) {
-        case 'admin':
-            header("Location: login_admin.php");
-            break;
-        case 'vet':
-            header("Location: login_vet.php");
-            break;
-        case 'lgu':
-            header("Location: login_lgu.php");
-            break;
-        default:
-            header("Location: login.php");
-            break;
-    }
-    exit();
-}
-
-// Validate session and prevent session fixation
-if (!isset($_SESSION['created'])) {
-    $_SESSION['created'] = time();
-    $_SESSION['IPaddress'] = $_SERVER['REMOTE_ADDR'];
-    $_SESSION['userAgent'] = $_SERVER['HTTP_USER_AGENT'];
-} else if (time() - $_SESSION['created'] > 1800) {
-    // session started more than 30 minutes ago
-    session_regenerate_id(true);
-    $_SESSION['created'] = time();
-}
-
-// Validate session security
-if ($_SESSION['IPaddress'] != $_SERVER['REMOTE_ADDR'] || $_SESSION['userAgent'] != $_SERVER['HTTP_USER_AGENT']) {
-    session_unset();
-    session_destroy();
-    header("Location: login.php?error=session_invalid");
+// ✅ 1. Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
     exit();
 }
 
@@ -55,14 +13,9 @@ $user_id = $_SESSION['user_id'];
 // ✅ 2. Fetch logged-in user info with profile picture
 try {
     $stmt = $conn->prepare("SELECT name, role, email, profile_picture FROM users WHERE user_id = ?");
-    if (!$stmt) {
-        throw new Exception("Database error: " . $conn->error);
-    }
-    
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $user = $result->fetch_assoc();
+    $user = $stmt->get_result()->fetch_assoc();
     
     if (!$user) {
         throw new Exception("User not found");
@@ -70,8 +23,6 @@ try {
     
     // Set default profile picture if none exists
     $profile_picture = !empty($user['profile_picture']) ? $user['profile_picture'] : "https://i.pravatar.cc/100?u=" . urlencode($user['name']);
-    
-    $stmt->close();
     
 } catch (Exception $e) {
     die("Error fetching user data: " . $e->getMessage());
@@ -232,8 +183,6 @@ try {
         $healthData['health_scores'][$pet['pet_name']] = min($healthScore, 100);
     }
     
-    $stmt->close();
-    
 } catch (Exception $e) {
     error_log("Error fetching pets: " . $e->getMessage());
 }
@@ -278,7 +227,6 @@ try {
             }
         }
         $appointment_stats['total'] = count($user_appointments);
-        $appointments_stmt->close();
     }
     
 } catch (Exception $e) {
@@ -297,12 +245,9 @@ try {
             ORDER BY created_at DESC 
             LIMIT 10
         ");
-        if ($notifications_stmt) {
-            $notifications_stmt->bind_param("i", $user_id);
-            $notifications_stmt->execute();
-            $notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-            $notifications_stmt->close();
-        }
+        $notifications_stmt->bind_param("i", $user_id);
+        $notifications_stmt->execute();
+        $notifications = $notifications_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
 } catch (Exception $e) {
     error_log("Error fetching notifications: " . $e->getMessage());
@@ -313,11 +258,8 @@ try {
 if (isset($_GET['mark_read'])) {
     $notification_id = $_GET['mark_read'];
     $mark_stmt = $conn->prepare("UPDATE user_notifications SET is_read = 1 WHERE notification_id = ? AND user_id = ?");
-    if ($mark_stmt) {
-        $mark_stmt->bind_param("ii", $notification_id, $user_id);
-        $mark_stmt->execute();
-        $mark_stmt->close();
-    }
+    $mark_stmt->bind_param("ii", $notification_id, $user_id);
+    $mark_stmt->execute();
     header("Location: user_dashboard.php");
     exit();
 }
@@ -325,37 +267,28 @@ if (isset($_GET['mark_read'])) {
 // Handle mark all notifications as read
 if (isset($_GET['mark_all_read'])) {
     $mark_all_stmt = $conn->prepare("UPDATE user_notifications SET is_read = 1 WHERE user_id = ?");
-    if ($mark_all_stmt) {
-        $mark_all_stmt->bind_param("i", $user_id);
-        if ($mark_all_stmt->execute()) {
-            $_SESSION['success'] = "All notifications marked as read!";
-        }
-        $mark_all_stmt->close();
+    $mark_all_stmt->bind_param("i", $user_id);
+    if ($mark_all_stmt->execute()) {
+        $_SESSION['success'] = "All notifications marked as read!";
+        header("Location: user_dashboard.php");
+        exit();
     }
-    header("Location: user_dashboard.php");
-    exit();
 }
 
 // Handle cancel appointment
 if (isset($_POST['cancel_appointment'])) {
-    $appointment_id = $_POST['appointment_id'] ?? '';
+    $appointment_id = $_POST['appointment_id'];
     $cancel_reason = $_POST['cancel_reason'] ?? 'Cancelled by user';
     
-    if (!empty($appointment_id)) {
-        $cancel_stmt = $conn->prepare("UPDATE appointments SET status = 'cancelled', vet_notes = ?, updated_at = NOW() WHERE appointment_id = ? AND user_id = ?");
-        if ($cancel_stmt) {
-            $cancel_stmt->bind_param("sii", $cancel_reason, $appointment_id, $user_id);
-            
-            if ($cancel_stmt->execute()) {
-                $_SESSION['success'] = "Appointment cancelled successfully!";
-            } else {
-                $_SESSION['error'] = "Error cancelling appointment.";
-            }
-            $cancel_stmt->close();
-        }
-        
+    $cancel_stmt = $conn->prepare("UPDATE appointments SET status = 'cancelled', vet_notes = ?, updated_at = NOW() WHERE appointment_id = ? AND user_id = ?");
+    $cancel_stmt->bind_param("sii", $cancel_reason, $appointment_id, $user_id);
+    
+    if ($cancel_stmt->execute()) {
+        $_SESSION['success'] = "Appointment cancelled successfully!";
         header("Location: user_dashboard.php");
         exit();
+    } else {
+        $_SESSION['error'] = "Error cancelling appointment.";
     }
 }
 ?>
@@ -967,237 +900,292 @@ if (isset($_POST['cancel_appointment'])) {
             <div class="row">
                 <div class="col-md-6">
                     <div class="upload-area">
-                        <h5><i class="fa-solid
-
-                    <i class="fa-solid fa-cloud-upload-alt fa-3x mb-3 text-primary"></i></h5>
-                        <h5>Upload Pet Image for Analysis</h5>
-                        <p class="text-muted mb-3">Upload a clear photo of your pet for AI-powered disease detection</p>
-                        <form id="aiAnalysisForm" enctype="multipart/form-data">
-                            <div class="mb-3">
-                                <select class="form-select" id="petSelect" required>
-                                    <option value="">Select Pet</option>
-                                    <?php foreach($pets as $pet): ?>
-                                        <option value="<?php echo $pet['pet_id']; ?>"><?php echo htmlspecialchars($pet['pet_name']); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <input type="file" class="form-control" id="petImage" accept="image/*" required>
-                                <div class="form-text">Supported formats: JPG, PNG, JPEG (Max 5MB)</div>
-                            </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fa-solid fa-microscope me-2"></i>Analyze Image
-                            </button>
-                        </form>
-                        <div id="analysisResult" class="mt-3" style="display: none;">
-                            <div class="alert alert-info">
-                                <h6>Analysis Result:</h6>
-                                <p id="resultText" class="mb-0"></p>
-                            </div>
-                        </div>
+                        <h5><i class="fa-solid fa-camera me-2"></i>Upload Pet Image</h5>
+                        <p class="text-muted mb-3">Get instant AI analysis for common pet diseases</p>
+                        
+                        <input type="file" id="petImageInput" accept="image/*" class="form-control mb-3">
+                        <button onclick="analyzePetImage()" class="btn btn-primary w-100">
+                            <i class="fa-solid fa-magnifying-glass me-2"></i> Analyze Image
+                        </button>
+                        
+                        <small class="text-muted">
+                            Supports: JPG, PNG, JPEG • Max 10MB<br>
+                            <i class="fa-solid fa-lightbulb me-1"></i> Best results with clear, well-lit images
+                        </small>
                     </div>
                 </div>
+                
                 <div class="col-md-6">
                     <div class="class-list">
-                        <h5 class="mb-3">Detectable Conditions</h5>
-                        <div class="row">
-                            <div class="col-6">
-                                <h6 class="text-primary">Dogs</h6>
-                                <span class="disease-tag">Skin Allergies</span>
-                                <span class="disease-tag">Ear Infections</span>
-                                <span class="disease-tag">Hot Spots</span>
-                                <span class="disease-tag">Mange</span>
-                                <span class="disease-tag">Ringworm</span>
-                                <span class="disease-tag">Arthritis</span>
+                        <h6><i class="fa-solid fa-list me-2"></i>Detectable Conditions</h6>
+                        <div id="diseaseClassesList" style="max-height: 200px; overflow-y: auto;">
+                            <div class="text-center">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <small class="text-muted">Loading diseases...</small>
                             </div>
-                            <div class="col-6">
-                                <h6 class="text-primary">Cats</h6>
-                                <span class="disease-tag">Flea Allergy</span>
-                                <span class="disease-tag">Respiratory Issues</span>
-                                <span class="disease-tag">Dental Disease</span>
-                                <span class="disease-tag">Urinary Problems</span>
-                                <span class="disease-tag">Eye Infections</span>
-                                <span class="disease-tag">Hairballs</span>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <h6 class="text-success">Healthy Signs</h6>
-                            <ul class="list-unstyled small">
-                                <li><i class="fa-solid fa-check text-success me-2"></i>Clear eyes and nose</li>
-                                <li><i class="fa-solid fa-check text-success me-2"></i>Clean ears and skin</li>
-                                <li><i class="fa-solid fa-check text-success me-2"></i>Normal appetite and energy</li>
-                                <li><i class="fa-solid fa-check text-success me-2"></i>Regular breathing</li>
-                            </ul>
-                        </div>
-                        <div class="alert alert-warning mt-3">
-                            <small><i class="fa-solid fa-exclamation-triangle me-2"></i><strong>Note:</strong> AI analysis is for preliminary screening only. Always consult a veterinarian for accurate diagnosis.</small>
                         </div>
                     </div>
                 </div>
             </div>
+            
+            <div id="analysisResult" class="mt-4"></div>
         </div>
 
-        <!-- Recent Pets & Appointments -->
-        <div class="row">
-            <!-- Recent Pets -->
-            <div class="col-lg-6">
-                <div class="card-custom">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0"><i class="fa-solid fa-paw me-2"></i>My Pets</h5>
-                        <a href="user_pet_profile.php" class="btn btn-sm btn-outline-primary">View All</a>
-                    </div>
-                    
-                    <?php if (empty($pets)): ?>
-                        <div class="empty-state">
-                            <i class="fa-solid fa-dog"></i>
-                            <h5>No Pets Registered</h5>
-                            <p class="text-muted">You haven't registered any pets yet.</p>
-                            <a href="register_pet.php" class="btn btn-primary">
-                                <i class="fa-solid fa-plus me-2"></i>Register First Pet
-                            </a>
-                        </div>
-                    <?php else: ?>
-                        <div class="row">
-                            <?php 
-                            $counter = 0;
-                            foreach ($pets as $pet): 
-                                if ($counter >= 4) break;
-                                $counter++;
-                            ?>
-                                <div class="col-sm-6 mb-3">
-                                    <div class="pet-card card">
-                                        <div class="card-body">
-                                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <h6 class="card-title mb-0"><?php echo htmlspecialchars($pet['pet_name']); ?></h6>
-                                                <span class="badge bg-primary"><?php echo htmlspecialchars($pet['species']); ?></span>
-                                            </div>
-                                            <p class="card-text small text-muted mb-2">
-                                                Breed: <?php echo htmlspecialchars($pet['breed']); ?><br>
-                                                Age: <?php echo htmlspecialchars($pet['age']); ?> years
-                                            </p>
-                                            <div class="health-status">
-                                                <?php
-                                                $healthScore = $healthData['health_scores'][$pet['pet_name']] ?? 70;
-                                                $statusClass = $healthScore >= 80 ? 'status-good' : ($healthScore >= 60 ? 'status-warning' : 'status-bad');
-                                                $statusText = $healthScore >= 80 ? 'Good' : ($healthScore >= 60 ? 'Fair' : 'Needs Attention');
-                                                ?>
-                                                <span class="status-dot <?php echo $statusClass; ?>"></span>
-                                                <small>Health: <?php echo $statusText; ?> (<?php echo $healthScore; ?>%)</small>
-                                            </div>
-                                            <div class="mt-3">
-                                                <a href="pet_details.php?id=<?php echo $pet['pet_id']; ?>" class="btn btn-sm btn-outline-primary w-100">
-                                                    View Details
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
+        <!-- Recent Appointments Section -->
+        <div class="card-custom">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0"><i class="fa-solid fa-calendar me-2"></i>Recent Appointments</h4>
+                <div>
+                    <a href="user_appointment.php" class="btn btn-primary me-2">
+                        <i class="fa-solid fa-plus me-1"></i> New Appointment
+                    </a>
+                    <a href="user_appointments.php" class="btn btn-outline-primary">
+                        <i class="fa-solid fa-list me-1"></i> View All
+                    </a>
                 </div>
             </div>
-
-            <!-- Recent Appointments -->
-            <div class="col-lg-6">
-                <div class="card-custom">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0"><i class="fa-solid fa-calendar me-2"></i>Recent Appointments</h5>
-                        <a href="user_appointment.php" class="btn btn-sm btn-outline-primary">View All</a>
-                    </div>
-                    
-                    <?php if (empty($user_appointments)): ?>
-                        <div class="empty-state">
-                            <i class="fa-solid fa-calendar-xmark"></i>
-                            <h5>No Appointments</h5>
-                            <p class="text-muted">You haven't booked any appointments yet.</p>
-                            <a href="user_appointment.php" class="btn btn-primary">
-                                <i class="fa-solid fa-calendar-plus me-2"></i>Book Appointment
-                            </a>
+            
+            <?php if (empty($user_appointments)): ?>
+                <div class="empty-state">
+                    <i class="fa-solid fa-calendar-plus fa-2x mb-3"></i>
+                    <h5>No Appointments Yet</h5>
+                    <p class="text-muted">You haven't booked any appointments yet.</p>
+                    <a href="user_appointment.php" class="btn btn-primary">
+                        <i class="fa-solid fa-plus me-1"></i> Book Your First Appointment
+                    </a>
+                </div>
+            <?php else: ?>
+                <div class="row">
+                    <?php foreach ($user_appointments as $appt): ?>
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card appointment-card appointment-<?php echo $appt['status']; ?> h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="mb-0"><?php echo htmlspecialchars($appt['pet_name']); ?></h6>
+                                            <small class="text-muted"><?php echo htmlspecialchars($appt['service_type']); ?></small>
+                                        </div>
+                                        <span class="badge badge-<?php echo $appt['status']; ?>">
+                                            <?php echo ucfirst($appt['status']); ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <small class="text-muted">Date & Time</small>
+                                        <div class="fw-semibold">
+                                            <?php echo date('M j, Y', strtotime($appt['appointment_date'])); ?><br>
+                                            <small><?php echo date('g:i A', strtotime($appt['appointment_time'])); ?></small>
+                                        </div>
+                                    </div>
+                                    
+                                    <?php if (!empty($appt['reason'])): ?>
+                                        <div class="mb-2">
+                                            <small class="text-muted">Reason</small>
+                                            <div class="small"><?php echo htmlspecialchars($appt['reason']); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($appt['vet_notes'])): ?>
+                                        <div class="mb-2">
+                                            <small class="text-muted">Vet Notes</small>
+                                            <div class="small text-success"><?php echo htmlspecialchars($appt['vet_notes']); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="mt-3">
+                                        <?php if ($appt['status'] == 'pending'): ?>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-warning">
+                                                    <i class="fas fa-clock me-1"></i>Waiting for vet confirmation
+                                                </small>
+                                                <form method="POST" action="user_dashboard.php" class="d-inline">
+                                                    <input type="hidden" name="appointment_id" value="<?php echo $appt['appointment_id']; ?>">
+                                                    <input type="hidden" name="cancel_reason" value="Cancelled by user">
+                                                    <button type="submit" name="cancel_appointment" class="btn btn-sm btn-outline-danger" 
+                                                            onclick="return confirm('Are you sure you want to cancel this appointment?')">
+                                                        <i class="fas fa-times me-1"></i> Cancel
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        <?php elseif ($appt['status'] == 'confirmed'): ?>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-success">
+                                                    <i class="fas fa-check-circle me-1"></i>Confirmed by Veterinarian
+                                                </small>
+                                                <form method="POST" action="user_dashboard.php" class="d-inline">
+                                                    <input type="hidden" name="appointment_id" value="<?php echo $appt['appointment_id']; ?>">
+                                                    <input type="hidden" name="cancel_reason" value="Cancelled by user">
+                                                    <button type="submit" name="cancel_appointment" class="btn btn-sm btn-outline-danger" 
+                                                            onclick="return confirm('Are you sure you want to cancel this appointment?')">
+                                                        <i class="fas fa-times me-1"></i> Cancel
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        <?php elseif ($appt['status'] == 'completed'): ?>
+                                            <small class="text-success">
+                                                <i class="fas fa-flag-checkered me-1"></i>Appointment Completed
+                                            </small>
+                                        <?php elseif ($appt['status'] == 'cancelled'): ?>
+                                            <small class="text-danger">
+                                                <i class="fas fa-ban me-1"></i>Appointment Cancelled
+                                            </small>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            Created: <?php echo date('M j, g:i A', strtotime($appt['created_at'])); ?>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    <?php else: ?>
-                        <div class="appointment-list">
-                            <?php foreach ($user_appointments as $appointment): ?>
-                                <div class="appointment-card p-3 rounded appointment-<?php echo $appointment['status']; ?>">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-1"><?php echo htmlspecialchars($appointment['pet_name'] ?? 'Unknown Pet'); ?></h6>
-                                            <p class="mb-1 small">
-                                                <i class="fa-solid fa-calendar me-1"></i>
-                                                <?php echo date('M j, Y', strtotime($appointment['appointment_date'])); ?>
-                                                at <?php echo date('g:i A', strtotime($appointment['appointment_time'])); ?>
-                                            </p>
-                                            <p class="mb-1 small">
-                                                <i class="fa-solid fa-stethoscope me-1"></i>
-                                                <?php echo htmlspecialchars($appointment['service_type'] ?? 'General Checkup'); ?>
-                                            </p>
-                                            <?php if (!empty($appointment['vet_notes'])): ?>
-                                                <p class="mb-1 small text-muted">
-                                                    <i class="fa-solid fa-note-sticky me-1"></i>
-                                                    <?php echo htmlspecialchars($appointment['vet_notes']); ?>
-                                                </p>
-                                            <?php endif; ?>
+                    <?php endforeach; ?>
+                </div>
+                
+                <?php if ($appointment_stats['total'] > 6): ?>
+                    <div class="text-center mt-4">
+                        <a href="user_appointments.php" class="btn btn-outline-primary">
+                            <i class="fas fa-list me-1"></i> View All <?php echo $appointment_stats['total']; ?> Appointments
+                        </a>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
+
+        <!-- Pets Section -->
+        <div class="card-custom">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0"><i class="fa-solid fa-paw me-2"></i>Your Pets</h4>
+                <a href="register_pet.php" class="btn btn-sm btn-primary">
+                    <i class="fa-solid fa-plus me-1"></i> Add Pet
+                </a>
+            </div>
+            
+            <?php if (empty($pets)): ?>
+                <div class="empty-state">
+                    <i class="fa-solid fa-paw"></i>
+                    <h5>No Pets Registered</h5>
+                    <p class="text-muted">You haven't added any pets yet. Register your first pet to get started!</p>
+                    <a href="register_pet.php" class="btn btn-primary">
+                        <i class="fa-solid fa-plus me-1"></i> Add Your First Pet
+                    </a>
+                </div>
+            <?php else: ?>
+                <div class="row">
+                    <?php foreach ($pets as $pet): ?>
+                        <?php
+                        $hasVaccination = false;
+                        $hasRecentVisit = false;
+                        $thirtyDaysAgo = date('Y-m-d', strtotime('-30 days'));
+                        
+                        foreach ($pet['records'] as $record) {
+                            if (!empty($record['service_type']) && stripos($record['service_type'], 'vaccin') !== false) {
+                                $hasVaccination = true;
+                            }
+                            if (!empty($record['service_date']) && $record['service_date'] >= $thirtyDaysAgo) {
+                                $hasRecentVisit = true;
+                            }
+                        }
+                        
+                        // Determine health status
+                        $healthStatus = $hasVaccination ? 'Good Health' : 'Needs Vaccination';
+                        $statusClass = $hasVaccination ? 'status-good' : 'status-warning';
+                        if (!$hasVaccination && !$hasRecentVisit) {
+                            $healthStatus = 'Needs Checkup';
+                            $statusClass = 'status-bad';
+                        }
+                        ?>
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="pet-card">
+                                <div class="pet-card-header" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#e0f2fe' : '#f0f9ff'; ?>">
+                                    <div>
+                                        <h5 class="mb-0"><?php echo htmlspecialchars($pet['pet_name']); ?></h5>
+                                        <small class="text-muted"><?php echo htmlspecialchars($pet['species']) . " • " . htmlspecialchars($pet['breed']); ?></small>
+                                    </div>
+                                    <div class="pet-species-icon" style="background: <?php echo strtolower($pet['species']) == 'dog' ? '#bae6fd' : '#e0f2fe'; ?>">
+                                        <i class="fa-solid <?php echo strtolower($pet['species']) == 'dog' ? 'fa-dog' : 'fa-cat'; ?>"></i>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between mb-3">
+                                        <div>
+                                            <strong>Age:</strong> <?php echo htmlspecialchars($pet['age']); ?> years<br>
+                                            <strong>Gender:</strong> <?php echo htmlspecialchars($pet['gender']) ?: 'Not specified'; ?><br>
+                                            <strong>Registered:</strong> <?php echo date('M j, Y', strtotime($pet['date_registered'])); ?>
                                         </div>
                                         <div class="text-end">
-                                            <span class="badge badge-<?php echo $appointment['status']; ?>">
-                                                <?php echo ucfirst($appointment['status']); ?>
-                                            </span>
-                                            <?php if ($appointment['status'] === 'pending' || $appointment['status'] === 'confirmed'): ?>
-                                                <button class="btn btn-sm btn-outline-danger mt-2" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#cancelModal"
-                                                        data-appointment-id="<?php echo $appointment['appointment_id']; ?>">
-                                                    <i class="fa-solid fa-xmark"></i>
-                                                </button>
-                                            <?php endif; ?>
+                                            <div class="health-status">
+                                                <span class="status-dot <?php echo $statusClass; ?>"></span>
+                                                <small><?php echo $healthStatus; ?></small>
+                                            </div>
+                                            <small class="text-muted">ID: <?php echo htmlspecialchars($pet['pet_id']); ?></small>
                                         </div>
                                     </div>
+                                    
+                                    <?php if (!empty($pet['records'])): ?>
+                                        <div class="mt-3">
+                                            <h6>Recent Medical History</h6>
+                                            <div class="medical-history">
+                                                <?php 
+                                                $recentRecords = array_slice($pet['records'], 0, 3);
+                                                foreach ($recentRecords as $record): 
+                                                    if (!empty($record['service_date']) && $record['service_date'] !== '0000-00-00'):
+                                                ?>
+                                                    <div class="d-flex justify-content-between border-bottom py-1">
+                                                        <small><?php echo htmlspecialchars($record['service_type'] ?? 'Checkup'); ?></small>
+                                                        <small class="text-muted"><?php echo date('M j, Y', strtotime($record['service_date'])); ?></small>
+                                                    </div>
+                                                <?php 
+                                                    endif;
+                                                endforeach; 
+                                                ?>
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="alert alert-info mb-0 mt-3">
+                                            <i class="fas fa-info-circle me-1"></i> No medical records found.
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="mt-3">
+                                        <a href="user_pet_profile.php?id=<?php echo $pet['pet_id']; ?>" class="btn btn-sm btn-outline-primary w-100">
+                                            <i class="fas fa-eye me-1"></i> View Details
+                                        </a>
+                                    </div>
                                 </div>
-                            <?php endforeach; ?>
+                            </div>
                         </div>
-                    <?php endif; ?>
+                    <?php endforeach; ?>
                 </div>
-            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Quick Actions -->
-        <div class="card-custom mt-4">
-            <h5 class="mb-3"><i class="fa-solid fa-bolt me-2"></i>Quick Actions</h5>
-            <div class="row text-center">
-                <div class="col-md-2 col-4 mb-3">
-                    <a href="register_pet.php" class="btn btn-outline-primary w-100 py-3">
-                        <i class="fa-solid fa-plus fa-2x mb-2"></i><br>
-                        <small>Add Pet</small>
+        <div class="card-custom text-center">
+            <h5><i class="fa-solid fa-bolt me-2"></i>Quick Actions</h5>
+            <p class="text-muted">Manage your pets and appointments quickly</p>
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <a href="user_appointment.php" class="btn btn-primary w-100">
+                        <i class="fas fa-calendar-plus me-1"></i> Book Appointment
                     </a>
                 </div>
-                <div class="col-md-2 col-4 mb-3">
-                    <a href="user_appointment.php" class="btn btn-outline-success w-100 py-3">
-                        <i class="fa-solid fa-calendar-plus fa-2x mb-2"></i><br>
-                        <small>Book Visit</small>
+                <div class="col-md-3 mb-2">
+                    <a href="register_pet.php" class="btn btn-success w-100">
+                        <i class="fas fa-plus-circle me-1"></i> Add Pet
                     </a>
                 </div>
-                <div class="col-md-2 col-4 mb-3">
-                    <a href="qr_code.php" class="btn btn-outline-info w-100 py-3">
-                        <i class="fa-solid fa-qrcode fa-2x mb-2"></i><br>
-                        <small>QR Codes</small>
+                <div class="col-md-3 mb-2">
+                    <a href="user_appointments.php" class="btn btn-info w-100">
+                        <i class="fas fa-list me-1"></i> View Appointments
                     </a>
                 </div>
-                <div class="col-md-2 col-4 mb-3">
-                    <a href="user_pet_profile.php" class="btn btn-outline-warning w-100 py-3">
-                        <i class="fa-solid fa-paw fa-2x mb-2"></i><br>
-                        <small>Pet Profiles</small>
-                    </a>
-                </div>
-                <div class="col-md-2 col-4 mb-3">
-                    <a href="user_settings.php" class="btn btn-outline-secondary w-100 py-3">
-                        <i class="fa-solid fa-gear fa-2x mb-2"></i><br>
-                        <small>Settings</small>
-                    </a>
-                </div>
-                <div class="col-md-2 col-4 mb-3">
-                    <a href="help.php" class="btn btn-outline-dark w-100 py-3">
-                        <i class="fa-solid fa-circle-question fa-2x mb-2"></i><br>
-                        <small>Help</small>
+                <div class="col-md-3 mb-2">
+                    <a href="qr_code.php" class="btn btn-warning w-100">
+                        <i class="fas fa-qrcode me-1"></i> QR Codes
                     </a>
                 </div>
             </div>
@@ -1213,16 +1201,20 @@ if (isset($_POST['cancel_appointment'])) {
                 <h5 class="modal-title">Cancel Appointment</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="">
+            <form method="POST" action="user_dashboard.php" id="cancelForm">
                 <div class="modal-body">
                     <input type="hidden" name="appointment_id" id="cancelAppointmentId">
                     <div class="mb-3">
-                        <label for="cancel_reason" class="form-label">Reason for cancellation:</label>
-                        <textarea class="form-control" id="cancel_reason" name="cancel_reason" rows="3" placeholder="Please provide a reason for cancellation..."></textarea>
+                        <label class="form-label">Reason for Cancellation</label>
+                        <textarea class="form-control" name="cancel_reason" rows="3" placeholder="Please provide a reason for cancellation..." required></textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Are you sure you want to cancel this appointment? This action cannot be undone.
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Appointment</button>
                     <button type="submit" name="cancel_appointment" class="btn btn-danger">Cancel Appointment</button>
                 </div>
             </form>
@@ -1230,194 +1222,381 @@ if (isset($_POST['cancel_appointment'])) {
     </div>
 </div>
 
+<!-- Bootstrap & jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
-    // Update date and time
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set current date and time
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        
+        // Auto-close alerts after 5 seconds
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+        
+        // Initialize health monitoring charts
+        initializeHealthCharts();
+        
+        // Load disease classes for AI analysis
+        loadDiseaseClasses();
+        
+        console.log('User dashboard initialized successfully!');
+    });
+
     function updateDateTime() {
         const now = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
-        document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US');
     }
-    updateDateTime();
-    setInterval(updateDateTime, 60000);
 
-    // Cancel Appointment Modal
-    const cancelModal = document.getElementById('cancelModal');
-    if (cancelModal) {
-        cancelModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
-            const appointmentId = button.getAttribute('data-appointment-id');
-            document.getElementById('cancelAppointmentId').value = appointmentId;
+    function showCancelModal(appointmentId) {
+        document.getElementById('cancelAppointmentId').value = appointmentId;
+        const cancelModal = new bootstrap.Modal(document.getElementById('cancelModal'));
+        cancelModal.show();
+    }
+
+    function initializeHealthCharts() {
+        // Vaccination Status Chart
+        const vaccinationCtx = document.getElementById('vaccinationChart').getContext('2d');
+        const vaccinationChart = new Chart(vaccinationCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Vaccinated', 'Not Vaccinated'],
+                datasets: [{
+                    data: [<?php echo $vaccinatedPets; ?>, <?php echo $totalPets - $vaccinatedPets; ?>],
+                    backgroundColor: ['#10b981', '#ef4444'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Health Scores Chart
+        const healthScoreCtx = document.getElementById('healthScoreChart').getContext('2d');
+        const healthScoreChart = new Chart(healthScoreCtx, {
+            type: 'bar',
+            data: {
+                labels: <?php echo json_encode(array_keys($healthData['health_scores'])); ?>,
+                datasets: [{
+                    label: 'Health Score (%)',
+                    data: <?php echo json_encode(array_values($healthData['health_scores'])); ?>,
+                    backgroundColor: '#0ea5e9',
+                    borderColor: '#0284c7',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Health Score (%)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Visit Frequency Chart
+        const visitCtx = document.getElementById('visitChart').getContext('2d');
+        const visitChart = new Chart(visitCtx, {
+            type: 'line',
+            data: {
+                labels: <?php echo json_encode(array_keys($healthData['visit_frequency'])); ?>,
+                datasets: [{
+                    label: 'Visits (Last 30 Days)',
+                    data: <?php echo json_encode(array_values($healthData['visit_frequency'])); ?>,
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    borderColor: '#8b5cf6',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Visits'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Weight Distribution Chart
+        const weightCtx = document.getElementById('weightChart').getContext('2d');
+        const weightChart = new Chart(weightCtx, {
+            type: 'radar',
+            data: {
+                labels: <?php echo json_encode(array_keys($healthData['weight_trends'])); ?>,
+                datasets: [{
+                    label: 'Weight (kg)',
+                    data: <?php echo json_encode(array_values($healthData['weight_trends'])); ?>,
+                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                    borderColor: '#f59e0b',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#f59e0b'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true
+                    }
+                }
+            }
         });
     }
 
-    // AI Analysis Form
-    document.getElementById('aiAnalysisForm')?.addEventListener('submit', function(e) {
-        e.preventDefault();
+    // Pet Disease AI Analysis Functions
+    function loadDiseaseClasses() {
+        fetch('https://vetcare-prediction-api-production.up.railway.app/classes')
+            .then(response => response.json())
+            .then(data => {
+                const classesList = document.getElementById('diseaseClassesList');
+                if (data.classes && data.classes.length > 0) {
+                    classesList.innerHTML = data.classes.map(cls => 
+                        `<span class="disease-tag">${cls}</span>`
+                    ).join('');
+                } else {
+                    classesList.innerHTML = '<small class="text-muted">Unable to load disease classes</small>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading disease classes:', error);
+                document.getElementById('diseaseClassesList').innerHTML = 
+                    '<small class="text-muted">Cannot connect to AI service</small>';
+            });
+    }
+
+    async function analyzePetImage() {
+        const fileInput = document.getElementById('petImageInput');
         const resultDiv = document.getElementById('analysisResult');
-        const resultText = document.getElementById('resultText');
         
-        // Simulate AI analysis (in real implementation, this would call an API)
-        resultText.textContent = "Analysis in progress... This feature would integrate with our AI model to analyze pet images for common diseases and health issues.";
-        resultDiv.style.display = 'block';
+        if (!fileInput.files[0]) {
+            showAlert('Please select an image file first!', 'warning');
+            return;
+        }
         
-        // Simulate API call delay
+        // Validate file size (10MB limit)
+        if (fileInput.files[0].size > 10 * 1024 * 1024) {
+            showAlert('File size too large. Please select an image under 10MB.', 'warning');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        
+        // Show loading state
+        resultDiv.innerHTML = `
+            <div class="alert alert-info alert-custom">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                    <div>
+                        <strong>Analyzing Image...</strong><br>
+                        <small>Our AI is examining your pet's image for disease detection</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        try {
+            const response = await fetch('https://vetcare-prediction-api-production.up.railway.app/predict', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                displayAnalysisResults(data);
+            } else {
+                throw new Error(data.error || 'Analysis failed');
+            }
+            
+        } catch (error) {
+            console.error('Analysis error:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger alert-custom">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Analysis Failed</strong><br>
+                    <small>${error.message || 'Unable to connect to AI service. Please try again.'}</small>
+                </div>
+            `;
+        }
+    }
+
+    function displayAnalysisResults(data) {
+        const resultDiv = document.getElementById('analysisResult');
+        
+        let html = `
+            <div class="alert alert-success alert-custom">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5><i class="fas fa-check-circle me-2"></i>Analysis Complete</h5>
+                        <p class="mb-1"><strong>File:</strong> ${data.file_name}</p>
+                        <p class="mb-0"><strong>Model:</strong> ${data.message || 'AI Medical Analysis'}</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="clearAnalysis()">
+                        <i class="fas fa-times me-1"></i> Clear
+                    </button>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card-custom" style="background: linear-gradient(135deg, #d4edda, #c3e6cb);">
+                        <h6><i class="fas fa-stethoscope me-2"></i>Primary Diagnosis</h6>
+                        <div class="text-center py-3">
+                            <h3 class="text-success mb-2">${data.primary_prediction.class}</h3>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: ${data.primary_prediction.confidence}%" 
+                                     aria-valuenow="${data.primary_prediction.confidence}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    ${data.primary_prediction.confidence}%
+                                </div>
+                            </div>
+                            <small class="text-muted mt-2">Confidence Level</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <h6><i class="fas fa-list-ol me-2"></i>Alternative Possibilities</h6>
+                        <div style="max-height: 200px; overflow-y: auto;">
+        `;
+        
+        if (data.predictions.length > 1) {
+            data.predictions.slice(1, 5).forEach((pred, index) => {
+                const confidenceColor = pred.confidence > 30 ? 'warning' : 'secondary';
+                html += `
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <small>${index + 1}. ${pred.class}</small>
+                        <span class="badge bg-${confidenceColor}">${pred.confidence}%</span>
+                    </div>
+                `;
+            });
+        } else {
+            html += `<p class="text-muted text-center mb-0">No alternative diagnoses</p>`;
+        }
+        
+        html += `
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-custom mt-3">
+                <h6><i class="fas fa-lightbulb me-2"></i>Recommended Actions</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Consult a Veterinarian</strong><br>
+                            <small>This AI analysis is for informational purposes only. Always consult a qualified veterinarian for proper diagnosis and treatment.</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="alert alert-info">
+                            <i class="fas fa-calendar-plus me-2"></i>
+                            <strong>Book an Appointment</strong><br>
+                            <small>Schedule a vet visit for professional diagnosis and treatment plan.</small>
+                            <div class="mt-2">
+                                <a href="user_appointment.php" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-calendar-plus me-1"></i> Book Now
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        resultDiv.innerHTML = html;
+    }
+
+    function clearAnalysis() {
+        document.getElementById('petImageInput').value = '';
+        document.getElementById('analysisResult').innerHTML = '';
+    }
+
+    function showAlert(message, type = 'info') {
+        const alertClass = {
+            'success': 'alert-success',
+            'warning': 'alert-warning', 
+            'danger': 'alert-danger',
+            'info': 'alert-info'
+        }[type] || 'alert-info';
+        
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alertClass} alert-custom alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.getElementById('analysisResult').innerHTML = '';
+        document.getElementById('analysisResult').appendChild(alertDiv);
+        
         setTimeout(() => {
-            const sampleResults = [
-                "Analysis complete: No obvious signs of disease detected. Your pet appears healthy!",
-                "Potential skin irritation detected. Recommend consulting with your veterinarian.",
-                "Ear infection suspected based on image analysis. Please schedule a vet visit.",
-                "Healthy coat and eyes detected. Your pet shows no visible signs of illness."
-            ];
-            const randomResult = sampleResults[Math.floor(Math.random() * sampleResults.length)];
-            resultText.textContent = randomResult;
-        }, 2000);
+            if (alertDiv.parentNode) {
+                const bsAlert = new bootstrap.Alert(alertDiv);
+                bsAlert.close();
+            }
+        }, 5000);
+    }
+
+    // Search functionality
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            const searchInput = document.querySelector('.input-group input');
+            if (searchInput) searchInput.focus();
+        }
     });
 
-    // Initialize Charts
-    document.addEventListener('DOMContentLoaded', function() {
-        <?php if (!empty($pets)): ?>
-            // Vaccination Status Chart
-            const vaccinationCtx = document.getElementById('vaccinationChart')?.getContext('2d');
-            if (vaccinationCtx) {
-                new Chart(vaccinationCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Vaccinated', 'Not Vaccinated'],
-                        datasets: [{
-                            data: [<?php echo $vaccinatedPets; ?>, <?php echo $totalPets - $vaccinatedPets; ?>],
-                            backgroundColor: ['#10b981', '#ef4444'],
-                            borderWidth: 2,
-                            borderColor: '#fff'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Health Score Chart
-            const healthScoreCtx = document.getElementById('healthScoreChart')?.getContext('2d');
-            if (healthScoreCtx && <?php echo !empty($healthData['health_scores']) ? 'true' : 'false'; ?>) {
-                new Chart(healthScoreCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: <?php echo json_encode(array_keys($healthData['health_scores'])); ?>,
-                        datasets: [{
-                            label: 'Health Score %',
-                            data: <?php echo json_encode(array_values($healthData['health_scores'])); ?>,
-                            backgroundColor: function(context) {
-                                const value = context.raw;
-                                if (value >= 80) return '#10b981';
-                                if (value >= 60) return '#f59e0b';
-                                return '#ef4444';
-                            },
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                title: {
-                                    display: true,
-                                    text: 'Health Score %'
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Visit Frequency Chart
-            const visitCtx = document.getElementById('visitChart')?.getContext('2d');
-            if (visitCtx && <?php echo !empty($healthData['visit_frequency']) ? 'true' : 'false'; ?>) {
-                new Chart(visitCtx, {
-                    type: 'line',
-                    data: {
-                        labels: <?php echo json_encode(array_keys($healthData['visit_frequency'])); ?>,
-                        datasets: [{
-                            label: 'Visits (Last 30 Days)',
-                            data: <?php echo json_encode(array_values($healthData['visit_frequency'])); ?>,
-                            borderColor: '#0ea5e9',
-                            backgroundColor: 'rgba(14, 165, 233, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Number of Visits'
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Weight Chart
-            const weightCtx = document.getElementById('weightChart')?.getContext('2d');
-            if (weightCtx && <?php echo !empty($healthData['weight_trends']) ? 'true' : 'false'; ?>) {
-                new Chart(weightCtx, {
-                    type: 'pie',
-                    data: {
-                        labels: <?php echo json_encode(array_keys($healthData['weight_trends'])); ?>,
-                        datasets: [{
-                            data: <?php echo json_encode(array_values($healthData['weight_trends'])); ?>,
-                            backgroundColor: [
-                                '#0ea5e9', '#8b5cf6', '#f59e0b', '#10b981', 
-                                '#ef4444', '#6366f1', '#ec4899', '#06b6d4'
-                            ],
-                            borderWidth: 2,
-                            borderColor: '#fff'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return context.label + ': ' + context.raw + ' kg';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        <?php endif; ?>
-    });
-
-    // Auto-dismiss alerts after 5 seconds
-    setTimeout(() => {
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => {
-            const bsAlert = new bootstrap.Alert(alert);
-            bsAlert.close();
-        });
-    }, 5000);
+    // Auto-refresh data every 2 minutes
+    setInterval(() => {
+        console.log('Auto-refreshing dashboard data...');
+        // You can implement AJAX refresh here if needed
+    }, 120000);
 </script>
 </body>
 </html>
+
+        
