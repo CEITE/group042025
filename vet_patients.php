@@ -1069,4 +1069,5 @@ if (isset($_GET['view_records'])) {
     <?php endif; ?>
 </script>
 </body>
+
 </html>
