@@ -795,7 +795,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                         <div class="fw-bold text-white"><?php echo htmlspecialchars($admin['name']); ?></div>
                         <small class="text-white-50">Administrator</small>
                     </div>
-                    <a href="logout.php" class="text-white-50"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
+                    <a href="logout_admin.php" class="text-white-50"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
                 </div>
             </div>
         </aside>
@@ -1136,6 +1136,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
     </script>
 </body>
 </html>
+
 
 
 
