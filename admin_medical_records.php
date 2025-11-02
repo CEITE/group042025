@@ -38,11 +38,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_record'])) {
     $visit_date = $_POST['visit_date'];
     $next_visit = $_POST['next_visit'] ?: null;
     
-    $insert_query = "INSERT INTO medical_records (pet_id, vet_id, diagnosis, treatment, medications, notes, visit_date, next_visit_date, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+    // Get pet and owner details
+    $pet_query = "SELECT p.*, u.user_id as owner_id, u.name as owner_name, u.email as owner_email 
+                  FROM pets p 
+                  LEFT JOIN users u ON p.user_id = u.user_id 
+                  WHERE p.pet_id = ?";
+    $pet_stmt = $conn->prepare($pet_query);
+    $pet_stmt->bind_param("i", $pet_id);
+    $pet_stmt->execute();
+    $pet_result = $pet_stmt->get_result();
+    $pet_data = $pet_result->fetch_assoc();
+    $pet_stmt->close();
+    
+    // Get veterinarian details
+    $vet_query = "SELECT name, specialization FROM users WHERE user_id = ?";
+    $vet_stmt = $conn->prepare($vet_query);
+    $vet_stmt->bind_param("i", $vet_id);
+    $vet_stmt->execute();
+    $vet_result = $vet_stmt->get_result();
+    $vet_data = $vet_result->fetch_assoc();
+    $vet_stmt->close();
+    
+    // Insert into pet_medical_records table
+    $insert_query = "INSERT INTO pet_medical_records (
+        owner_id, owner_name, pet_id, pet_name, species, breed, 
+        service_date, service_type, service_description, veterinarian, notes,
+        owner_email, reminder_due_date, generated_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+    
+    $service_type = "Medical Consultation";
+    $service_description = "Diagnosis: " . $diagnosis . 
+                          (empty($treatment) ? "" : " | Treatment: " . $treatment) .
+                          (empty($medications) ? "" : " | Medications: " . $medications);
     
     $stmt = $conn->prepare($insert_query);
-    $stmt->bind_param("iissssss", $pet_id, $vet_id, $diagnosis, $treatment, $medications, $notes, $visit_date, $next_visit);
+    $stmt->bind_param("isississsssss", 
+        $pet_data['owner_id'], 
+        $pet_data['owner_name'],
+        $pet_id,
+        $pet_data['name'],
+        $pet_data['species'],
+        $pet_data['breed'],
+        $visit_date,
+        $service_type,
+        $service_description,
+        $vet_data['name'],
+        $notes,
+        $pet_data['owner_email'],
+        $next_visit
+    );
     
     if ($stmt->execute()) {
         $_SESSION['success'] = "Medical record created successfully!";
@@ -62,10 +106,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_record'])) {
     $visit_date = $_POST['visit_date'];
     $next_visit = $_POST['next_visit'] ?: null;
     
-    $update_query = "UPDATE medical_records SET diagnosis = ?, treatment = ?, medications = ?, notes = ?, visit_date = ?, next_visit_date = ?, updated_at = NOW() WHERE record_id = ?";
+    $service_description = "Diagnosis: " . $diagnosis . 
+                          (empty($treatment) ? "" : " | Treatment: " . $treatment) .
+                          (empty($medications) ? "" : " | Medications: " . $medications);
+    
+    $update_query = "UPDATE pet_medical_records SET 
+        service_date = ?, 
+        service_description = ?, 
+        notes = ?,
+        reminder_due_date = ?
+        WHERE record_id = ?";
     
     $stmt = $conn->prepare($update_query);
-    $stmt->bind_param("ssssssi", $diagnosis, $treatment, $medications, $notes, $visit_date, $next_visit, $record_id);
+    $stmt->bind_param("ssssi", $visit_date, $service_description, $notes, $next_visit, $record_id);
     
     if ($stmt->execute()) {
         $_SESSION['success'] = "Medical record updated successfully!";
@@ -79,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_record'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_record'])) {
     $record_id = intval($_POST['record_id']);
     
-    $delete_query = "DELETE FROM medical_records WHERE record_id = ?";
+    $delete_query = "DELETE FROM pet_medical_records WHERE record_id = ?";
     $stmt = $conn->prepare($delete_query);
     $stmt->bind_param("i", $record_id);
     
@@ -95,17 +148,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_record'])) {
 $records_query = "
     SELECT 
         mr.*,
-        p.name as pet_name,
-        p.species as pet_species,
-        p.breed as pet_breed,
-        u_owner.name as owner_name,
-        u_vet.name as vet_name,
-        u_vet.specialization as vet_specialization
-    FROM medical_records mr
+        p.name as original_pet_name,
+        p.species as original_species,
+        p.breed as original_breed
+    FROM pet_medical_records mr
     LEFT JOIN pets p ON mr.pet_id = p.pet_id
-    LEFT JOIN users u_owner ON p.user_id = u_owner.user_id
-    LEFT JOIN users u_vet ON mr.vet_id = u_vet.user_id
-    ORDER BY mr.visit_date DESC, mr.created_at DESC
+    ORDER BY mr.service_date DESC, mr.generated_date DESC
 ";
 
 $records_result = $conn->query($records_query);
@@ -139,10 +187,10 @@ if ($vets_result) {
 // Get medical records statistics
 $records_stats_query = "
     SELECT 
-        (SELECT COUNT(*) FROM medical_records) as total_records,
-        (SELECT COUNT(*) FROM medical_records WHERE DATE(visit_date) = CURDATE()) as today_records,
-        (SELECT COUNT(*) FROM medical_records WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as weekly_records,
-        (SELECT COUNT(*) FROM medical_records WHERE next_visit_date IS NOT NULL AND next_visit_date >= CURDATE()) as upcoming_visits
+        (SELECT COUNT(*) FROM pet_medical_records) as total_records,
+        (SELECT COUNT(*) FROM pet_medical_records WHERE DATE(service_date) = CURDATE()) as today_records,
+        (SELECT COUNT(*) FROM pet_medical_records WHERE service_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as weekly_records,
+        (SELECT COUNT(*) FROM pet_medical_records WHERE reminder_due_date IS NOT NULL AND reminder_due_date >= CURDATE()) as upcoming_visits
 ";
 
 $records_stats_result = $conn->query($records_stats_query);
@@ -157,14 +205,12 @@ $records_stats = $records_stats_result ? $records_stats_result->fetch_assoc() : 
 $recent_records_query = "
     SELECT 
         mr.record_id,
-        mr.diagnosis,
-        mr.visit_date,
-        p.name as pet_name,
-        u_vet.name as vet_name
-    FROM medical_records mr
-    LEFT JOIN pets p ON mr.pet_id = p.pet_id
-    LEFT JOIN users u_vet ON mr.vet_id = u_vet.user_id
-    ORDER BY mr.created_at DESC 
+        mr.service_description as diagnosis,
+        mr.service_date as visit_date,
+        mr.pet_name,
+        mr.veterinarian as vet_name
+    FROM pet_medical_records mr
+    ORDER BY mr.generated_date DESC 
     LIMIT 5
 ";
 
@@ -988,9 +1034,18 @@ if ($recent_records_result) {
                                             <small class="text-muted"><?php echo date('M j', strtotime($record['visit_date'])); ?></small>
                                         </div>
                                         <div class="diagnosis-tag d-inline-block mb-2">
-                                            <?php echo htmlspecialchars(substr($record['diagnosis'], 0, 30)) . (strlen($record['diagnosis']) > 30 ? '...' : ''); ?>
+                                            <?php 
+                                            $diagnosis = $record['diagnosis'];
+                                            if (strpos($diagnosis, 'Diagnosis:') !== false) {
+                                                $diagnosis = substr($diagnosis, strpos($diagnosis, 'Diagnosis:') + 10);
+                                                if (strpos($diagnosis, '|') !== false) {
+                                                    $diagnosis = substr($diagnosis, 0, strpos($diagnosis, '|'));
+                                                }
+                                            }
+                                            echo htmlspecialchars(trim(substr($diagnosis, 0, 30))) . (strlen($diagnosis) > 30 ? '...' : ''); 
+                                            ?>
                                         </div>
-                                        <div class="user-email">By Dr. <?php echo htmlspecialchars($record['vet_name']); ?></div>
+                                        <div class="user-email">By <?php echo htmlspecialchars($record['vet_name']); ?></div>
                                     </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
@@ -1037,26 +1092,36 @@ if ($recent_records_result) {
                                                         <div>
                                                             <div class="user-name"><?php echo htmlspecialchars($record['pet_name']); ?></div>
                                                             <div class="user-email">Owner: <?php echo htmlspecialchars($record['owner_name']); ?></div>
-                                                            <small class="text-muted"><?php echo htmlspecialchars($record['pet_species']); ?> • <?php echo htmlspecialchars($record['pet_breed']); ?></small>
+                                                            <small class="text-muted"><?php echo htmlspecialchars($record['species']); ?> • <?php echo htmlspecialchars($record['breed']); ?></small>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <div class="diagnosis-tag"><?php echo htmlspecialchars(substr($record['diagnosis'], 0, 50)) . (strlen($record['diagnosis']) > 50 ? '...' : ''); ?></div>
-                                                    <?php if ($record['treatment']): ?>
-                                                        <small class="text-muted">Treatment: <?php echo htmlspecialchars(substr($record['treatment'], 0, 30)) . (strlen($record['treatment']) > 30 ? '...' : ''); ?></small>
+                                                    <?php 
+                                                    // Extract diagnosis from service_description
+                                                    $diagnosis = $record['service_description'];
+                                                    if (strpos($diagnosis, 'Diagnosis:') !== false) {
+                                                        $diagnosis = substr($diagnosis, strpos($diagnosis, 'Diagnosis:') + 10);
+                                                        if (strpos($diagnosis, '|') !== false) {
+                                                            $diagnosis = substr($diagnosis, 0, strpos($diagnosis, '|'));
+                                                        }
+                                                    }
+                                                    ?>
+                                                    <div class="diagnosis-tag"><?php echo htmlspecialchars(trim($diagnosis)); ?></div>
+                                                    <?php if ($record['notes']): ?>
+                                                        <small class="text-muted">Notes: <?php echo htmlspecialchars(substr($record['notes'], 0, 30)) . (strlen($record['notes']) > 30 ? '...' : ''); ?></small>
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <div class="user-name">Dr. <?php echo htmlspecialchars($record['vet_name']); ?></div>
-                                                    <small class="text-muted"><?php echo htmlspecialchars($record['vet_specialization']); ?></small>
+                                                    <div class="user-name"><?php echo htmlspecialchars($record['veterinarian']); ?></div>
+                                                    <small class="text-muted">Veterinarian</small>
                                                 </td>
                                                 <td>
-                                                    <div class="visit-date"><?php echo date('M j, Y', strtotime($record['visit_date'])); ?></div>
+                                                    <div class="visit-date"><?php echo date('M j, Y', strtotime($record['service_date'])); ?></div>
                                                 </td>
                                                 <td>
-                                                    <?php if ($record['next_visit_date']): ?>
-                                                        <div class="next-visit"><?php echo date('M j, Y', strtotime($record['next_visit_date'])); ?></div>
+                                                    <?php if ($record['reminder_due_date']): ?>
+                                                        <div class="next-visit"><?php echo date('M j, Y', strtotime($record['reminder_due_date'])); ?></div>
                                                     <?php else: ?>
                                                         <span class="text-muted">Not scheduled</span>
                                                     <?php endif; ?>
@@ -1218,5 +1283,4 @@ if ($recent_records_result) {
         }
     </script>
 </body>
-
 </html>
