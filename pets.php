@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_pet'])) {
 $pets_query = "
     SELECT p.*, u.name as owner_name, u.email as owner_email
     FROM pets p
-    LEFT JOIN users u ON p.owner_id = u.user_id
+    LEFT JOIN users u ON p.user_id = u.user_id
     ORDER BY p.created_at DESC
 ";
 $pets_result = $conn->query($pets_query);
@@ -1070,3 +1070,4 @@ $pet_stats = $pet_stats_result->fetch_assoc();
     </script>
 </body>
 </html>
+
