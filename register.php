@@ -54,12 +54,12 @@ function sendOTP($email, $name, $otp) {
         $mail->SMTPDebug  = 0;
 
         // Recipients
-        $mail->setFrom('alimoromaira13@gmail.com', 'VetCareQR');
+        $mail->setFrom('alimoromaira13@gmail.com', 'VetCare');
         $mail->addAddress($email, $name);
 
         // Content
         $mail->isHTML(true);
-        $mail->Subject = 'VetCareQR - Email Verification Code';
+        $mail->Subject = 'VetCare- Email Verification Code';
         
         $mail->Body = "
         <html>
@@ -75,23 +75,23 @@ function sendOTP($email, $name, $otp) {
         <body>
             <div class='container'>
                 <div class='header'>
-                    <h2>🐾 VetCareQR</h2>
+                    <h2>🐾 VetCare</h2>
                     <h3>Email Verification</h3>
                 </div>
                 <p>Hello <strong>$name</strong>,</p>
-                <p>Thank you for registering with VetCareQR. Use the following OTP code to verify your email address:</p>
+                <p>Thank you for registering with VetCare. Use the following OTP code to verify your email address:</p>
                 <div class='otp-code'>$otp</div>
                 <p>This code will expire in 10 minutes.</p>
                 <p>If you didn't request this code, please ignore this email.</p>
                 <div class='footer'>
-                    <p>© 2025 VetCareQR - Santa Rosa Municipal Veterinary Services</p>
+                    <p>© 2025 VetCare - Santa Rosa Municipal Veterinary Services</p>
                 </div>
             </div>
         </body>
         </html>
         ";
         
-        $mail->AltBody = "Hello $name,\n\nYour VetCareQR verification code is: $otp\nThis code will expire in 10 minutes.\n\nIf you didn't request this code, please ignore this email.";
+        $mail->AltBody = "Hello $name,\n\nYour VetCare verification code is: $otp\nThis code will expire in 10 minutes.\n\nIf you didn't request this code, please ignore this email.";
 
         return $mail->send();
     } catch (Exception $e) {
@@ -292,7 +292,7 @@ if (isset($_POST['resend_otp'])) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VetCareQR — Register</title>
+  <title>VetCare — Register</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
@@ -337,7 +337,7 @@ if (isset($_POST['resend_otp'])) {
         <div class="logo-icon"><i class="fas fa-paw"></i></div>
         <h1 class="welcome-title"><?php echo $show_otp_form ? 'Verify Email' : 'Create Account'; ?></h1>
         <p class="text-muted">
-          <?php echo $show_otp_form ? 'Enter the 6-digit verification code' : 'Join VetCareQR to manage pet health'; ?>
+          <?php echo $show_otp_form ? 'Enter the 6-digit verification code' : 'Join VetCare to manage pet health'; ?>
         </p>
       </div>
 
@@ -627,3 +627,4 @@ if (isset($_POST['resend_otp'])) {
   </script>
 </body>
 </html>
+
