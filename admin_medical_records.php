@@ -144,6 +144,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_record'])) {
     $stmt->close();
 }
 
+// Set default record limit
+$records_limit = 10; // Show only 10 records by default
+$show_all = false;
+
 // Handle Search
 $search_term = "";
 $all_records = [];
@@ -179,7 +183,13 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
     }
     $stmt->close();
 } else {
-    // Get all medical records with related information
+    // Check if user wants to see all records
+    if (isset($_GET['show_all']) && $_GET['show_all'] == 'true') {
+        $show_all = true;
+        $records_limit = 1000; // Large number to show all records
+    }
+    
+    // Get medical records with limit
     $records_query = "
         SELECT 
             mr.*,
@@ -189,15 +199,26 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
         FROM pet_medical_records mr
         LEFT JOIN pets p ON mr.pet_id = p.pet_id
         ORDER BY mr.service_date DESC, mr.generated_date DESC
+        LIMIT ?
     ";
 
-    $records_result = $conn->query($records_query);
+    $stmt = $conn->prepare($records_query);
+    $stmt->bind_param("i", $records_limit);
+    $stmt->execute();
+    $records_result = $stmt->get_result();
+    
     if ($records_result) {
         while ($row = $records_result->fetch_assoc()) {
             $all_records[] = $row;
         }
     }
+    $stmt->close();
 }
+
+// Get total record count for display
+$total_count_query = "SELECT COUNT(*) as total FROM pet_medical_records";
+$total_count_result = $conn->query($total_count_query);
+$total_count = $total_count_result ? $total_count_result->fetch_assoc()['total'] : 0;
 
 // Get pets for dropdown
 $pets_query = "SELECT pet_id, name, species, breed FROM pets ORDER BY name";
@@ -882,6 +903,29 @@ if ($recent_records_result) {
         .clear-search:hover {
             color: var(--danger);
         }
+
+        .records-count {
+            background: rgba(5, 150, 105, 0.1);
+            color: var(--success);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .view-all-btn {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8b5cf6;
+            border: 2px solid #8b5cf6;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .view-all-btn:hover {
+            background: #8b5cf6;
+            color: white;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
@@ -1171,6 +1215,30 @@ if ($recent_records_result) {
                             </button>
                         </div>
 
+                        <!-- Records Count and View All Button -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="records-count">
+                                <i class="fa-solid fa-database me-2"></i>
+                                <?php if (!empty($search_term)): ?>
+                                    <?php echo count($all_records); ?> records found
+                                <?php elseif ($show_all): ?>
+                                    Showing all <?php echo count($all_records); ?> records
+                                <?php else: ?>
+                                    Showing <?php echo count($all_records); ?> of <?php echo $total_count; ?> records
+                                <?php endif; ?>
+                            </div>
+                            
+                            <?php if (!$show_all && empty($search_term) && $total_count > 10): ?>
+                                <a href="medical_records.php?show_all=true" class="btn view-all-btn">
+                                    <i class="fa-solid fa-list me-2"></i>View All Records
+                                </a>
+                            <?php elseif ($show_all): ?>
+                                <a href="medical_records.php" class="btn btn-outline-secondary">
+                                    <i class="fa-solid fa-compress me-2"></i>Show Less
+                                </a>
+                            <?php endif; ?>
+                        </div>
+
                         <?php if (empty($all_records)): ?>
                             <div class="text-center py-5">
                                 <i class="fas fa-file-medical fa-4x text-muted mb-3"></i>
@@ -1376,24 +1444,6 @@ if ($recent_records_result) {
             // and populate an edit modal form
         }
 
-        // Real-time search functionality for the top search bar
-        const searchInput = document.querySelector('.search-input');
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase();
-                const tableRows = document.querySelectorAll('tbody tr');
-                
-                tableRows.forEach(row => {
-                    const text = row.textContent.toLowerCase();
-                    if (text.includes(searchTerm)) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-            });
-        }
-
         // Focus on search input when page loads if there's a search term
         document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -1407,6 +1457,15 @@ if ($recent_records_result) {
                 }
             }
         });
+
+        // Remove the real-time search functionality from the top search bar to prevent lag
+        const searchInput = document.querySelector('.search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                // Disable real-time filtering to prevent lag
+                // Users can use the main search form instead
+            });
+        }
     </script>
 </body>
 </html>
