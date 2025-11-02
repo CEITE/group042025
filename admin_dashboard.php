@@ -760,7 +760,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                     <span class="icon"><i class="fa-solid fa-chart-line"></i></span>
                     <span>Analytics</span>
                 </a>
-                <a class="nav-link d-flex align-items-center" href="settings.php">
+                <a class="nav-link d-flex align-items-center" href="admin_settings.php">
                     <span class="icon"><i class="fa-solid fa-gear"></i></span>
                     <span>Settings</span>
                 </a>
@@ -1136,6 +1136,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
     </script>
 </body>
 </html>
+
 
 
 
