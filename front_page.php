@@ -1368,6 +1368,27 @@
             transform: translateY(-2px);
         }
 
+        /* Verification Error Styles */
+        .verification-error {
+            border-radius: var(--border-radius);
+            padding: 1rem 1.5rem;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+            font-weight: 500;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         /* Responsive adjustments */
         @media (max-width: 1200px) {
             .hero h1 {
@@ -1550,11 +1571,6 @@
             animation: spin 1s linear infinite;
             margin: 0 auto;
         }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body>
@@ -1633,7 +1649,10 @@
             
             <div class="form-group">
                 <label for="clinicName" class="form-label">Clinic/Hospital Name</label>
-                <input type="text" class="form-control" id="clinicName" placeholder="Enter your clinic or hospital name" required>
+                <input type="text" class="form-control" id="clinicName" placeholder="Enter 'BRIGHTVIEW CLINIC' to verify" required>
+                <small class="form-text text-muted mt-1" style="display: block; font-size: 0.875rem;">
+                    Please enter <strong>BRIGHTVIEW CLINIC</strong> to verify your identity
+                </small>
             </div>
             
             <div class="form-group" id="adminCodeGroup" style="display: none;">
@@ -2476,23 +2495,72 @@
         
         // Basic validation
         if (!licenseNumber || !clinicName) {
-            alert('Please fill in all required fields.');
+            showVerificationError('Please fill in all required fields.');
             return;
         }
         
         if (selectedRole === 'admin' && !adminCode) {
-            alert('Please enter the administrator access code.');
+            showVerificationError('Please enter the administrator access code.');
             return;
         }
         
-        // Redirect based on role after verification
-        if (selectedRole === 'veterinarian') {
-            // Redirect to veterinarian login
-            window.location.href = 'login_vet.php';
-        } else if (selectedRole === 'admin') {
-            // Redirect to admin login
-            window.location.href = 'login_admin.php';
+        // Check if clinic name is BRIGHTVIEW CLINIC (case insensitive)
+        if (clinicName.toUpperCase().trim() === 'BRIGHTVIEW CLINIC') {
+            processSuccessfulVerification();
+        } else {
+            showVerificationError('Invalid clinic name. Please enter "BRIGHTVIEW CLINIC" to proceed.');
         }
+    }
+
+    function processSuccessfulVerification() {
+        // Show loading state
+        const verifyBtn = document.querySelector('.btn-verify');
+        const originalText = verifyBtn.innerHTML;
+        verifyBtn.innerHTML = '<i class="bi bi-shield-check me-2"></i> Verification Successful! Redirecting...';
+        verifyBtn.disabled = true;
+        verifyBtn.style.background = 'var(--success)';
+        
+        // Add success styling to form
+        const form = document.getElementById('verificationForm');
+        form.style.opacity = '0.7';
+        
+        // Redirect after short delay
+        setTimeout(() => {
+            if (selectedRole === 'veterinarian') {
+                window.location.href = 'login_vet.php';
+            } else if (selectedRole === 'admin') {
+                window.location.href = 'login_admin.php';
+            }
+        }, 2000);
+    }
+
+    function showVerificationError(message) {
+        // Create or show error message
+        let errorElement = document.querySelector('.verification-error');
+        if (!errorElement) {
+            errorElement = document.createElement('div');
+            errorElement.className = 'verification-error alert alert-danger mt-3';
+            document.querySelector('.verification-container').appendChild(errorElement);
+        }
+        
+        errorElement.innerHTML = `
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            ${message}
+        `;
+        errorElement.style.display = 'block';
+        
+        // Highlight the clinic name field
+        const clinicField = document.getElementById('clinicName');
+        clinicField.style.borderColor = 'var(--danger)';
+        clinicField.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+        clinicField.focus();
+        
+        // Remove error after 5 seconds
+        setTimeout(() => {
+            errorElement.style.display = 'none';
+            clinicField.style.borderColor = '';
+            clinicField.style.boxShadow = '';
+        }, 5000);
     }
 
     function backToRoleSelection() {
@@ -2520,4 +2588,3 @@
 </script>
 </body>
 </html>
-
