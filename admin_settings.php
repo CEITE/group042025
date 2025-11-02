@@ -19,7 +19,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 // Get admin data
 $admin_id = $_SESSION['user_id'];
-$admin_query = "SELECT user_id, name, email, profile_picture, phone, address, created_at FROM users WHERE user_id = ?";
+$admin_query = "SELECT user_id, name, email, profile_picture, phone_number, address, created_at FROM users WHERE user_id = ?";
 $admin_stmt = $conn->prepare($admin_query);
 $admin_stmt->bind_param("i", $admin_id);
 $admin_stmt->execute();
@@ -31,7 +31,7 @@ $admin_stmt->close();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $name = trim($_POST['name']);
     $email = trim($_POST['email']);
-    $phone = trim($_POST['phone']);
+    $phone_number = trim($_POST['phone_number']);
     $address = trim($_POST['address']);
     
     // Handle profile picture upload
@@ -63,9 +63,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
         }
     }
     
-    $update_query = "UPDATE users SET name = ?, email = ?, phone = ?, address = ?, profile_picture = ? WHERE user_id = ?";
+    $update_query = "UPDATE users SET name = ?, email = ?, phone_number = ?, address = ?, profile_picture = ? WHERE user_id = ?";
     $stmt = $conn->prepare($update_query);
-    $stmt->bind_param("sssssi", $name, $email, $phone, $address, $profile_picture, $admin_id);
+    $stmt->bind_param("sssssi", $name, $email, $phone_number, $address, $profile_picture, $admin_id);
     
     if ($stmt->execute()) {
         $_SESSION['success'] = "Profile updated successfully!";
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
         // Refresh admin data
         $admin['name'] = $name;
         $admin['email'] = $email;
-        $admin['phone'] = $phone;
+        $admin['phone_number'] = $phone_number;
         $admin['address'] = $address;
         $admin['profile_picture'] = $profile_picture;
     } else {
@@ -1173,4 +1173,5 @@ $system_stats = $stats_result ? $stats_result->fetch_assoc() : [
         });
     </script>
 </body>
+
 </html>
