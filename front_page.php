@@ -2132,7 +2132,7 @@
                         </div>
                         <div>
                             <h5>Email Us</h5>
-                            <p class="text-muted mb-0">support@vetcare.com</p>
+                            <p class="text-muted mb-0">brightviewveterinaryclinic@gmail.com</p>
                         </div>
                     </div>
                     
@@ -2142,7 +2142,7 @@
                         </div>
                         <div>
                             <h5>Call Us</h5>
-                            <p class="text-muted mb-0">+1 (555) 123-4567</p>
+                            <p class="text-muted mb-0">0976 - 306 - 9058 <br> 049 536 1739 </p>
                         </div>
                     </div>
                     
@@ -2162,7 +2162,7 @@
                         </div>
                         <div>
                             <h5>Visit Us</h5>
-                            <p class="text-muted mb-0">123 Pet Care Ave, Suite 100<br>New York, NY 10001</p>
+                            <p class="text-muted mb-0">Blk 3 Lot 2 Phase1A <br> San Lorenzo<br>South Brgy. Malitlit Sta.Rosa</p>
                         </div>
                     </div>
                 </div>
@@ -2562,3 +2562,4 @@
 </script>
 </body>
 </html>
+
