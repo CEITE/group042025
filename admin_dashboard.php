@@ -752,7 +752,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
                     <span class="icon"><i class="fa-solid fa-calendar-check"></i></span>
                     <span>Appointments</span>
                 </a>
-                <a class="nav-link d-flex align-items-center" href="medical_records.php">
+                <a class="nav-link d-flex align-items-center" href="admin_medical_records.php">
                     <span class="icon"><i class="fa-solid fa-stethoscope"></i></span>
                     <span>Medical Records</span>
                 </a>
@@ -1136,6 +1136,7 @@ $vet_stats = $vet_stats_result->fetch_assoc();
     </script>
 </body>
 </html>
+
 
 
 
