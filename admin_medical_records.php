@@ -103,7 +103,7 @@ $records_query = "
         u_vet.specialization as vet_specialization
     FROM medical_records mr
     LEFT JOIN pets p ON mr.pet_id = p.pet_id
-    LEFT JOIN users u_owner ON p.owner_id = u_owner.user_id
+    LEFT JOIN users u_owner ON p.user_id = u_owner.user_id
     LEFT JOIN users u_vet ON mr.vet_id = u_vet.user_id
     ORDER BY mr.visit_date DESC, mr.created_at DESC
 ";
@@ -1218,4 +1218,5 @@ if ($recent_records_result) {
         }
     </script>
 </body>
+
 </html>
