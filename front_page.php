@@ -679,9 +679,9 @@
         .verification-container {
             background: var(--white);
             border-radius: var(--border-radius-lg);
-            padding: 4rem;
+            padding: 3rem;
             box-shadow: var(--shadow-lg);
-            max-width: 550px;
+            max-width: 500px;
             width: 95%;
             text-align: center;
             margin: auto;
@@ -703,7 +703,7 @@
             font-weight: 800;
             color: var(--primary);
             margin-bottom: 1rem;
-            font-size: 2.2rem;
+            font-size: 2rem;
             background: var(--primary-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -756,7 +756,7 @@
             display: inline-flex;
             align-items: center;
             gap: 0.8rem;
-            margin-bottom: 2.5rem;
+            margin-bottom: 2rem;
             font-weight: 600;
             font-size: 1rem;
             border: 1px solid rgba(14, 165, 233, 0.2);
@@ -765,7 +765,7 @@
         .btn-group {
             display: flex;
             gap: 1.2rem;
-            margin-top: 2.5rem;
+            margin-top: 2rem;
         }
 
         .btn-back {
@@ -1636,28 +1636,15 @@
     <div class="verification-container">
         <div class="verification-badge" id="verificationBadge">
             <i class="bi bi-shield-check"></i>
-            <span id="verificationRole">Veterinarian Verification</span>
+            <span id="verificationRole">Access Verification</span>
         </div>
-        <h2 class="verification-title" id="verificationTitle">Professional Verification Required</h2>
-        <p class="verification-subtitle" id="verificationSubtitle">Please provide your credentials to verify your identity as a veterinarian</p>
+        <h2 class="verification-title" id="verificationTitle">Access to Login</h2>
+        <p class="verification-subtitle" id="verificationSubtitle">Please enter the required information to access your login</p>
         
         <form id="verificationForm" onsubmit="handleVerification(event)">
             <div class="form-group">
-                <label for="licenseNumber" class="form-label">License Number</label>
-                <input type="text" class="form-control" id="licenseNumber" placeholder="Enter your professional license number" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="clinicName" class="form-label">Clinic/Hospital Name</label>
-                <input type="text" class="form-control" id="clinicName" placeholder="Enter 'BRIGHTVIEW CLINIC' to verify" required>
-                <small class="form-text text-muted mt-1" style="display: block; font-size: 0.875rem;">
-                    Please enter <strong>BRIGHTVIEW CLINIC</strong> to verify your identity
-                </small>
-            </div>
-            
-            <div class="form-group" id="adminCodeGroup" style="display: none;">
-                <label for="adminCode" class="form-label">Administrator Access Code</label>
-                <input type="password" class="form-control" id="adminCode" placeholder="Enter administrator access code" required>
+                <label for="clinicName" class="form-label">Enter Access Code</label>
+                <input type="text" class="form-control" id="clinicName" placeholder="Enter access code" required>
             </div>
             
             <div class="btn-group">
@@ -1665,7 +1652,7 @@
                     <i class="bi bi-arrow-left me-2"></i>Back
                 </button>
                 <button type="submit" class="btn btn-verify">
-                    <i class="bi bi-shield-check me-2"></i>Verify & Continue
+                    <i class="bi bi-shield-check me-2"></i>Access Login
                 </button>
             </div>
         </form>
@@ -2466,20 +2453,14 @@
 
     function showVerificationModal() {
         const roleTitle = document.getElementById('verificationTitle');
-        const roleSubtitle = document.getElementById('verificationSubtitle');
         const roleBadge = document.getElementById('verificationRole');
-        const adminCodeGroup = document.getElementById('adminCodeGroup');
         
         if (selectedRole === 'veterinarian') {
-            roleTitle.textContent = 'Professional Verification Required';
-            roleSubtitle.textContent = 'Please provide your credentials to verify your identity as a veterinarian';
-            roleBadge.textContent = 'Veterinarian Verification';
-            adminCodeGroup.style.display = 'none';
+            roleTitle.textContent = 'Access to Login';
+            roleBadge.textContent = 'Veterinarian Access';
         } else if (selectedRole === 'admin') {
-            roleTitle.textContent = 'Administrator Access';
-            roleSubtitle.textContent = 'Please provide administrator credentials to access the system';
-            roleBadge.textContent = 'Administrator Verification';
-            adminCodeGroup.style.display = 'block';
+            roleTitle.textContent = 'Access to Login';
+            roleBadge.textContent = 'Administrator Access';
         }
         
         document.getElementById('verificationModal').classList.add('active');
@@ -2489,26 +2470,19 @@
         event.preventDefault();
         
         // Get form values
-        const licenseNumber = document.getElementById('licenseNumber').value;
         const clinicName = document.getElementById('clinicName').value;
-        const adminCode = document.getElementById('adminCode') ? document.getElementById('adminCode').value : '';
         
         // Basic validation
-        if (!licenseNumber || !clinicName) {
-            showVerificationError('Please fill in all required fields.');
+        if (!clinicName) {
+            showVerificationError('Please enter the access code.');
             return;
         }
         
-        if (selectedRole === 'admin' && !adminCode) {
-            showVerificationError('Please enter the administrator access code.');
-            return;
-        }
-        
-        // Check if clinic name is BRIGHTVIEW CLINIC (case insensitive)
-        if (clinicName.toUpperCase().trim() === 'BRIGHTVIEW CLINIC') {
+        // Check if clinic name is BRIGHTVIEW CLINIC (exact match in capital letters)
+        if (clinicName === 'BRIGHTVIEW CLINIC') {
             processSuccessfulVerification();
         } else {
-            showVerificationError('Invalid clinic name. Please enter "BRIGHTVIEW CLINIC" to proceed.');
+            showVerificationError('Invalid access code. Please try again.');
         }
     }
 
@@ -2516,7 +2490,7 @@
         // Show loading state
         const verifyBtn = document.querySelector('.btn-verify');
         const originalText = verifyBtn.innerHTML;
-        verifyBtn.innerHTML = '<i class="bi bi-shield-check me-2"></i> Verification Successful! Redirecting...';
+        verifyBtn.innerHTML = '<i class="bi bi-shield-check me-2"></i> Access Granted! Redirecting...';
         verifyBtn.disabled = true;
         verifyBtn.style.background = 'var(--success)';
         
@@ -2531,7 +2505,7 @@
             } else if (selectedRole === 'admin') {
                 window.location.href = 'login_admin.php';
             }
-        }, 2000);
+        }, 1500);
     }
 
     function showVerificationError(message) {
