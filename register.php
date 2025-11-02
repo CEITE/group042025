@@ -1,4 +1,4 @@
-<?php
+ <?php
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -166,8 +166,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['verify_otp']) && !iss
     $street = trim($_POST['street'] ?? '');
     $zip_code = trim($_POST['zip_code'] ?? '');
     
-    // FIXED: Role is always 'owner' for pet owners
-    $role = "owner";
+    // Role is always 'user'
+    $role = "user";
 
     // Validate inputs
     if (empty($name) || empty($email) || empty($password) || empty($region) || empty($province) || empty($city) || empty($barangay)) {
@@ -353,7 +353,7 @@ if (isset($_POST['resend_otp'])) {
           <div class="otp-inputs">
             <?php for ($i = 0; $i < 6; $i++): ?>
               <input type="text" name="otp[]" class="otp-input" maxlength="1" data-index="<?php echo $i; ?>" required>
-            <?php endforeach; ?>
+            <?php endfor; ?>
           </div>
           <div class="d-grid gap-2">
             <button type="submit" name="verify_otp" class="btn btn-pink">Verify Account</button>
