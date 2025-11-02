@@ -144,23 +144,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_record'])) {
     $stmt->close();
 }
 
-// Get all medical records with related information
-$records_query = "
-    SELECT 
-        mr.*,
-        p.name as original_pet_name,
-        p.species as original_species,
-        p.breed as original_breed
-    FROM pet_medical_records mr
-    LEFT JOIN pets p ON mr.pet_id = p.pet_id
-    ORDER BY mr.service_date DESC, mr.generated_date DESC
-";
-
-$records_result = $conn->query($records_query);
+// Handle Search
+$search_term = "";
 $all_records = [];
-if ($records_result) {
-    while ($row = $records_result->fetch_assoc()) {
-        $all_records[] = $row;
+if (isset($_GET['search']) && !empty($_GET['search'])) {
+    $search_term = trim($_GET['search']);
+    $search_query = "
+        SELECT 
+            mr.*,
+            p.name as original_pet_name,
+            p.species as original_species,
+            p.breed as original_breed
+        FROM pet_medical_records mr
+        LEFT JOIN pets p ON mr.pet_id = p.pet_id
+        WHERE mr.pet_name LIKE ? 
+           OR mr.owner_name LIKE ? 
+           OR mr.species LIKE ? 
+           OR mr.breed LIKE ? 
+           OR mr.veterinarian LIKE ?
+           OR mr.service_description LIKE ?
+        ORDER BY mr.service_date DESC, mr.generated_date DESC
+    ";
+    
+    $search_param = "%" . $search_term . "%";
+    $stmt = $conn->prepare($search_query);
+    $stmt->bind_param("ssssss", $search_param, $search_param, $search_param, $search_param, $search_param, $search_param);
+    $stmt->execute();
+    $records_result = $stmt->get_result();
+    
+    if ($records_result) {
+        while ($row = $records_result->fetch_assoc()) {
+            $all_records[] = $row;
+        }
+    }
+    $stmt->close();
+} else {
+    // Get all medical records with related information
+    $records_query = "
+        SELECT 
+            mr.*,
+            p.name as original_pet_name,
+            p.species as original_species,
+            p.breed as original_breed
+        FROM pet_medical_records mr
+        LEFT JOIN pets p ON mr.pet_id = p.pet_id
+        ORDER BY mr.service_date DESC, mr.generated_date DESC
+    ";
+
+    $records_result = $conn->query($records_query);
+    if ($records_result) {
+        while ($row = $records_result->fetch_assoc()) {
+            $all_records[] = $row;
+        }
     }
 }
 
@@ -813,6 +848,40 @@ if ($recent_records_result) {
         .recent-record:last-child {
             border-bottom: none;
         }
+
+        /* Search Bar Styles */
+        .search-container {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        .search-form {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .search-results-count {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--brand);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .clear-search {
+            color: var(--muted);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .clear-search:hover {
+            color: var(--danger);
+        }
     </style>
 </head>
 <body>
@@ -953,6 +1022,40 @@ if ($recent_records_result) {
                 <?php unset($_SESSION['error']); ?>
             <?php endif; ?>
 
+            <!-- Search Bar Section -->
+            <div class="search-container fade-in">
+                <form method="GET" class="search-form">
+                    <div class="input-group input-group-lg">
+                        <input type="text" 
+                               name="search" 
+                               class="form-control" 
+                               placeholder="Search by pet name, owner, species, breed, veterinarian, or diagnosis..." 
+                               value="<?php echo htmlspecialchars($search_term); ?>"
+                               aria-label="Search medical records">
+                        <button class="btn btn-brand" type="submit">
+                            <i class="fa-solid fa-magnifying-glass me-2"></i>Search
+                        </button>
+                        <?php if (!empty($search_term)): ?>
+                            <a href="medical_records.php" class="btn btn-outline-secondary">
+                                <i class="fa-solid fa-times me-2"></i>Clear
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+                
+                <?php if (!empty($search_term)): ?>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="search-results-count">
+                            <i class="fa-solid fa-filter me-2"></i>
+                            Showing <?php echo count($all_records); ?> records for "<?php echo htmlspecialchars($search_term); ?>"
+                        </div>
+                        <a href="medical_records.php" class="clear-search">
+                            <i class="fa-solid fa-times me-1"></i>Clear search
+                        </a>
+                    </div>
+                <?php endif; ?>
+            </div>
+
             <!-- Statistics Cards -->
             <div class="stats-grid">
                 <div class="card-soft fade-in" style="animation-delay: 0.1s">
@@ -1068,20 +1171,36 @@ if ($recent_records_result) {
                             </button>
                         </div>
 
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Pet & Owner</th>
-                                        <th>Diagnosis</th>
-                                        <th>Veterinarian</th>
-                                        <th>Visit Date</th>
-                                        <th>Next Visit</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (!empty($all_records)): ?>
+                        <?php if (empty($all_records)): ?>
+                            <div class="text-center py-5">
+                                <i class="fas fa-file-medical fa-4x text-muted mb-3"></i>
+                                <h4 class="text-muted">No medical records found</h4>
+                                <?php if (!empty($search_term)): ?>
+                                    <p class="text-muted">No records match your search criteria "<?php echo htmlspecialchars($search_term); ?>"</p>
+                                    <a href="medical_records.php" class="btn btn-brand mt-2">
+                                        <i class="fa-solid fa-arrow-left me-2"></i>View All Records
+                                    </a>
+                                <?php else: ?>
+                                    <p class="text-muted">Get started by creating your first medical record</p>
+                                    <button class="btn btn-brand mt-2" data-bs-toggle="modal" data-bs-target="#createRecordModal">
+                                        <i class="fa-solid fa-plus me-2"></i>Create First Record
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Pet & Owner</th>
+                                            <th>Diagnosis</th>
+                                            <th>Veterinarian</th>
+                                            <th>Visit Date</th>
+                                            <th>Next Visit</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
                                         <?php foreach ($all_records as $record): ?>
                                             <tr>
                                                 <td>
@@ -1145,17 +1264,10 @@ if ($recent_records_result) {
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <tr>
-                                            <td colspan="6" class="text-center py-4 text-muted">
-                                                <i class="fas fa-file-medical fa-2x mb-3 d-block"></i>
-                                                No medical records found in the system.
-                                            </td>
-                                        </tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -1264,7 +1376,7 @@ if ($recent_records_result) {
             // and populate an edit modal form
         }
 
-        // Search functionality
+        // Real-time search functionality for the top search bar
         const searchInput = document.querySelector('.search-input');
         if (searchInput) {
             searchInput.addEventListener('input', function() {
@@ -1281,6 +1393,20 @@ if ($recent_records_result) {
                 });
             });
         }
+
+        // Focus on search input when page loads if there's a search term
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchParam = urlParams.get('search');
+            if (searchParam) {
+                const searchInput = document.querySelector('input[name="search"]');
+                if (searchInput) {
+                    searchInput.focus();
+                    // Set cursor at the end of the text
+                    searchInput.setSelectionRange(searchParam.length, searchParam.length);
+                }
+            }
+        });
     </script>
 </body>
 </html>
