@@ -6,18 +6,6 @@ error_reporting(E_ALL);
 session_start();
 include("conn.php");
 
-// DEBUG: Check existing roles in database
-$debug_roles = $conn->query("SELECT DISTINCT role FROM users");
-echo "<!-- Debug - Existing roles in database: ";
-if ($debug_roles && $debug_roles->num_rows > 0) {
-    while ($row = $debug_roles->fetch_assoc()) {
-        echo $row['role'] . " ";
-    }
-} else {
-    echo "No roles found or table empty";
-}
-echo " -->";
-
 // Check if PHPMailer files exist
 if (!file_exists('PHPMailer/src/PHPMailer.php')) {
     die("PHPMailer not found. Please download PHPMailer.");
@@ -79,8 +67,8 @@ function sendOTP($email, $name, $otp) {
             <style>
                 body { font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px; }
                 .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-                .header { text-align: center; color: #bf3b78; }
-                .otp-code { font-size: 32px; font-weight: bold; text-align: center; color: #bf3b78; margin: 20px 0; padding: 15px; background: #fff8fc; border-radius: 10px; letter-spacing: 5px; }
+                .header { text-align: center; color: #2563eb; }
+                .otp-code { font-size: 32px; font-weight: bold; text-align: center; color: #2563eb; margin: 20px 0; padding: 15px; background: #f0f7ff; border-radius: 10px; letter-spacing: 5px; }
                 .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
             </style>
         </head>
@@ -178,16 +166,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['verify_otp']) && !iss
     $street = trim($_POST['street'] ?? '');
     $zip_code = trim($_POST['zip_code'] ?? '');
     
-    // DEBUG: Log the received form data
-    error_log("Registration attempt - Name: $name, Email: $email, Region: $region, Province: $province, City: $city, Barangay: $barangay");
-    
     // Role is always 'owner' for pet owners
     $role = "owner";
 
     // Validate inputs
     if (empty($name) || empty($email) || empty($password) || empty($region) || empty($province) || empty($city) || empty($barangay)) {
         $error = "Please fill in all required fields";
-        error_log("Validation failed - missing required fields");
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Please enter a valid email address";
     } elseif (strlen($password) < 8) {
@@ -203,7 +187,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['verify_otp']) && !iss
         $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ? AND is_verified = 1");
         if (!$stmt) {
             $error = "SQL Error: " . $conn->error;
-            error_log("Prepare failed: " . $conn->error);
         } else {
             $stmt->bind_param("s", $email);
             $stmt->execute();
@@ -211,7 +194,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['verify_otp']) && !iss
             
             if ($result->num_rows > 0) {
                 $error = "Email already exists!";
-                error_log("Email already exists: $email");
             } else {
                 // Hash the password
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
@@ -234,12 +216,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['verify_otp']) && !iss
                         if ($update_stmt) {
                             $update_stmt->bind_param("ssssssssssss", $name, $hashed_password, $phone_number, $region, $province, $city, $barangay, $street, $zip_code, $otp, $otp_expiry, $email);
                             $user_saved = $update_stmt->execute();
-                            if (!$user_saved) {
-                                error_log("Update failed: " . $update_stmt->error);
-                            }
                             $update_stmt->close();
-                        } else {
-                            error_log("Prepare update failed: " . $conn->error);
                         }
                     } else {
                         // Insert new user with new address fields
@@ -247,47 +224,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['verify_otp']) && !iss
                         if ($insert_stmt) {
                             $insert_stmt->bind_param("sssssssssssss", $name, $email, $hashed_password, $role, $phone_number, $region, $province, $city, $barangay, $street, $zip_code, $otp, $otp_expiry);
                             $user_saved = $insert_stmt->execute();
-                            if (!$user_saved) {
-                                error_log("Insert failed: " . $insert_stmt->error);
-                            }
                             $insert_stmt->close();
-                        } else {
-                            error_log("Prepare insert failed: " . $conn->error);
                         }
                     }
                     $check_stmt->close();
                     
                     if ($user_saved) {
-                        // DEBUG: Check what actually got saved
-                        $debug_stmt = $conn->prepare("SELECT user_id, name, email, role, is_verified FROM users WHERE email = ? ORDER BY user_id DESC LIMIT 1");
-                        $debug_stmt->bind_param("s", $email);
-                        $debug_stmt->execute();
-                        $debug_result = $debug_stmt->get_result();
-                        if ($debug_row = $debug_result->fetch_assoc()) {
-                            error_log("DEBUG - User saved successfully: " . print_r($debug_row, true));
-                        }
-                        $debug_stmt->close();
-                        
                         // Send OTP via email
                         if (sendOTP($email, $name, $otp)) {
                             $_SESSION['pending_user'] = ['name' => $name, 'email' => $email];
                             $show_otp_form = true;
                             $success = "OTP sent to your email! Please check your inbox (and spam folder).";
-                            error_log("OTP sent successfully to: $email");
                         } else {
                             // Fallback: show OTP on screen if email fails
                             $_SESSION['pending_user'] = ['name' => $name, 'email' => $email];
                             $show_otp_form = true;
                             $success = "Email sending failed. Your OTP code is: <strong>$otp</strong> - Enter this code to verify.";
-                            error_log("Email sending failed, showing OTP on screen: $otp");
                         }
                     } else {
                         $error = "Error saving user data. Please try again.";
-                        error_log("User save failed completely for: $email");
                     }
                 } else {
                     $error = "Database error: " . $conn->error;
-                    error_log("Check statement failed: " . $conn->error);
                 }
             }
             $stmt->close();
@@ -339,21 +297,24 @@ if (isset($_POST['resend_otp'])) {
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
     :root {
-      --pink: #ffd6e7; --pink-dark: #bf3b78; --pink-darker: #9c2c60; --ink: #2a2e34;
+      --blue: #dbeafe; --blue-dark: #2563eb; --blue-darker: #1e40af; --ink: #2a2e34;
     }
     body { font-family: system-ui, sans-serif; color: var(--ink); background: #fff; display: flex; flex-direction: column; min-height: 100vh; }
-    .register-section { flex: 1; display: flex; align-items: center; justify-content: center; background: radial-gradient(1200px 600px at 15% 20%, #ffe7f2 0%, #ffd8ec 40%, var(--pink) 100%); padding: 40px 20px; }
-    .register-card { background: #fff; border: 1px solid #f0ddea; border-radius: 24px; box-shadow: 0 15px 40px rgba(184, 71, 129, 0.12); padding: 40px 35px; max-width: 500px; width: 100%; }
+    .register-section { flex: 1; display: flex; align-items: center; justify-content: center; background: radial-gradient(1200px 600px at 15% 20%, #f0f7ff 0%, #dbeafe 40%, var(--blue) 100%); padding: 40px 20px; }
+    .register-card { background: #fff; border: 1px solid #e0f2fe; border-radius: 24px; box-shadow: 0 15px 40px rgba(37, 99, 235, 0.12); padding: 40px 35px; max-width: 500px; width: 100%; }
     .logo-container { text-align: center; margin-bottom: 25px; }
-    .logo-icon { background: linear-gradient(135deg, var(--pink-dark), var(--pink-darker)); color: white; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-size: 28px; }
-    .welcome-title { font-weight: 800; margin-bottom: 5px; color: var(--pink-darker); font-size: 28px; }
+    .logo-icon { background: linear-gradient(135deg, var(--blue-dark), var(--blue-darker)); color: white; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-size: 28px; }
+    .welcome-title { font-weight: 800; margin-bottom: 5px; color: var(--blue-darker); font-size: 28px; }
     .form-label { font-weight: 600; margin-bottom: 8px; color: var(--ink); font-size: 14px; }
     .input-group { position: relative; }
     .input-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #6c757d; z-index: 5; }
-    .form-control, .form-select { border-radius: 12px; padding: 0.85rem 1rem 0.85rem 3rem; }
-    .btn-pink { background: var(--pink-dark); color: #fff; border: none; border-radius: 12px; padding: 0.9rem 1.2rem; font-weight: 700; }
+    .form-control, .form-select { border-radius: 12px; padding: 0.85rem 1rem 0.85rem 3rem; border: 1px solid #e2e8f0; }
+    .form-control:focus, .form-select:focus { border-color: var(--blue-dark); box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25); }
+    .btn-blue { background: var(--blue-dark); color: #fff; border: none; border-radius: 12px; padding: 0.9rem 1.2rem; font-weight: 700; transition: all 0.3s ease; }
+    .btn-blue:hover { background: var(--blue-darker); transform: translateY(-2px); }
     .otp-inputs { display: flex; gap: 10px; justify-content: center; margin: 20px 0; }
-    .otp-input { width: 50px; height: 60px; text-align: center; font-size: 24px; font-weight: bold; border: 2px solid #e9ecef; border-radius: 12px; }
+    .otp-input { width: 50px; height: 60px; text-align: center; font-size: 24px; font-weight: bold; border: 2px solid #e2e8f0; border-radius: 12px; }
+    .otp-input:focus { border-color: var(--blue-dark); box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25); }
     
     /* Password Strength Styles */
     .password-strength { height: 5px; margin-top: 5px; border-radius: 5px; background: #e9ecef; overflow: hidden; }
@@ -361,11 +322,11 @@ if (isset($_POST['resend_otp'])) {
     .password-requirements { font-size: 12px; color: #6c757d; margin-top: 5px; }
     .password-toggle { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #6c757d; cursor: pointer; z-index: 5; }
     
-    .address-section { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
-    .section-title { font-weight: 600; color: var(--pink-dark); margin-bottom: 15px; font-size: 16px; }
+    .address-section { background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+    .section-title { font-weight: 600; color: var(--blue-dark); margin-bottom: 15px; font-size: 16px; }
     
-    /* Debug info styling */
-    .debug-info { background: #e9ecef; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 12px; color: #6c757d; }
+    .alert-success { border: 1px solid #bbf7d0; background: #f0fdf4; }
+    .alert-danger { border: 1px solid #fecaca; background: #fef2f2; }
   </style>
 </head>
 <body>
@@ -378,12 +339,6 @@ if (isset($_POST['resend_otp'])) {
         <p class="text-muted">
           <?php echo $show_otp_form ? 'Enter the 6-digit verification code' : 'Join VetCareQR to manage pet health'; ?>
         </p>
-      </div>
-
-      <!-- Debug Information -->
-      <div class="debug-info">
-        <strong>Debug Info:</strong> Role set to: <code>owner</code> | 
-        Check your server error logs for detailed debugging information
       </div>
 
       <?php if (!empty($error)): ?>
@@ -407,7 +362,7 @@ if (isset($_POST['resend_otp'])) {
             <?php endfor; ?>
           </div>
           <div class="d-grid gap-2">
-            <button type="submit" name="verify_otp" class="btn btn-pink">Verify Account</button>
+            <button type="submit" name="verify_otp" class="btn btn-blue">Verify Account</button>
             <button type="submit" name="resend_otp" class="btn btn-outline-secondary">Resend OTP</button>
           </div>
         </form>
@@ -557,7 +512,7 @@ if (isset($_POST['resend_otp'])) {
             <div id="passwordMatch" class="mt-2 small"></div>
           </div>
           
-          <button type="submit" class="btn btn-pink w-100" id="submitBtn">Create Account</button>
+          <button type="submit" class="btn btn-blue w-100">Create Account</button>
         </form>
       <?php endif; ?>
 
@@ -655,30 +610,6 @@ if (isset($_POST['resend_otp'])) {
       otpInputs[0].focus();
     }
 
-    // Form submission debugging
-    document.getElementById('registrationForm')?.addEventListener('submit', function(e) {
-      console.log('Form submitted - checking required fields...');
-      const requiredFields = this.querySelectorAll('[required]');
-      let allFilled = true;
-      
-      requiredFields.forEach(field => {
-        if (!field.value.trim()) {
-          console.log('Missing field:', field.name);
-          allFilled = false;
-        }
-      });
-      
-      if (!allFilled) {
-        console.log('Some required fields are empty');
-      } else {
-        console.log('All required fields filled, submitting form...');
-        // Show loading state
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
-        submitBtn.disabled = true;
-      }
-    });
-
     // Simple address dependency
     document.querySelector('select[name="region"]')?.addEventListener('change', function() {
       if (this.value === 'CALABARZON') {
@@ -693,10 +624,6 @@ if (isset($_POST['resend_otp'])) {
         `;
       }
     });
-
-    // Console log for debugging
-    console.log('Registration page loaded successfully');
-    console.log('Available roles in database: admin, vet, owner, lgu');
   </script>
 </body>
 </html>
