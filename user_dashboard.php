@@ -1447,59 +1447,92 @@ if (isset($_POST['cancel_appointment'])) {
     }
 
     // Test connection function
-    async function testRoboflowConnection() {
-        const resultDiv = document.getElementById('analysisResult');
-        
-        resultDiv.innerHTML = `
-            <div class="alert alert-info alert-custom">
-                <div class="d-flex align-items-center">
-                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
-                    <div>
-                        <strong>Testing Roboflow Connection...</strong><br>
-                        <small>Checking API credentials and connectivity</small>
-                    </div>
+   // Improved connection test function
+async function testRoboflowConnection() {
+    const resultDiv = document.getElementById('analysisResult');
+    
+    resultDiv.innerHTML = `
+        <div class="alert alert-info alert-custom">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                <div>
+                    <strong>Testing Roboflow Connection...</strong><br>
+                    <small>Checking API credentials and connectivity</small>
                 </div>
             </div>
-        `;
+        </div>
+    `;
+    
+    try {
+        // Test multiple endpoints to find the right one
+        const endpoints = [
+            `https://api.roboflow.com/${ROBOFLOW_CONFIG.workspace}/${ROBOFLOW_CONFIG.workflow_id}?api_key=${ROBOFLOW_CONFIG.apiKey}`,
+            `https://detect.roboflow.com/${ROBOFLOW_CONFIG.workflow_id}?api_key=${ROBOFLOW_CONFIG.apiKey}`,
+            `https://classify.roboflow.com/${ROBOFLOW_CONFIG.workflow_id}?api_key=${ROBOFLOW_CONFIG.apiKey}`
+        ];
         
-        try {
-            const testUrl = `https://api.roboflow.com/${ROBOFLOW_CONFIG.workspace}/${ROBOFLOW_CONFIG.workflow_id}?api_key=${ROBOFLOW_CONFIG.apiKey}`;
-            
-            const response = await fetch(testUrl);
-            const data = await response.json();
-            
-            if (response.ok) {
-                resultDiv.innerHTML = `
-                    <div class="alert alert-success alert-custom">
-                        <i class="fas fa-check-circle me-2"></i>
-                        <strong>Connection Successful!</strong><br>
-                        <small>Roboflow API is accessible with your credentials.</small>
-                        <div class="mt-2">
-                            <small class="text-muted">
-                                Workspace: ${ROBOFLOW_CONFIG.workspace}<br>
-                                Workflow: ${ROBOFLOW_CONFIG.workflow_id}
-                            </small>
-                        </div>
-                    </div>
-                `;
-            } else {
-                throw new Error(data.error || 'Connection failed');
+        let workingEndpoint = null;
+        let errorDetails = '';
+        
+        for (const endpoint of endpoints) {
+            try {
+                console.log('Testing endpoint:', endpoint);
+                const response = await fetch(endpoint, { method: 'GET' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    workingEndpoint = endpoint;
+                    break;
+                } else {
+                    errorDetails += `Endpoint ${endpoint}: ${data.error || response.status}\n`;
+                }
+            } catch (err) {
+                errorDetails += `Endpoint ${endpoint}: ${err.message}\n`;
             }
-        } catch (error) {
+        }
+        
+        if (workingEndpoint) {
             resultDiv.innerHTML = `
-                <div class="alert alert-danger alert-custom">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Connection Failed</strong><br>
-                    <small>${error.message}</small>
+                <div class="alert alert-success alert-custom">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>Connection Successful!</strong><br>
+                    <small>Working endpoint found: ${workingEndpoint.split('?')[0]}</small>
                     <div class="mt-2">
                         <small class="text-muted">
-                            Please verify your Roboflow credentials in the dashboard.
+                            Workspace: ${ROBOFLOW_CONFIG.workspace}<br>
+                            Workflow: ${ROBOFLOW_CONFIG.workflow_id}<br>
+                            API Key: ${ROBOFLOW_CONFIG.apiKey.substring(0, 10)}...
                         </small>
                     </div>
                 </div>
             `;
+            
+            // Update the working endpoint
+            ROBOFLOW_WORKFLOW_API = workingEndpoint;
+        } else {
+            throw new Error(`All endpoints failed:\n${errorDetails}`);
         }
+        
+    } catch (error) {
+        console.error('Connection test error:', error);
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger alert-custom">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Connection Failed</strong><br>
+                <small>${error.message.replace(/\n/g, '<br>')}</small>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <strong>Troubleshooting steps:</strong><br>
+                        1. Check if your workflow is deployed in Roboflow<br>
+                        2. Verify your API key is correct<br>
+                        3. Make sure your workspace name is correct<br>
+                        4. Check if your workflow ID is correct
+                    </small>
+                </div>
+            </div>
+        `;
     }
+}
 
     function displayRoboflowResults(data, fileName) {
         const resultDiv = document.getElementById('analysisResult');
@@ -1646,4 +1679,5 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
 
