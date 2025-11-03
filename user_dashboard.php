@@ -629,6 +629,29 @@ $AI_API_URL = "https://vetcare-prediction-api-production.up.railway.app";
             display: inline-block;
             font-size: 0.8rem;
         }
+
+        .analysis-result {
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            padding: 20px;
+            background: white;
+            margin-top: 20px;
+        }
+
+        .prediction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .prediction-primary {
+            background: linear-gradient(135deg, var(--success), #27ae60);
+            color: white;
+        }
         
         @media (max-width: 768px) {
             .wrapper {
@@ -915,6 +938,13 @@ $AI_API_URL = "https://vetcare-prediction-api-production.up.railway.app";
                             Supports: JPG, PNG, JPEG • Max 10MB<br>
                             <i class="fa-solid fa-lightbulb me-1"></i> Best results with clear, well-lit images
                         </small>
+
+                        <!-- API Test Button -->
+                        <div class="mt-3">
+                            <button onclick="testAPIConnection()" class="btn btn-outline-info btn-sm w-100">
+                                <i class="fas fa-plug me-1"></i> Test API Connection
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -1386,7 +1416,12 @@ $AI_API_URL = "https://vetcare-prediction-api-production.up.railway.app";
     // Pet Disease AI Analysis Functions
     function loadDiseaseClasses() {
         fetch(`${AI_API_URL}/classes`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 const classesList = document.getElementById('diseaseClassesList');
                 if (data.classes && data.classes.length > 0) {
@@ -1400,8 +1435,48 @@ $AI_API_URL = "https://vetcare-prediction-api-production.up.railway.app";
             .catch(error => {
                 console.error('Error loading disease classes:', error);
                 document.getElementById('diseaseClassesList').innerHTML = 
-                    '<small class="text-muted">Cannot connect to AI service</small>';
+                    '<small class="text-muted">Cannot connect to AI service. Please try again later.</small>';
             });
+    }
+
+    async function testAPIConnection() {
+        const resultDiv = document.getElementById('analysisResult');
+        resultDiv.innerHTML = `
+            <div class="alert alert-info alert-custom">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                    <div>
+                        <strong>Testing API Connection...</strong><br>
+                        <small>Checking connection to AI service</small>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`${AI_API_URL}/health`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            resultDiv.innerHTML = `
+                <div class="alert alert-success alert-custom">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>API Connection Successful!</strong><br>
+                    <small>Status: ${data.status} | Model Loaded: ${data.model_loaded} | Device: ${data.device}</small>
+                </div>
+            `;
+        } catch (error) {
+            console.error('API Connection Test Failed:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger alert-custom">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>API Connection Failed</strong><br>
+                    <small>${error.message}</small>
+                </div>
+            `;
+        }
     }
 
     async function analyzePetImage() {
@@ -1507,7 +1582,7 @@ $AI_API_URL = "https://vetcare-prediction-api-production.up.railway.app";
                         <div style="max-height: 200px; overflow-y: auto;">
         `;
         
-        if (data.predictions.length > 1) {
+        if (data.predictions && data.predictions.length > 1) {
             data.predictions.slice(1, 5).forEach((pred, index) => {
                 const confidenceColor = pred.confidence > 30 ? 'warning' : 'secondary';
                 html += `
