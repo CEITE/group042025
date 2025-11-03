@@ -1216,16 +1216,16 @@ if (isset($_POST['cancel_appointment'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Roboflow Configuration - WORKING!
+    // Roboflow Configuration - UPDATED
     const ROBOFLOW_CONFIG = {
         apiKey: 'HKh4FfDexdGHtMtqv6Zc',
         workspace: 'vetcarepredictionapi',
         workflow_id: 'custom-workflow-2',
-        api_url: 'https://serverless.roboflow.com'
+        api_url: 'https://api.roboflow.com'
     };
 
-    // Roboflow API endpoint for workflows
-    const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.workspace}/${ROBOFLOW_CONFIG.workflow_id}`;
+    // Roboflow API endpoint for workflows - CORRECTED
+    const ROBOFLOW_WORKFLOW_API = `https://detect.roboflow.com/${ROBOFLOW_CONFIG.workflow_id}?api_key=${ROBOFLOW_CONFIG.apiKey}`;
 
     document.addEventListener('DOMContentLoaded', function() {
         // Set current date and time
@@ -1367,7 +1367,7 @@ if (isset($_POST['cancel_appointment'])) {
         });
     }
 
-    // Roboflow Functions
+    // Roboflow Functions - UPDATED
     async function analyzeWithRoboflow() {
         const fileInput = document.getElementById('petImageInput');
         const resultDiv = document.getElementById('analysisResult');
@@ -1406,9 +1406,6 @@ if (isset($_POST['cancel_appointment'])) {
             
             const response = await fetch(ROBOFLOW_WORKFLOW_API, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${ROBOFLOW_CONFIG.apiKey}`
-                },
                 body: formData
             });
             
@@ -1421,11 +1418,25 @@ if (isset($_POST['cancel_appointment'])) {
             
         } catch (error) {
             console.error('Roboflow analysis error:', error);
+            
+            let errorMessage = error.message || 'Unable to connect to Roboflow API.';
+            
+            if (error.message.includes('401')) {
+                errorMessage = 'API Key Invalid. Please check your Roboflow API key.';
+            } else if (error.message.includes('404')) {
+                errorMessage = 'Workflow not found. Please check your workflow ID.';
+            }
+            
             resultDiv.innerHTML = `
                 <div class="alert alert-danger alert-custom">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <strong>Analysis Failed</strong><br>
-                    <small>${error.message || 'Unable to connect to Roboflow API.'}</small>
+                    <small>${errorMessage}</small>
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="testRoboflowConnection()">
+                            <i class="fas fa-test-tube me-1"></i> Test Connection
+                        </button>
+                    </div>
                 </div>
             `;
         } finally {
@@ -1435,12 +1446,67 @@ if (isset($_POST['cancel_appointment'])) {
         }
     }
 
+    // Test connection function
+    async function testRoboflowConnection() {
+        const resultDiv = document.getElementById('analysisResult');
+        
+        resultDiv.innerHTML = `
+            <div class="alert alert-info alert-custom">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                    <div>
+                        <strong>Testing Roboflow Connection...</strong><br>
+                        <small>Checking API credentials and connectivity</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        try {
+            const testUrl = `https://api.roboflow.com/${ROBOFLOW_CONFIG.workspace}/${ROBOFLOW_CONFIG.workflow_id}?api_key=${ROBOFLOW_CONFIG.apiKey}`;
+            
+            const response = await fetch(testUrl);
+            const data = await response.json();
+            
+            if (response.ok) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success alert-custom">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Connection Successful!</strong><br>
+                        <small>Roboflow API is accessible with your credentials.</small>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                Workspace: ${ROBOFLOW_CONFIG.workspace}<br>
+                                Workflow: ${ROBOFLOW_CONFIG.workflow_id}
+                            </small>
+                        </div>
+                    </div>
+                `;
+            } else {
+                throw new Error(data.error || 'Connection failed');
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger alert-custom">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Connection Failed</strong><br>
+                    <small>${error.message}</small>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            Please verify your Roboflow credentials in the dashboard.
+                        </small>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
     function displayRoboflowResults(data, fileName) {
         const resultDiv = document.getElementById('analysisResult');
         
         // Process workflow results - adjust based on your actual model output
-        const predictions = data.results || data.predictions || [];
-        const topPrediction = predictions[0] || { class: 'No detection', confidence: 0 };
+        const predictions = data.predictions || data.results || [];
+        const topPrediction = predictions[0] || { class: 'Healthy', confidence: 0 };
         
         let html = `
             <div class="alert alert-success alert-custom">
@@ -1461,7 +1527,7 @@ if (isset($_POST['cancel_appointment'])) {
                     <div class="card-custom" style="background: linear-gradient(135deg, #d4edda, #c3e6cb);">
                         <h6><i class="fas fa-stethoscope me-2"></i>Primary Classification</h6>
                         <div class="text-center py-3">
-                            <h3 class="text-success mb-2">${topPrediction.class || 'Healthy'}</h3>
+                            <h3 class="text-success mb-2">${topPrediction.class}</h3>
                             <div class="progress" style="height: 20px;">
                                 <div class="progress-bar bg-success" role="progressbar" 
                                      style="width: ${((topPrediction.confidence || 0) * 100).toFixed(1)}%" 
@@ -1488,7 +1554,7 @@ if (isset($_POST['cancel_appointment'])) {
                 
                 html += `
                     <div class="d-flex justify-content-between align-items-center border-bottom py-2">
-                        <small>${index + 1}. ${pred.class || 'Unknown'}</small>
+                        <small>${index + 1}. ${pred.class}</small>
                         <span class="badge bg-${confidenceColor}">${confidencePercent}%</span>
                     </div>
                 `;
@@ -1580,3 +1646,4 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
