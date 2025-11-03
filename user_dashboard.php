@@ -627,6 +627,17 @@ if (isset($_POST['cancel_appointment'])) {
             font-size: 0.8rem;
         }
         
+        .api-status {
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .status-connected { background: #d1fae5; color: #065f46; }
+        .status-disconnected { background: #fee2e2; color: #991b1b; }
+        .status-demo { background: #fef3c7; color: #92400e; }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -894,7 +905,10 @@ if (isset($_POST['cancel_appointment'])) {
         <div class="card-custom">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h4 class="mb-0"><i class="fa-solid fa-robot me-2"></i>AI Pet Disease Analysis</h4>
-                <small class="text-muted">Powered by VetCare AI</small>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="apiStatus" class="api-status status-disconnected">Checking API...</span>
+                    <small class="text-muted">Powered by VetCare AI</small>
+                </div>
             </div>
             
             <div class="row">
@@ -904,7 +918,7 @@ if (isset($_POST['cancel_appointment'])) {
                         <p class="text-muted mb-3">Get instant AI analysis for common pet diseases</p>
                         
                         <input type="file" id="petImageInput" accept="image/*" class="form-control mb-3">
-                        <button onclick="analyzePetImage()" class="btn btn-primary w-100">
+                        <button onclick="analyzePetImage()" class="btn btn-primary w-100" id="analyzeBtn">
                             <i class="fa-solid fa-magnifying-glass me-2"></i> Analyze Image
                         </button>
                         
@@ -1193,40 +1207,14 @@ if (isset($_POST['cancel_appointment'])) {
     </div>
 </div>
 
-<!-- Cancel Appointment Modal -->
-<div class="modal fade" id="cancelModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Cancel Appointment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="user_dashboard.php" id="cancelForm">
-                <div class="modal-body">
-                    <input type="hidden" name="appointment_id" id="cancelAppointmentId">
-                    <div class="mb-3">
-                        <label class="form-label">Reason for Cancellation</label>
-                        <textarea class="form-control" name="cancel_reason" rows="3" placeholder="Please provide a reason for cancellation..." required></textarea>
-                    </div>
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Are you sure you want to cancel this appointment? This action cannot be undone.
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Appointment</button>
-                    <button type="submit" name="cancel_appointment" class="btn btn-danger">Cancel Appointment</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- Bootstrap & jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+    // API Configuration
+    const API_BASE = 'http://localhost:8000'; // Your local Python API
+    
     document.addEventListener('DOMContentLoaded', function() {
         // Set current date and time
         updateDateTime();
@@ -1247,6 +1235,9 @@ if (isset($_POST['cancel_appointment'])) {
         // Load disease classes for AI analysis
         loadDiseaseClasses();
         
+        // Check API status
+        checkApiStatus();
+        
         console.log('User dashboard initialized successfully!');
     });
 
@@ -1255,12 +1246,6 @@ if (isset($_POST['cancel_appointment'])) {
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
         document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US');
-    }
-
-    function showCancelModal(appointmentId) {
-        document.getElementById('cancelAppointmentId').value = appointmentId;
-        const cancelModal = new bootstrap.Modal(document.getElementById('cancelModal'));
-        cancelModal.show();
     }
 
     function initializeHealthCharts() {
@@ -1377,29 +1362,59 @@ if (isset($_POST['cancel_appointment'])) {
     }
 
     // Pet Disease AI Analysis Functions
-    function loadDiseaseClasses() {
-        fetch('https://vetcare-prediction-api-production.up.railway.app/classes')
-            .then(response => response.json())
-            .then(data => {
-                const classesList = document.getElementById('diseaseClassesList');
-                if (data.classes && data.classes.length > 0) {
-                    classesList.innerHTML = data.classes.map(cls => 
-                        `<span class="disease-tag">${cls}</span>`
-                    ).join('');
-                } else {
-                    classesList.innerHTML = '<small class="text-muted">Unable to load disease classes</small>';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading disease classes:', error);
-                document.getElementById('diseaseClassesList').innerHTML = 
-                    '<small class="text-muted">Cannot connect to AI service</small>';
-            });
+    async function checkApiStatus() {
+        try {
+            const response = await fetch(`${API_BASE}/health`);
+            const data = await response.json();
+            
+            const statusElement = document.getElementById('apiStatus');
+            if (data.status === 'healthy') {
+                statusElement.textContent = `Connected (${data.model_type || 'Demo'})`;
+                statusElement.className = 'api-status status-connected';
+            } else {
+                statusElement.textContent = 'Demo Mode';
+                statusElement.className = 'api-status status-demo';
+            }
+        } catch (error) {
+            const statusElement = document.getElementById('apiStatus');
+            statusElement.textContent = 'Disconnected';
+            statusElement.className = 'api-status status-disconnected';
+        }
+    }
+
+    async function loadDiseaseClasses() {
+        try {
+            const response = await fetch(`${API_BASE}/classes`);
+            if (!response.ok) throw new Error('API not responding');
+            
+            const data = await response.json();
+            const classesList = document.getElementById('diseaseClassesList');
+            
+            if (data.classes && data.classes.length > 0) {
+                classesList.innerHTML = data.classes.map(cls => 
+                    `<span class="disease-tag">${cls}</span>`
+                ).join('');
+            } else {
+                classesList.innerHTML = '<small class="text-muted">No classes loaded from API</small>';
+            }
+        } catch (error) {
+            console.error('Error loading disease classes:', error);
+            // Show demo classes as fallback
+            const demoClasses = [
+                'Skin Infection', 'Ear Infection', 'Dental Disease', 'Arthritis',
+                'Eye Infection', 'Allergies', 'UTI', 'Obesity', 'Diabetes'
+            ];
+            const classesList = document.getElementById('diseaseClassesList');
+            classesList.innerHTML = demoClasses.map(cls => 
+                `<span class="disease-tag">${cls}</span>`
+            ).join('');
+        }
     }
 
     async function analyzePetImage() {
         const fileInput = document.getElementById('petImageInput');
         const resultDiv = document.getElementById('analysisResult');
+        const analyzeBtn = document.getElementById('analyzeBtn');
         
         if (!fileInput.files[0]) {
             showAlert('Please select an image file first!', 'warning');
@@ -1416,6 +1431,9 @@ if (isset($_POST['cancel_appointment'])) {
         formData.append('file', fileInput.files[0]);
         
         // Show loading state
+        analyzeBtn.disabled = true;
+        analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Analyzing...';
+        
         resultDiv.innerHTML = `
             <div class="alert alert-info alert-custom">
                 <div class="d-flex align-items-center">
@@ -1429,16 +1447,20 @@ if (isset($_POST['cancel_appointment'])) {
         `;
         
         try {
-            const response = await fetch('https://vetcare-prediction-api-production.up.railway.app/predict', {
+            console.log('Sending request to:', `${API_BASE}/predict`);
+            const response = await fetch(`${API_BASE}/predict`, {
                 method: 'POST',
                 body: formData
             });
+            
+            console.log('Response status:', response.status);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
             const data = await response.json();
+            console.log('API Response:', data);
             
             if (data.success) {
                 displayAnalysisResults(data);
@@ -1453,8 +1475,15 @@ if (isset($_POST['cancel_appointment'])) {
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <strong>Analysis Failed</strong><br>
                     <small>${error.message || 'Unable to connect to AI service. Please try again.'}</small>
+                    <div class="mt-2">
+                        <small>Make sure your Python API is running on localhost:8000</small>
+                    </div>
                 </div>
             `;
+        } finally {
+            // Reset button
+            analyzeBtn.disabled = false;
+            analyzeBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-2"></i> Analyze Image';
         }
     }
 
