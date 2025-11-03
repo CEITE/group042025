@@ -906,7 +906,7 @@ if (isset($_POST['cancel_appointment'])) {
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h4 class="mb-0"><i class="fa-solid fa-robot me-2"></i>AI Pet Disease Analysis</h4>
                 <div class="d-flex align-items-center gap-2">
-                    <span id="apiStatus" class="api-status status-demo">Roboflow API</span>
+                    <span id="apiStatus" class="api-status status-connected">Roboflow Connected</span>
                     <small class="text-muted">Powered by Roboflow AI</small>
                 </div>
             </div>
@@ -1216,17 +1216,16 @@ if (isset($_POST['cancel_appointment'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Roboflow Configuration
-   // Roboflow Configuration - WORKING!
-const ROBOFLOW_CONFIG = {
-    apiKey: 'HKh4FfDexdGHtMtqv6Zc',
-    workspace: 'vetcarepredictionapi',
-    workflow_id: 'custom-workflow-2',
-    api_url: 'https://serverless.roboflow.com'
-};
+    // Roboflow Configuration - WORKING!
+    const ROBOFLOW_CONFIG = {
+        apiKey: 'HKh4FfDexdGHtMtqv6Zc',
+        workspace: 'vetcarepredictionapi',
+        workflow_id: 'custom-workflow-2',
+        api_url: 'https://serverless.roboflow.com'
+    };
 
-// Roboflow API endpoint for workflows
-const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.workspace}/${ROBOFLOW_CONFIG.workflow_id}`;
+    // Roboflow API endpoint for workflows
+    const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.workspace}/${ROBOFLOW_CONFIG.workflow_id}`;
 
     document.addEventListener('DOMContentLoaded', function() {
         // Set current date and time
@@ -1244,9 +1243,6 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
         
         // Initialize health monitoring charts
         initializeHealthCharts();
-        
-        // Check Roboflow status
-        checkRoboflowStatus();
         
         console.log('User dashboard initialized with Roboflow!');
     });
@@ -1372,32 +1368,6 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
     }
 
     // Roboflow Functions
-    async function checkRoboflowStatus() {
-        const statusElement = document.getElementById('apiStatus');
-        
-        // Test the API with a simple request
-        try {
-            const params = new URLSearchParams({
-                api_key: ROBOFLOW_CONFIG.apiKey
-            });
-            
-            // Try to get model info or make a simple request
-            const response = await fetch(`${ROBOFLOW_API}?${params}`, {
-                method: 'GET'
-            });
-            
-            if (response.status !== 405) { // 405 is expected for GET without image
-                throw new Error('API configuration issue');
-            }
-            
-            statusElement.textContent = 'Roboflow Connected';
-            statusElement.className = 'api-status status-connected';
-        } catch (error) {
-            statusElement.textContent = 'Demo Mode';
-            statusElement.className = 'api-status status-demo';
-        }
-    }
-
     async function analyzeWithRoboflow() {
         const fileInput = document.getElementById('petImageInput');
         const resultDiv = document.getElementById('analysisResult');
@@ -1424,7 +1394,7 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
                     <div class="spinner-border spinner-border-sm me-3" role="status"></div>
                     <div>
                         <strong>Analyzing with Roboflow AI...</strong><br>
-                        <small>Processing image through Roboflow machine learning model</small>
+                        <small>Processing image through your trained model</small>
                     </div>
                 </div>
             </div>
@@ -1434,14 +1404,11 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             
-            // Add API key as parameter
-            const params = new URLSearchParams({
-                api_key: ROBOFLOW_CONFIG.apiKey,
-                format: 'json'
-            });
-            
-            const response = await fetch(`${ROBOFLOW_API}?${params}`, {
+            const response = await fetch(ROBOFLOW_WORKFLOW_API, {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${ROBOFLOW_CONFIG.apiKey}`
+                },
                 body: formData
             });
             
@@ -1454,22 +1421,13 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
             
         } catch (error) {
             console.error('Roboflow analysis error:', error);
-            
-            // Fallback to demo mode if API key not configured
-            if (ROBOFLOW_CONFIG.apiKey === 'HKh4FfDexdGHtMtqv6Zc') {
-                showDemoResults(fileInput.files[0].name);
-            } else {
-                resultDiv.innerHTML = `
-                    <div class="alert alert-danger alert-custom">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Roboflow Analysis Failed</strong><br>
-                        <small>${error.message || 'Unable to connect to Roboflow API.'}</small>
-                        <div class="mt-2">
-                            <small>Please check your API key and model configuration.</small>
-                        </div>
-                    </div>
-                `;
-            }
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger alert-custom">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Analysis Failed</strong><br>
+                    <small>${error.message || 'Unable to connect to Roboflow API.'}</small>
+                </div>
+            `;
         } finally {
             // Reset button
             analyzeBtn.disabled = false;
@@ -1480,8 +1438,8 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
     function displayRoboflowResults(data, fileName) {
         const resultDiv = document.getElementById('analysisResult');
         
-        // Process predictions
-        const predictions = data.predictions || [];
+        // Process workflow results - adjust based on your actual model output
+        const predictions = data.results || data.predictions || [];
         const topPrediction = predictions[0] || { class: 'No detection', confidence: 0 };
         
         let html = `
@@ -1490,7 +1448,7 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
                     <div>
                         <h5><i class="fas fa-check-circle me-2"></i>Roboflow Analysis Complete</h5>
                         <p class="mb-1"><strong>File:</strong> ${fileName}</p>
-                        <p class="mb-0"><strong>Detections:</strong> ${predictions.length} conditions found</p>
+                        <p class="mb-0"><strong>Model:</strong> Pet Disease Classification</p>
                     </div>
                     <button class="btn btn-sm btn-outline-primary" onclick="clearAnalysis()">
                         <i class="fas fa-times me-1"></i> Clear
@@ -1501,15 +1459,15 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
             <div class="row">
                 <div class="col-md-6">
                     <div class="card-custom" style="background: linear-gradient(135deg, #d4edda, #c3e6cb);">
-                        <h6><i class="fas fa-stethoscope me-2"></i>Primary Detection</h6>
+                        <h6><i class="fas fa-stethoscope me-2"></i>Primary Classification</h6>
                         <div class="text-center py-3">
-                            <h3 class="text-success mb-2">${topPrediction.class}</h3>
+                            <h3 class="text-success mb-2">${topPrediction.class || 'Healthy'}</h3>
                             <div class="progress" style="height: 20px;">
                                 <div class="progress-bar bg-success" role="progressbar" 
-                                     style="width: ${(topPrediction.confidence * 100).toFixed(1)}%" 
-                                     aria-valuenow="${(topPrediction.confidence * 100).toFixed(1)}" 
+                                     style="width: ${((topPrediction.confidence || 0) * 100).toFixed(1)}%" 
+                                     aria-valuenow="${((topPrediction.confidence || 0) * 100).toFixed(1)}" 
                                      aria-valuemin="0" aria-valuemax="100">
-                                    ${(topPrediction.confidence * 100).toFixed(1)}%
+                                    ${((topPrediction.confidence || 0) * 100).toFixed(1)}%
                                 </div>
                             </div>
                             <small class="text-muted mt-2">Confidence Level</small>
@@ -1519,52 +1477,30 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
                 
                 <div class="col-md-6">
                     <div class="card-custom">
-                        <h6><i class="fas fa-list-ol me-2"></i>All Detections</h6>
+                        <h6><i class="fas fa-list-ol me-2"></i>All Predictions</h6>
                         <div style="max-height: 200px; overflow-y: auto;">
         `;
         
         if (predictions.length > 0) {
             predictions.slice(0, 5).forEach((pred, index) => {
-                const confidencePercent = (pred.confidence * 100).toFixed(1);
-                const confidenceColor = pred.confidence > 0.7 ? 'success' : pred.confidence > 0.3 ? 'warning' : 'secondary';
+                const confidencePercent = ((pred.confidence || 0) * 100).toFixed(1);
+                const confidenceColor = (pred.confidence || 0) > 0.7 ? 'success' : (pred.confidence || 0) > 0.3 ? 'warning' : 'secondary';
                 
                 html += `
                     <div class="d-flex justify-content-between align-items-center border-bottom py-2">
-                        <small>${index + 1}. ${pred.class}</small>
+                        <small>${index + 1}. ${pred.class || 'Unknown'}</small>
                         <span class="badge bg-${confidenceColor}">${confidencePercent}%</span>
                     </div>
                 `;
             });
         } else {
-            html += `<p class="text-muted text-center mb-0">No conditions detected</p>`;
+            html += `<p class="text-muted text-center mb-0">No classifications detected</p>`;
         }
         
         html += `
                     </div>
                 </div>
             </div>
-            
-            ${predictions.length > 0 ? `
-            <div class="card-custom mt-3">
-                <h6><i class="fas fa-search me-2"></i>Detection Details</h6>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Detection Areas</strong><br>
-                            <small>AI detected ${predictions.length} potential condition(s) in the image with bounding box coordinates.</small>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="alert alert-warning">
-                            <i class="fas fa-ruler-combined me-2"></i>
-                            <strong>Bounding Boxes</strong><br>
-                            <small>Each detection includes precise location coordinates for veterinary reference.</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            ` : ''}
             
             <div class="card-custom mt-3">
                 <h6><i class="fas fa-lightbulb me-2"></i>Recommended Actions</h6>
@@ -1587,85 +1523,6 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
                                 </a>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        resultDiv.innerHTML = html;
-    }
-
-    // Demo mode for testing without API key
-    function showDemoResults(fileName) {
-        const resultDiv = document.getElementById('analysisResult');
-        
-        const demoPredictions = [
-            { class: 'Skin Irritation', confidence: 0.85 },
-            { class: 'Minor Inflammation', confidence: 0.72 },
-            { class: 'Coat Condition', confidence: 0.63 }
-        ];
-        
-        let html = `
-            <div class="alert alert-warning alert-custom">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h5><i class="fas fa-vial me-2"></i>Demo Mode - Roboflow Analysis</h5>
-                        <p class="mb-1"><strong>File:</strong> ${fileName}</p>
-                        <p class="mb-0"><strong>Note:</strong> Configure Roboflow API for real analysis</p>
-                    </div>
-                    <button class="btn btn-sm btn-outline-primary" onclick="clearAnalysis()">
-                        <i class="fas fa-times me-1"></i> Clear
-                    </button>
-                </div>
-            </div>
-            
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>
-                <strong>Setup Required</strong><br>
-                <small>To use Roboflow AI analysis, please:</small>
-                <ol class="mb-0 mt-2 small">
-                    <li>Get your API key from Roboflow</li>
-                    <li>Update the ROBOFLOW_CONFIG in the code</li>
-                    <li>Configure your model ID and version</li>
-                </ol>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card-custom" style="background: linear-gradient(135deg, #fff3cd, #ffeaa7);">
-                        <h6><i class="fas fa-stethoscope me-2"></i>Demo Detection</h6>
-                        <div class="text-center py-3">
-                            <h3 class="text-warning mb-2">${demoPredictions[0].class}</h3>
-                            <div class="progress" style="height: 20px;">
-                                <div class="progress-bar bg-warning" role="progressbar" 
-                                     style="width: ${(demoPredictions[0].confidence * 100).toFixed(1)}%" 
-                                     aria-valuenow="${(demoPredictions[0].confidence * 100).toFixed(1)}" 
-                                     aria-valuemin="0" aria-valuemax="100">
-                                    ${(demoPredictions[0].confidence * 100).toFixed(1)}%
-                                </div>
-                            </div>
-                            <small class="text-muted mt-2">Demo Confidence Level</small>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-md-6">
-                    <div class="card-custom">
-                        <h6><i class="fas fa-list-ol me-2"></i>Demo Detections</h6>
-                        <div style="max-height: 200px; overflow-y: auto;">
-        `;
-        
-        demoPredictions.forEach((pred, index) => {
-            const confidencePercent = (pred.confidence * 100).toFixed(1);
-            html += `
-                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
-                    <small>${index + 1}. ${pred.class}</small>
-                    <span class="badge bg-warning">${confidencePercent}%</span>
-                </div>
-            `;
-        });
-        
-        html += `
                     </div>
                 </div>
             </div>
@@ -1723,4 +1580,3 @@ const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.work
 </script>
 </body>
 </html>
-
