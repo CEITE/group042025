@@ -291,6 +291,9 @@ if (isset($_POST['cancel_appointment'])) {
         $_SESSION['error'] = "Error cancelling appointment.";
     }
 }
+
+// ✅ 7. Define AI API URL
+$AI_API_URL = "https://vetcare-prediction-api-production.up.railway.app";
 ?>
 
 <!DOCTYPE html>
@@ -1227,6 +1230,9 @@ if (isset($_POST['cancel_appointment'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+    // Define the AI API URL from PHP
+    const AI_API_URL = "<?php echo $AI_API_URL; ?>";
+    
     document.addEventListener('DOMContentLoaded', function() {
         // Set current date and time
         updateDateTime();
@@ -1248,6 +1254,7 @@ if (isset($_POST['cancel_appointment'])) {
         loadDiseaseClasses();
         
         console.log('User dashboard initialized successfully!');
+        console.log('AI API URL:', AI_API_URL);
     });
 
     function updateDateTime() {
@@ -1378,7 +1385,7 @@ if (isset($_POST['cancel_appointment'])) {
 
     // Pet Disease AI Analysis Functions
     function loadDiseaseClasses() {
-        fetch('https://vetcare-prediction-api-production.up.railway.app/classes')
+        fetch(`${AI_API_URL}/classes`)
             .then(response => response.json())
             .then(data => {
                 const classesList = document.getElementById('diseaseClassesList');
@@ -1429,7 +1436,7 @@ if (isset($_POST['cancel_appointment'])) {
         `;
         
         try {
-            const response = await fetch('https://vetcare-prediction-api-production.up.railway.app/predict', {
+            const response = await fetch(`${AI_API_URL}/predict`, {
                 method: 'POST',
                 body: formData
             });
@@ -1598,5 +1605,3 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
-
-        
