@@ -293,7 +293,7 @@ if (isset($_POST['cancel_appointment'])) {
 }
 
 // ✅ 7. Define AI API URL
-$AI_API_URL = "https://vetcare-prediction-api-production.up.railway.app";
+$AI_API_URL = "web-production-53c88.up.railway.app";
 ?>
 
 <!DOCTYPE html>
@@ -1680,3 +1680,4 @@ $AI_API_URL = "https://vetcare-prediction-api-production.up.railway.app";
 </script>
 </body>
 </html>
+
