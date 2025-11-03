@@ -1217,14 +1217,16 @@ if (isset($_POST['cancel_appointment'])) {
 
 <script>
     // Roboflow Configuration
-    const ROBOFLOW_CONFIG = {
-        apiKey: 'HKh4FfDexdGHtMtqv6Zc',
-        model: 'pet-disease-images-6a4qz',
-        version: '1'
-    };
+   // Roboflow Configuration - WORKING!
+const ROBOFLOW_CONFIG = {
+    apiKey: 'HKh4FfDexdGHtMtqv6Zc',
+    workspace: 'vetcarepredictionapi',
+    workflow_id: 'custom-workflow-2',
+    api_url: 'https://serverless.roboflow.com'
+};
 
-    // Roboflow API endpoints
-    const ROBOFLOW_API = `https://detect.roboflow.com/${ROBOFLOW_CONFIG.model}/${ROBOFLOW_CONFIG.version}`;
+// Roboflow API endpoint for workflows
+const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.workspace}/${ROBOFLOW_CONFIG.workflow_id}`;
 
     document.addEventListener('DOMContentLoaded', function() {
         // Set current date and time
@@ -1721,3 +1723,4 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
