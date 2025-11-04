@@ -291,12 +291,6 @@ if (isset($_POST['cancel_appointment'])) {
         $_SESSION['error'] = "Error cancelling appointment.";
     }
 }
-
-// ✅ 7. Handle Roboflow Analysis (Server-side processing if needed)
-if (isset($_POST['analyze_image'])) {
-    // This can be used for server-side processing if needed
-    // Currently we're handling it via JavaScript
-}
 ?>
 
 <!DOCTYPE html>
@@ -663,6 +657,13 @@ if (isset($_POST['analyze_image'])) {
             transition: width 0.5s ease;
         }
         
+        .image-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -872,8 +873,12 @@ if (isset($_POST['analyze_image'])) {
                         <p class="text-muted mb-3">Get instant AI analysis for common pet diseases</p>
                         
                         <div class="mb-3">
-                            <input type="file" id="petImageInput" accept="image/*" class="form-control">
-                            <div class="form-text">Select a clear image of your pet</div>
+                            <input type="file" id="petImageInput" accept="image/*" class="form-control" onchange="previewImage()">
+                            <div class="form-text">Select a clear image of your pet (JPEG, PNG, JPG)</div>
+                        </div>
+                        
+                        <div id="imagePreviewContainer" class="mb-3" style="display: none;">
+                            <img id="imagePreview" class="image-preview" src="" alt="Image Preview">
                         </div>
                         
                         <div class="mb-3">
@@ -1266,11 +1271,9 @@ if (isset($_POST['analyze_image'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Roboflow Configuration - Updated with your exact details
-    const ROBOFLOW_CONFIG = {
-        apiKey: 'rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3',
-        workflowUrl: 'https://serverless.roboflow.com/custom-workflow-2'
-    };
+    // Roboflow Configuration - Using FormData approach
+    const apiUrl = "https://serverless.roboflow.com/custom-workflow-2";
+    const apiKey = "HKh4FfDexdGHtMtqv6Zc";
 
     document.addEventListener('DOMContentLoaded', function() {
         updateDateTime();
@@ -1287,7 +1290,7 @@ if (isset($_POST['analyze_image'])) {
         initializeHealthCharts();
         
         console.log('Roboflow workflow integration ready!');
-        console.log('Workflow URL:', ROBOFLOW_CONFIG.workflowUrl);
+        console.log('API URL:', apiUrl);
     });
 
     function updateDateTime() {
@@ -1395,7 +1398,27 @@ if (isset($_POST['analyze_image'])) {
         });
     }
 
-    // Roboflow analysis function
+    // Image preview function
+    function previewImage() {
+        const fileInput = document.getElementById('petImageInput');
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const preview = document.getElementById('imagePreview');
+        
+        if (fileInput.files && fileInput.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                previewContainer.style.display = 'block';
+            }
+            
+            reader.readAsDataURL(fileInput.files[0]);
+        } else {
+            previewContainer.style.display = 'none';
+        }
+    }
+
+    // Roboflow analysis function using FormData
     async function analyzeWithRoboflow() {
         const fileInput = document.getElementById('petImageInput');
         const resultDiv = document.getElementById('analysisResult');
@@ -1440,24 +1463,17 @@ if (isset($_POST['analyze_image'])) {
         `;
         
         try {
-            // Convert image to base64 for the workflow API
-            const base64Image = await convertToBase64(file);
-            
-            // Prepare the request body for Roboflow workflow
-            const requestBody = {
-                image: {
-                    type: "base64",
-                    value: base64Image
-                }
-            };
-            
-            const response = await fetch(ROBOFLOW_CONFIG.workflowUrl, {
-                method: 'POST',
+            // Create FormData and append the image file
+            const formData = new FormData();
+            formData.append("image", file);
+
+            // Make the API request using FormData
+            const response = await fetch(apiUrl, {
+                method: "POST",
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${ROBOFLOW_CONFIG.apiKey}`
+                    "Authorization": `Bearer ${apiKey}`
                 },
-                body: JSON.stringify(requestBody)
+                body: formData
             });
             
             if (!response.ok) {
@@ -1465,8 +1481,9 @@ if (isset($_POST['analyze_image'])) {
                 throw new Error(`Roboflow API error: ${response.status} - ${errorText}`);
             }
             
-            const data = await response.json();
-            displayRoboflowResults(data, file.name, petName);
+            const result = await response.json();
+            console.log("Workflow Prediction:", result);
+            displayRoboflowResults(result, file.name, petName);
             
         } catch (error) {
             console.error('Roboflow analysis error:', error);
@@ -1500,20 +1517,6 @@ if (isset($_POST['analyze_image'])) {
         }
     }
 
-    // Helper function to convert file to base64
-    function convertToBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => {
-                // Remove the data:image/...;base64, prefix
-                const base64 = reader.result.split(',')[1];
-                resolve(base64);
-            };
-            reader.onerror = error => reject(error);
-        });
-    }
-
     function displayRoboflowResults(data, fileName, petName = null) {
         const resultDiv = document.getElementById('analysisResult');
         
@@ -1521,20 +1524,32 @@ if (isset($_POST['analyze_image'])) {
         let predictions = [];
         let workflowResults = {};
         
+        // Log the full response for debugging
+        console.log('Full Roboflow response:', data);
+        
+        // Extract predictions based on common Roboflow response formats
         if (data.results) {
             predictions = data.results;
         } else if (data.predictions) {
             predictions = data.predictions;
         } else if (Array.isArray(data)) {
             predictions = data;
-        } else {
+        } else if (data.class) {
             // Single prediction object
             predictions = [data];
+        } else {
+            // Try to find any array in the response
+            for (let key in data) {
+                if (Array.isArray(data[key])) {
+                    predictions = data[key];
+                    break;
+                }
+            }
         }
         
         // Extract the most relevant prediction
         const topPrediction = predictions[0] || {};
-        const className = topPrediction.class || 'Unknown';
+        const className = topPrediction.class || 'Unknown Condition';
         const confidence = topPrediction.confidence || topPrediction.score || 0;
         const confidencePercent = (confidence * 100).toFixed(1);
         
@@ -1598,8 +1613,11 @@ if (isset($_POST['analyze_image'])) {
                     </div>
                 </div>
             </div>
-            
-            ${predictions.length > 1 ? `
+        `;
+        
+        // Add additional predictions if available
+        if (predictions.length > 1) {
+            html += `
             <div class="card-custom mt-3">
                 <h6><i class="fas fa-list me-2"></i>All Detections</h6>
                 <div class="table-responsive">
@@ -1613,11 +1631,11 @@ if (isset($_POST['analyze_image'])) {
                         </thead>
                         <tbody>
                             ${predictions.slice(0, 5).map(pred => {
-                                const predConfidence = (pred.confidence * 100).toFixed(1);
+                                const predConfidence = ((pred.confidence || pred.score || 0) * 100).toFixed(1);
                                 const predSeverity = getConditionInfo(pred.class).severity;
                                 return `
                                     <tr>
-                                        <td>${pred.class}</td>
+                                        <td>${pred.class || 'Unknown'}</td>
                                         <td>
                                             <div class="confidence-bar">
                                                 <div class="confidence-fill" style="width: ${predConfidence}%"></div>
@@ -1636,7 +1654,17 @@ if (isset($_POST['analyze_image'])) {
                     </table>
                 </div>
             </div>
-            ` : ''}
+            `;
+        }
+        
+        // Add raw response for debugging
+        html += `
+            <div class="card-custom mt-3">
+                <h6><i class="fas fa-code me-2"></i>Raw Response</h6>
+                <div style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 11px; background: #f8f9fa; padding: 10px; border-radius: 5px;">
+                    ${JSON.stringify(data, null, 2)}
+                </div>
+            </div>
             
             <div class="alert alert-warning mt-3">
                 <i class="fas fa-exclamation-triangle me-2"></i>
@@ -1657,7 +1685,9 @@ if (isset($_POST['analyze_image'])) {
             'dental_issue': { severity: 'Medium', recommendation: 'Dental examination and cleaning recommended.' },
             'wound': { severity: 'High', recommendation: 'Immediate veterinary care needed for wound treatment.' },
             'tumor': { severity: 'High', recommendation: 'Urgent veterinary consultation required for proper diagnosis.' },
-            'parasites': { severity: 'Medium', recommendation: 'Anti-parasitic treatment and vet consultation needed.' }
+            'parasites': { severity: 'Medium', recommendation: 'Anti-parasitic treatment and vet consultation needed.' },
+            'skin_condition': { severity: 'Medium', recommendation: 'Consult your veterinarian for skin examination.' },
+            'infection': { severity: 'Medium', recommendation: 'Veterinary consultation recommended for infection treatment.' }
         };
         
         const defaultInfo = { severity: 'Medium', recommendation: 'Consult your veterinarian for proper diagnosis and treatment.' };
@@ -1669,6 +1699,7 @@ if (isset($_POST['analyze_image'])) {
     function clearAnalysis() {
         document.getElementById('petImageInput').value = '';
         document.getElementById('selectedPet').value = '';
+        document.getElementById('imagePreviewContainer').style.display = 'none';
         document.getElementById('analysisResult').innerHTML = '';
     }
 
@@ -1710,4 +1741,3 @@ if (isset($_POST['analyze_image'])) {
 </script>
 </body>
 </html>
-
