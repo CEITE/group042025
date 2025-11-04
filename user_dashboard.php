@@ -1269,10 +1269,8 @@ if (isset($_POST['cancel_appointment'])) {
 <!-- Bootstrap & jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<script>
-    // ✅ CORRECT - Your workflow is working!
-    const apiUrl = "const apiUrl = "https://serverless.roboflow.com/vetcarepredictionapi/custom-workflow-2";";
+    // ✅ CORRECT URL with your workspace name
+    const apiUrl = "https://serverless.roboflow.com/vetcarepredictionapi/custom-workflow-2";
     const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3";
 
     async function analyzeWithRoboflow() {
@@ -1311,7 +1309,7 @@ if (isset($_POST['cancel_appointment'])) {
                     <div class="spinner-border spinner-border-sm me-3" role="status"></div>
                     <div>
                         <strong>Analyzing with Roboflow Workflow...</strong><br>
-                        <small>Processing image for pet disease detection</small>
+                        <small>Using workspace: vetcarepredictionapi</small>
                         ${selectedPet ? `<br><small><strong>Pet:</strong> ${petName}</small>` : ''}
                     </div>
                 </div>
@@ -1323,7 +1321,7 @@ if (isset($_POST['cancel_appointment'])) {
             const formData = new FormData();
             formData.append("image", file);
 
-            console.log("🚀 Sending request to Roboflow...");
+            console.log("🚀 Sending to:", apiUrl);
 
             // Make the API request using FormData
             const response = await fetch(apiUrl, {
@@ -1353,11 +1351,12 @@ if (isset($_POST['cancel_appointment'])) {
             resultDiv.innerHTML = `
                 <div class="alert alert-danger alert-custom">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Analysis Failed</strong><br>
+                    <strong>Connection Error</strong><br>
                     <small>${error.message}</small>
                     <div class="mt-2">
                         <small class="text-muted">
-                            Please try again or contact support if the issue persists.
+                            URL: ${apiUrl}<br>
+                            Please check your workspace name and try again.
                         </small>
                     </div>
                 </div>
@@ -1601,4 +1600,5 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
 
