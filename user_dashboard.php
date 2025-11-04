@@ -1271,59 +1271,87 @@ if (isset($_POST['cancel_appointment'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Roboflow Configuration - Using FormData approach
-    const apiUrl = "https://serverless.roboflow.com/custom-workflow-2";
-    const apiKey = "HKh4FfDexdGHtMtqv6Zc";
+    // ✅ CORRECT - Use Publishable API Key for browser applications
+const apiUrl = "https://serverless.roboflow.com/custom-workflow-2";
+const apiKey = "rf_YourActualPublishableKeyHere"; // Replace with your publishable key
 
-    document.addEventListener('DOMContentLoaded', function() {
-        updateDateTime();
-        setInterval(updateDateTime, 60000);
-        
-        setTimeout(() => {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            });
-        }, 5000);
-        
-        initializeHealthCharts();
-        
-        console.log('Roboflow workflow integration ready!');
-        console.log('API URL:', apiUrl);
-    });
-
-    function updateDateTime() {
-        const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
-        document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US');
+// Roboflow analysis function
+async function analyzeWithRoboflow() {
+    const fileInput = document.getElementById('petImageInput');
+    const resultDiv = document.getElementById('analysisResult');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    
+    if (!fileInput.files[0]) {
+        showAlert('Please select an image file first!', 'warning');
+        return;
     }
+    
+    // Show loading state
+    analyzeBtn.disabled = true;
+    analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Analyzing with Roboflow...';
+    
+    resultDiv.innerHTML = `
+        <div class="alert alert-info alert-custom">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                <div>
+                    <strong>Analyzing with Roboflow Workflow...</strong><br>
+                    <small>Using publishable API key</small>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    try {
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append("image", file);
 
-    function initializeHealthCharts() {
-        // Vaccination Status Chart
-        const vaccinationCtx = document.getElementById('vaccinationChart').getContext('2d');
-        const vaccinationChart = new Chart(vaccinationCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Vaccinated', 'Not Vaccinated'],
-                datasets: [{
-                    data: [<?php echo $vaccinatedPets; ?>, <?php echo $totalPets - $vaccinatedPets; ?>],
-                    backgroundColor: ['#10b981', '#ef4444'],
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
+        console.log("Using Publishable API Key:", apiKey.substring(0, 10) + "...");
+
+        const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
+            body: formData
         });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: Unauthorized - Check if using publishable API key`);
+        }
+        
+        const result = await response.json();
+        console.log("Analysis successful:", result);
+        displayRoboflowResults(result, file.name);
+        
+    } catch (error) {
+        console.error('Roboflow analysis error:', error);
+        
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger alert-custom">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Authentication Failed</strong><br>
+                <div class="mt-2">
+                    You're using a <strong>Private API Key</strong> which doesn't work in browsers.<br><br>
+                    <strong>To fix this:</strong>
+                    <ol class="mt-2 mb-2">
+                        <li>Go to Roboflow → Workspace Settings → API Keys</li>
+                        <li>Find your <strong>"Publishable API Key"</strong></li>
+                        <li>Replace the API key in the code with the publishable one</li>
+                    </ol>
+                    <small class="text-muted">
+                        Current key: ${apiKey}<br>
+                        Error: ${error.message}
+                    </small>
+                </div>
+            </div>
+        `;
+    } finally {
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-2"></i> Analyze with Roboflow';
+    }
+}
 
         // Health Score Chart
         const healthScoreCtx = document.getElementById('healthScoreChart').getContext('2d');
@@ -1741,5 +1769,6 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
 
 
