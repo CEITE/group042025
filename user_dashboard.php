@@ -1271,7 +1271,7 @@ if (isset($_POST['cancel_appointment'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // ✅ CORRECT ROBOFLOW WORKFLOW CONFIGURATION
+    // ✅ CORRECTED ROBOFLOW WORKFLOW CONFIGURATION
     const apiUrl = "https://classify.roboflow.com";
     const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3";
 
@@ -1420,7 +1420,7 @@ if (isset($_POST['cancel_appointment'])) {
         }
     }
 
-    // Roboflow analysis function using FormData
+    // Roboflow analysis function - CORRECTED VERSION
     async function analyzeWithRoboflow() {
         const fileInput = document.getElementById('petImageInput');
         const resultDiv = document.getElementById('analysisResult');
@@ -1465,18 +1465,18 @@ if (isset($_POST['cancel_appointment'])) {
         `;
         
         try {
-            const formData = new FormData();
-            formData.append("file", fileInput.files[0]);
-
+            // Convert image to base64 for Roboflow API
+            const base64Image = await fileToBase64(file);
+            
             console.log("🚀 Sending to Roboflow...");
             
-            // Use the correct Roboflow endpoint format
-            const response = await fetch(`${apiUrl}/vetcarepredictionapi/custom-workflow-2`, {
+            // CORRECT Roboflow API call format
+            const response = await fetch(`${apiUrl}/vetcarepredictionapi/custom-workflow-2?api_key=${apiKey}`, {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${apiKey}`
+                    "Content-Type": "application/x-www-form-urlencoded",
                 },
-                body: formData
+                body: base64Image
             });
             
             console.log("📡 Response status:", response.status);
@@ -1488,7 +1488,7 @@ if (isset($_POST['cancel_appointment'])) {
             
             const result = await response.json();
             console.log("✅ Roboflow Success:", result);
-            displayRoboflowResults(result, fileInput.files[0].name, petName);
+            displayRoboflowResults(result, file.name, petName);
             
         } catch (error) {
             console.error('❌ Roboflow analysis error:', error);
@@ -1496,21 +1496,95 @@ if (isset($_POST['cancel_appointment'])) {
             let errorMessage = error.message || 'Unable to connect to Roboflow API.';
             
             if (error.message.includes('401')) {
-                errorMessage = 'API authentication failed. Please check your API key.';
+                errorMessage = 'API authentication failed. Please check your API key and workflow permissions.';
             } else if (error.message.includes('404')) {
-                errorMessage = 'Workflow not found. Please check your workflow URL.';
+                errorMessage = 'Workflow not found. Please check your workflow URL. Try the alternative API endpoint.';
+                // Try alternative endpoint
+                setTimeout(() => {
+                    tryAlternativeEndpoint(fileInput.files[0], file.name, petName, resultDiv);
+                }, 2000);
             }
             
             resultDiv.innerHTML = `
                 <div class="alert alert-danger alert-custom">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <strong>Analysis Failed:</strong> ${errorMessage}
+                    <div class="mt-2">
+                        <small class="text-muted">Trying alternative endpoint...</small>
+                        <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                    </div>
                 </div>
             `;
         } finally {
             analyzeBtn.disabled = false;
             analyzeBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-2"></i> Analyze with Roboflow';
         }
+    }
+
+    // Alternative endpoint function
+    async function tryAlternativeEndpoint(file, fileName, petName, resultDiv) {
+        try {
+            const base64Image = await fileToBase64(file);
+            
+            // Try different endpoint format
+            const alternativeResponse = await fetch("https://detect.roboflow.com/vetcarepredictionapi/custom-workflow-2", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": `Bearer ${apiKey}`
+                },
+                body: base64Image
+            });
+            
+            if (alternativeResponse.ok) {
+                const result = await alternativeResponse.json();
+                console.log("✅ Alternative endpoint success:", result);
+                displayRoboflowResults(result, fileName, petName);
+                return;
+            }
+            
+            // If still failing, show debug info
+            showDebugInfo(resultDiv);
+            
+        } catch (error) {
+            console.error('Alternative endpoint also failed:', error);
+            showDebugInfo(resultDiv);
+        }
+    }
+
+    // Helper function to convert file to base64
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                // Remove the data:image/...;base64, prefix
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    // Debug information
+    function showDebugInfo(resultDiv) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-warning alert-custom">
+                <h6><i class="fas fa-bug me-2"></i>Debug Information</h6>
+                <p class="mb-2">The Roboflow API connection is failing. Here's what to check:</p>
+                <ul class="small">
+                    <li>Verify your API key is correct</li>
+                    <li>Check that your workflow is deployed and active</li>
+                    <li>Ensure the workflow is set to "Public" in Roboflow</li>
+                    <li>Try testing directly in Roboflow first</li>
+                </ul>
+                <div class="mt-3">
+                    <strong>Current Configuration:</strong><br>
+                    <small>API URL: ${apiUrl}</small><br>
+                    <small>API Key: ${apiKey.substring(0, 10)}...</small>
+                </div>
+            </div>
+        `;
     }
 
     function displayRoboflowResults(data, fileName, petName = null) {
@@ -1526,6 +1600,12 @@ if (isset($_POST['cancel_appointment'])) {
         
         if (data && data.length > 0 && data[0].output2 && data[0].output2.predictions) {
             predictions = data[0].output2.predictions.predictions || [];
+            topPrediction = predictions[0] || {};
+            className = topPrediction.class || 'Unknown';
+            confidence = topPrediction.confidence || 0;
+        } else if (data && data.predictions) {
+            // Alternative response format
+            predictions = data.predictions || [];
             topPrediction = predictions[0] || {};
             className = topPrediction.class || 'Unknown';
             confidence = topPrediction.confidence || 0;
@@ -1591,74 +1671,6 @@ if (isset($_POST['cancel_appointment'])) {
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="card-custom mt-3">
-                <h6><i class="fas fa-info-circle me-2"></i>Analysis Details</h6>
-                <div class="row">
-                    <div class="col-md-6">
-                        <strong>Detection:</strong> ${className}<br>
-                        <strong>Confidence:</strong> ${confidencePercent}%<br>
-                        <strong>Model Type:</strong> Animal Classification
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Image Size:</strong> ${data[0]?.output2?.predictions?.image?.width || 0} × ${data[0]?.output2?.predictions?.image?.height || 0}<br>
-                        <strong>Processing Time:</strong> ${(data[0]?.output2?.predictions?.time || 0).toFixed(2)}s<br>
-                        <strong>AI Analysis:</strong> Successful
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Show all predictions if available
-        if (predictions.length > 1) {
-            html += `
-            <div class="card-custom mt-3">
-                <h6><i class="fas fa-list me-2"></i>All Detections</h6>
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Class</th>
-                                <th>Confidence</th>
-                                <th>Type</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${predictions.map(pred => {
-                                const predConfidence = ((pred.confidence || 0) * 100).toFixed(1);
-                                return `
-                                    <tr>
-                                        <td>${pred.class || 'Unknown'}</td>
-                                        <td>
-                                            <div class="confidence-bar">
-                                                <div class="confidence-fill" style="width: ${predConfidence}%"></div>
-                                            </div>
-                                            <small>${predConfidence}%</small>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-info">Classification</span>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            `;
-        }
-        
-        // Add success message
-        html += `
-            <div class="alert alert-success mt-3">
-                <i class="fas fa-robot me-2"></i>
-                <strong>AI Analysis Successful!</strong> Your image has been processed by the Roboflow AI workflow.
-            </div>
-            
-            <div class="alert alert-warning mt-2">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Medical Disclaimer:</strong> This AI analysis provides animal classification. For health-specific diagnoses, always consult with a qualified veterinarian.
             </div>
         `;
         
@@ -1743,3 +1755,4 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
