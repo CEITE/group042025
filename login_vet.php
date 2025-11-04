@@ -259,6 +259,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: white;
             transform: translateY(-2px);
         }
+
+        .btn-outline-secondary {
+            border: 2px solid #6c757d;
+            color: #6c757d;
+            border-radius: 12px;
+            padding: 12px 28px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-secondary:hover {
+            background: #6c757d;
+            color: white;
+            transform: translateY(-2px);
+        }
         
         .register-link {
             color: var(--primary);
@@ -484,9 +499,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </a>
                             </div>
                             
-                            <button type="submit" class="btn btn-primary w-100 py-3 mb-4 fw-bold">
+                            <button type="submit" class="btn btn-primary w-100 py-3 mb-3 fw-bold">
                                 <i class="fas fa-sign-in-alt me-2"></i> Login to Veterinary Dashboard
                             </button>
+
+                            <!-- Back to Home Button -->
+                            <a href="front_page.php" class="btn btn-outline-secondary w-100 py-3 mb-4">
+                                <i class="fas fa-arrow-left me-2"></i> Back to Home Page
+                            </a>
                             
                             <div class="divider">
                                 <span class="divider-text">Secure Login</span>
@@ -569,4 +589,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </script>
 </body>
 </html>
-
