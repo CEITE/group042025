@@ -1273,7 +1273,7 @@ if (isset($_POST['cancel_appointment'])) {
 <script>
     // Roboflow Configuration - Using FormData approach
     const apiUrl = "https://serverless.roboflow.com/custom-workflow-2";
-    const apiKey = "HKh4FfDexdGHtMtqv6Zc";
+    const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3";
 
     document.addEventListener('DOMContentLoaded', function() {
         updateDateTime();
@@ -1741,3 +1741,4 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
