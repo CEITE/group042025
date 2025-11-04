@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administrator Login - VetCareQR</title>
+    <title>Administrator Login - VetCare</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -399,7 +399,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="login-left">
                         <div class="logo">
                             <i class="fas fa-user-shield"></i>
-                            VetCareQR
+                            VetCare
                         </div>
                         <h2 class="mb-3 fw-bold">Administrator Access</h2>
                         <p class="mb-4" style="font-size: 1.1rem; opacity: 0.95;">
@@ -601,3 +601,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </script>
 </body>
 </html>
+
