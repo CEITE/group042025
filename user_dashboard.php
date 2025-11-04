@@ -291,6 +291,12 @@ if (isset($_POST['cancel_appointment'])) {
         $_SESSION['error'] = "Error cancelling appointment.";
     }
 }
+
+// ✅ 7. Handle Roboflow Analysis (Server-side processing if needed)
+if (isset($_POST['analyze_image'])) {
+    // This can be used for server-side processing if needed
+    // Currently we're handling it via JavaScript
+}
 ?>
 
 <!DOCTYPE html>
@@ -638,6 +644,25 @@ if (isset($_POST['cancel_appointment'])) {
         .status-disconnected { background: #fee2e2; color: #991b1b; }
         .status-demo { background: #fef3c7; color: #92400e; }
         
+        .prediction-result {
+            border-left: 4px solid var(--success);
+            background: #f0fdf4;
+        }
+        
+        .confidence-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), #22c55e);
+            transition: width 0.5s ease;
+        }
+        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -828,6 +853,81 @@ if (isset($_POST['cancel_appointment'])) {
             </div>
         </div>
 
+        <!-- Pet Disease AI Analysis Section -->
+        <div class="card-custom">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0"><i class="fa-solid fa-robot me-2"></i>AI Pet Disease Analysis</h4>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="apiStatus" class="api-status status-connected">
+                        <i class="fas fa-check-circle me-1"></i>Roboflow Connected
+                    </span>
+                    <small class="text-muted">Powered by Roboflow AI</small>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="upload-area">
+                        <h5><i class="fa-solid fa-camera me-2"></i>Upload Pet Image</h5>
+                        <p class="text-muted mb-3">Get instant AI analysis for common pet diseases</p>
+                        
+                        <div class="mb-3">
+                            <input type="file" id="petImageInput" accept="image/*" class="form-control">
+                            <div class="form-text">Select a clear image of your pet</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Select Pet (Optional)</label>
+                            <select class="form-select" id="selectedPet">
+                                <option value="">-- Select Pet --</option>
+                                <?php foreach ($pets as $pet): ?>
+                                    <option value="<?php echo $pet['pet_id']; ?>"><?php echo htmlspecialchars($pet['pet_name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <button onclick="analyzeWithRoboflow()" class="btn btn-primary w-100" id="analyzeBtn">
+                            <i class="fa-solid fa-magnifying-glass me-2"></i> Analyze with Roboflow
+                        </button>
+                        
+                        <small class="text-muted mt-2 d-block">
+                            <i class="fa-solid fa-lightbulb me-1"></i> Best results with clear, well-lit images
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="class-list">
+                        <h6><i class="fa-solid fa-list me-2"></i>Detectable Conditions</h6>
+                        <div class="mb-3">
+                            <span class="disease-tag">Skin Conditions</span>
+                            <span class="disease-tag">Ear Infections</span>
+                            <span class="disease-tag">Eye Problems</span>
+                            <span class="disease-tag">Dental Issues</span>
+                            <span class="disease-tag">Coat Problems</span>
+                            <span class="disease-tag">Wounds</span>
+                            <span class="disease-tag">Tumors</span>
+                            <span class="disease-tag">Parasites</span>
+                            <span class="disease-tag">Allergies</span>
+                            <span class="disease-tag">Infections</span>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <h6><i class="fas fa-info-circle me-2"></i>How it works:</h6>
+                            <small class="mb-0">
+                                1. Upload a clear image of your pet<br>
+                                2. Our AI analyzes for common conditions<br>
+                                3. Get instant results with confidence scores<br>
+                                4. Consult your veterinarian for diagnosis
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="analysisResult" class="mt-4"></div>
+        </div>
+
         <!-- Health Monitoring Section -->
         <?php if (!empty($pets)): ?>
         <div class="card-custom">
@@ -900,56 +1000,6 @@ if (isset($_POST['cancel_appointment'])) {
             </div>
         </div>
         <?php endif; ?>
-
-        <!-- Pet Disease AI Analysis Section -->
-        <div class="card-custom">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="mb-0"><i class="fa-solid fa-robot me-2"></i>AI Pet Disease Analysis</h4>
-                <div class="d-flex align-items-center gap-2">
-                    <span id="apiStatus" class="api-status status-connected">Roboflow Connected</span>
-                    <small class="text-muted">Powered by Roboflow AI</small>
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="upload-area">
-                        <h5><i class="fa-solid fa-camera me-2"></i>Upload Pet Image</h5>
-                        <p class="text-muted mb-3">Get instant AI analysis for common pet diseases</p>
-                        
-                        <input type="file" id="petImageInput" accept="image/*" class="form-control mb-3">
-                        <button onclick="analyzeWithRoboflow()" class="btn btn-primary w-100" id="analyzeBtn">
-                            <i class="fa-solid fa-magnifying-glass me-2"></i> Analyze with Roboflow
-                        </button>
-                        
-                        <small class="text-muted">
-                            Supports: JPG, PNG, JPEG • Max 10MB<br>
-                            <i class="fa-solid fa-lightbulb me-1"></i> Best results with clear, well-lit images
-                        </small>
-                    </div>
-                </div>
-                
-                <div class="col-md-6">
-                    <div class="class-list">
-                        <h6><i class="fa-solid fa-list me-2"></i>Detectable Conditions</h6>
-                        <div id="diseaseClassesList">
-                            <span class="disease-tag">Skin Conditions</span>
-                            <span class="disease-tag">Ear Infections</span>
-                            <span class="disease-tag">Eye Problems</span>
-                            <span class="disease-tag">Dental Issues</span>
-                            <span class="disease-tag">Coat Problems</span>
-                            <span class="disease-tag">Wounds</span>
-                            <span class="disease-tag">Tumors</span>
-                            <span class="disease-tag">Parasites</span>
-                            <span class="disease-tag">Allergies</span>
-                            <span class="disease-tag">Infections</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="analysisResult" class="mt-4"></div>
-        </div>
 
         <!-- Recent Appointments Section -->
         <div class="card-custom">
@@ -1216,16 +1266,11 @@ if (isset($_POST['cancel_appointment'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // CORRECT Roboflow Configuration from your dashboard
+    // Roboflow Configuration - Updated with your exact details
     const ROBOFLOW_CONFIG = {
         apiKey: 'HKh4FfDexdGHtMtqv6Zc',
-        workspace: 'vetcarepredictionapi',
-        workflow_id: 'custom-workflow-2',
-        api_url: 'https://serverless.roboflow.com'
+        workflowUrl: 'https://serverless.roboflow.com/custom-workflow-2'
     };
-
-    // CORRECT API endpoint for workflows
-    const ROBOFLOW_WORKFLOW_API = `${ROBOFLOW_CONFIG.api_url}/${ROBOFLOW_CONFIG.workspace}/${ROBOFLOW_CONFIG.workflow_id}`;
 
     document.addEventListener('DOMContentLoaded', function() {
         updateDateTime();
@@ -1242,6 +1287,7 @@ if (isset($_POST['cancel_appointment'])) {
         initializeHealthCharts();
         
         console.log('Roboflow workflow integration ready!');
+        console.log('Workflow URL:', ROBOFLOW_CONFIG.workflowUrl);
     });
 
     function updateDateTime() {
@@ -1252,7 +1298,6 @@ if (isset($_POST['cancel_appointment'])) {
     }
 
     function initializeHealthCharts() {
-        // ... keep your existing chart code ...
         // Vaccination Status Chart
         const vaccinationCtx = document.getElementById('vaccinationChart').getContext('2d');
         const vaccinationChart = new Chart(vaccinationCtx, {
@@ -1277,17 +1322,103 @@ if (isset($_POST['cancel_appointment'])) {
             }
         });
 
-        // ... keep other charts the same ...
+        // Health Score Chart
+        const healthScoreCtx = document.getElementById('healthScoreChart').getContext('2d');
+        const healthScoreChart = new Chart(healthScoreCtx, {
+            type: 'bar',
+            data: {
+                labels: <?php echo json_encode(array_keys($healthData['health_scores'])); ?>,
+                datasets: [{
+                    label: 'Health Score (%)',
+                    data: <?php echo json_encode(array_values($healthData['health_scores'])); ?>,
+                    backgroundColor: '#0ea5e9',
+                    borderColor: '#0284c7',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        // Visit Frequency Chart
+        const visitCtx = document.getElementById('visitChart').getContext('2d');
+        const visitChart = new Chart(visitCtx, {
+            type: 'line',
+            data: {
+                labels: <?php echo json_encode(array_keys($healthData['visit_frequency'])); ?>,
+                datasets: [{
+                    label: 'Visits (Last 30 Days)',
+                    data: <?php echo json_encode(array_values($healthData['visit_frequency'])); ?>,
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Weight Distribution Chart
+        const weightCtx = document.getElementById('weightChart').getContext('2d');
+        const weightChart = new Chart(weightCtx, {
+            type: 'pie',
+            data: {
+                labels: <?php echo json_encode(array_keys($healthData['weight_trends'])); ?>,
+                datasets: [{
+                    data: <?php echo json_encode(array_values($healthData['weight_trends'])); ?>,
+                    backgroundColor: [
+                        '#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444',
+                        '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
     }
 
-    // CORRECT Roboflow analysis function
+    // Roboflow analysis function
     async function analyzeWithRoboflow() {
         const fileInput = document.getElementById('petImageInput');
         const resultDiv = document.getElementById('analysisResult');
         const analyzeBtn = document.getElementById('analyzeBtn');
+        const selectedPet = document.getElementById('selectedPet').value;
+        const petName = document.getElementById('selectedPet').options[document.getElementById('selectedPet').selectedIndex].text;
         
         if (!fileInput.files[0]) {
             showAlert('Please select an image file first!', 'warning');
+            return;
+        }
+        
+        // Validate file type
+        const file = fileInput.files[0];
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            showAlert('Please select a valid image file (JPEG, JPG, PNG, WEBP).', 'warning');
+            return;
+        }
+        
+        // Validate file size (10MB max)
+        if (file.size > 10 * 1024 * 1024) {
+            showAlert('File size must be less than 10MB.', 'warning');
             return;
         }
         
@@ -1301,7 +1432,8 @@ if (isset($_POST['cancel_appointment'])) {
                     <div class="spinner-border spinner-border-sm me-3" role="status"></div>
                     <div>
                         <strong>Analyzing with Roboflow Workflow...</strong><br>
-                        <small>Using your custom workflow: ${ROBOFLOW_CONFIG.workflow_id}</small>
+                        <small>Processing image for pet disease detection</small>
+                        ${selectedPet ? `<br><small><strong>Pet:</strong> ${petName}</small>` : ''}
                     </div>
                 </div>
             </div>
@@ -1309,9 +1441,9 @@ if (isset($_POST['cancel_appointment'])) {
         
         try {
             // Convert image to base64 for the workflow API
-            const base64Image = await convertToBase64(fileInput.files[0]);
+            const base64Image = await convertToBase64(file);
             
-            // Prepare the request body exactly as Roboflow expects
+            // Prepare the request body for Roboflow workflow
             const requestBody = {
                 image: {
                     type: "base64",
@@ -1319,7 +1451,7 @@ if (isset($_POST['cancel_appointment'])) {
                 }
             };
             
-            const response = await fetch(ROBOFLOW_WORKFLOW_API, {
+            const response = await fetch(ROBOFLOW_CONFIG.workflowUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1329,12 +1461,12 @@ if (isset($_POST['cancel_appointment'])) {
             });
             
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Roboflow API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
+                const errorText = await response.text();
+                throw new Error(`Roboflow API error: ${response.status} - ${errorText}`);
             }
             
             const data = await response.json();
-            displayRoboflowResults(data, fileInput.files[0].name);
+            displayRoboflowResults(data, file.name, petName);
             
         } catch (error) {
             console.error('Roboflow analysis error:', error);
@@ -1344,7 +1476,9 @@ if (isset($_POST['cancel_appointment'])) {
             if (error.message.includes('401')) {
                 errorMessage = 'API authentication failed. Please check your API key.';
             } else if (error.message.includes('404')) {
-                errorMessage = 'Workflow not found. Please check your workflow ID.';
+                errorMessage = 'Workflow not found. Please check your workflow URL.';
+            } else if (error.message.includes('Network Error')) {
+                errorMessage = 'Network error. Please check your internet connection.';
             }
             
             resultDiv.innerHTML = `
@@ -1354,9 +1488,7 @@ if (isset($_POST['cancel_appointment'])) {
                     <small>${errorMessage}</small>
                     <div class="mt-2">
                         <small class="text-muted">
-                            API: ${ROBOFLOW_WORKFLOW_API}<br>
-                            Workflow: ${ROBOFLOW_CONFIG.workflow_id}<br>
-                            Workspace: ${ROBOFLOW_CONFIG.workspace}
+                            If this persists, please contact support.
                         </small>
                     </div>
                 </div>
@@ -1382,83 +1514,41 @@ if (isset($_POST['cancel_appointment'])) {
         });
     }
 
-    // Test connection function
-    async function testRoboflowConnection() {
+    function displayRoboflowResults(data, fileName, petName = null) {
         const resultDiv = document.getElementById('analysisResult');
         
-        resultDiv.innerHTML = `
-            <div class="alert alert-info alert-custom">
-                <div class="d-flex align-items-center">
-                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
-                    <div>
-                        <strong>Testing Roboflow Workflow Connection...</strong><br>
-                        <small>Checking workflow: ${ROBOFLOW_CONFIG.workflow_id}</small>
-                    </div>
-                </div>
-            </div>
-        `;
+        // Handle different response formats from Roboflow workflows
+        let predictions = [];
+        let workflowResults = {};
         
-        try {
-            // Simple GET request to check if workflow exists
-            const response = await fetch(`${ROBOFLOW_WORKFLOW_API}/info`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${ROBOFLOW_CONFIG.apiKey}`
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                resultDiv.innerHTML = `
-                    <div class="alert alert-success alert-custom">
-                        <i class="fas fa-check-circle me-2"></i>
-                        <strong>Workflow Connection Successful!</strong><br>
-                        <small>Your Roboflow workflow is ready to use.</small>
-                        <div class="mt-2">
-                            <small class="text-muted">
-                                Workspace: ${ROBOFLOW_CONFIG.workspace}<br>
-                                Workflow: ${ROBOFLOW_CONFIG.workflow_id}<br>
-                                API: ${ROBOFLOW_CONFIG.api_url}
-                            </small>
-                        </div>
-                    </div>
-                `;
-            } else {
-                throw new Error(`Workflow check failed: ${response.status}`);
-            }
-            
-        } catch (error) {
-            console.error('Connection test error:', error);
-            resultDiv.innerHTML = `
-                <div class="alert alert-warning alert-custom">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Workflow Connection Test</strong><br>
-                    <small>${error.message}</small>
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            This doesn't mean your workflow won't work.<br>
-                            Try analyzing an image to test the actual functionality.
-                        </small>
-                    </div>
-                </div>
-            `;
+        if (data.results) {
+            predictions = data.results;
+        } else if (data.predictions) {
+            predictions = data.predictions;
+        } else if (Array.isArray(data)) {
+            predictions = data;
+        } else {
+            // Single prediction object
+            predictions = [data];
         }
-    }
-
-    function displayRoboflowResults(data, fileName) {
-        const resultDiv = document.getElementById('analysisResult');
         
-        // Handle workflow response - adjust based on your actual workflow output
-        const results = data.results || data.predictions || [data];
-        const topResult = results[0] || { class: 'Healthy', confidence: 0 };
+        // Extract the most relevant prediction
+        const topPrediction = predictions[0] || {};
+        const className = topPrediction.class || 'Unknown';
+        const confidence = topPrediction.confidence || topPrediction.score || 0;
+        const confidencePercent = (confidence * 100).toFixed(1);
+        
+        // Determine severity and recommendation
+        const { severity, recommendation } = getConditionInfo(className);
         
         let html = `
             <div class="alert alert-success alert-custom">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h5><i class="fas fa-check-circle me-2"></i>Workflow Analysis Complete!</h5>
+                        <h5><i class="fas fa-check-circle me-2"></i>Analysis Complete!</h5>
                         <p class="mb-1"><strong>File:</strong> ${fileName}</p>
-                        <p class="mb-0"><strong>Workflow:</strong> ${ROBOFLOW_CONFIG.workflow_id}</p>
+                        ${petName ? `<p class="mb-1"><strong>Pet:</strong> ${petName}</p>` : ''}
+                        <p class="mb-0"><strong>Workflow:</strong> custom-workflow-2</p>
                     </div>
                     <button class="btn btn-sm btn-outline-primary" onclick="clearAnalysis()">
                         <i class="fas fa-times me-1"></i> Clear
@@ -1468,64 +1558,117 @@ if (isset($_POST['cancel_appointment'])) {
             
             <div class="row">
                 <div class="col-md-6">
-                    <div class="card-custom" style="background: linear-gradient(135deg, #d4edda, #c3e6cb);">
-                        <h6><i class="fas fa-stethoscope me-2"></i>Primary Result</h6>
+                    <div class="card-custom prediction-result">
+                        <h6><i class="fas fa-stethoscope me-2"></i>Primary Detection</h6>
                         <div class="text-center py-3">
-                            <h3 class="text-success mb-2">${topResult.class || 'Unknown'}</h3>
-                            <div class="progress" style="height: 20px;">
-                                <div class="progress-bar bg-success" role="progressbar" 
-                                     style="width: ${((topResult.confidence || topResult.score || 0) * 100).toFixed(1)}%" 
-                                     aria-valuenow="${((topResult.confidence || topResult.score || 0) * 100).toFixed(1)}" 
-                                     aria-valuemin="0" aria-valuemax="100">
-                                    ${((topResult.confidence || topResult.score || 0) * 100).toFixed(1)}%
-                                </div>
+                            <h3 class="text-success mb-2">${className}</h3>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: ${confidencePercent}%"></div>
                             </div>
-                            <small class="text-muted mt-2">Confidence Level</small>
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">Confidence</small>
+                                <small class="fw-bold">${confidencePercent}%</small>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Severity Level</h6>
+                            <span class="badge bg-${severity === 'High' ? 'danger' : severity === 'Medium' ? 'warning' : 'info'}">
+                                ${severity} Priority
+                            </span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="col-md-6">
                     <div class="card-custom">
-                        <h6><i class="fas fa-code me-2"></i>Raw Response</h6>
-                        <div style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 11px; background: #f8f9fa; padding: 10px; border-radius: 5px;">
-                            ${JSON.stringify(data, null, 2)}
+                        <h6><i class="fas fa-lightbulb me-2"></i>Recommended Actions</h6>
+                        <div class="alert alert-${severity === 'High' ? 'danger' : severity === 'Medium' ? 'warning' : 'info'}">
+                            <p class="mb-2">${recommendation}</p>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <a href="user_appointment.php" class="btn btn-primary w-100 mb-2">
+                                <i class="fas fa-calendar-plus me-1"></i> Book Vet Appointment
+                            </a>
+                            <button onclick="clearAnalysis()" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-redo me-1"></i> Analyze Another Image
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
             
+            ${predictions.length > 1 ? `
             <div class="card-custom mt-3">
-                <h6><i class="fas fa-lightbulb me-2"></i>Recommended Actions</h6>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Consult a Veterinarian</strong><br>
-                            <small>AI analysis is for informational purposes only.</small>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="alert alert-info">
-                            <i class="fas fa-calendar-plus me-2"></i>
-                            <strong>Book Appointment</strong><br>
-                            <small>Schedule a professional diagnosis.</small>
-                            <div class="mt-2">
-                                <a href="user_appointment.php" class="btn btn-sm btn-primary">
-                                    <i class="fas fa-calendar-plus me-1"></i> Book Now
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+                <h6><i class="fas fa-list me-2"></i>All Detections</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Condition</th>
+                                <th>Confidence</th>
+                                <th>Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${predictions.slice(0, 5).map(pred => {
+                                const predConfidence = (pred.confidence * 100).toFixed(1);
+                                const predSeverity = getConditionInfo(pred.class).severity;
+                                return `
+                                    <tr>
+                                        <td>${pred.class}</td>
+                                        <td>
+                                            <div class="confidence-bar">
+                                                <div class="confidence-fill" style="width: ${predConfidence}%"></div>
+                                            </div>
+                                            <small>${predConfidence}%</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-${predSeverity === 'High' ? 'danger' : predSeverity === 'Medium' ? 'warning' : 'info'}">
+                                                ${predSeverity}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
                 </div>
+            </div>
+            ` : ''}
+            
+            <div class="alert alert-warning mt-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Important Disclaimer:</strong> This AI analysis is for informational purposes only and should not replace professional veterinary diagnosis. Always consult with a qualified veterinarian for accurate diagnosis and treatment.
             </div>
         `;
         
         resultDiv.innerHTML = html;
     }
 
+    // Helper function to get condition information
+    function getConditionInfo(condition) {
+        const conditionMap = {
+            'healthy': { severity: 'Low', recommendation: 'No immediate concerns detected. Continue regular checkups.' },
+            'skin_infection': { severity: 'Medium', recommendation: 'Schedule a vet appointment for proper diagnosis and treatment.' },
+            'ear_infection': { severity: 'Medium', recommendation: 'Consult your veterinarian for examination and medication.' },
+            'eye_problem': { severity: 'High', recommendation: 'Urgent veterinary attention recommended for eye issues.' },
+            'dental_issue': { severity: 'Medium', recommendation: 'Dental examination and cleaning recommended.' },
+            'wound': { severity: 'High', recommendation: 'Immediate veterinary care needed for wound treatment.' },
+            'tumor': { severity: 'High', recommendation: 'Urgent veterinary consultation required for proper diagnosis.' },
+            'parasites': { severity: 'Medium', recommendation: 'Anti-parasitic treatment and vet consultation needed.' }
+        };
+        
+        const defaultInfo = { severity: 'Medium', recommendation: 'Consult your veterinarian for proper diagnosis and treatment.' };
+        
+        const key = condition.toLowerCase().replace(/\s+/g, '_');
+        return conditionMap[key] || defaultInfo;
+    }
+
     function clearAnalysis() {
         document.getElementById('petImageInput').value = '';
+        document.getElementById('selectedPet').value = '';
         document.getElementById('analysisResult').innerHTML = '';
     }
 
@@ -1567,7 +1710,3 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
-
-
-
-
