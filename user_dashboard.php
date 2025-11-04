@@ -1276,7 +1276,7 @@ if (isset($_POST['cancel_appointment'])) {
     
     // ⚠️ REPLACE THIS WITH YOUR PUBLISHABLE API KEY FROM ROBOFLOW
     // Go to Roboflow → Workspace Settings → API Keys → Copy "Publishable API Key"
-    const apiKey = "HKh4FfDexdGHtMtqv6Zc"; 
+    const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3"; 
 
     document.addEventListener('DOMContentLoaded', function() {
         updateDateTime();
@@ -1764,5 +1764,6 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
 
 
