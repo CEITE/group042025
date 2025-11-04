@@ -28,6 +28,32 @@ try {
     die("Error fetching user data: " . $e->getMessage());
 }
 
+// ✅ Disease Information Database (Descriptions Only) - ADDED THIS
+$disease_info = [
+    'Dental Disease in Cat' => 'Common oral health issues in cats including gingivitis, periodontitis, and tooth resorption that can cause pain and difficulty eating.',
+    'Dental Disease in Dog' => 'Oral health problems in dogs such as periodontal disease, broken teeth, and gum infections that can lead to pain and systemic health issues.',
+    'Ear Mites in Cat' => 'Tiny parasites that live in the ear canals of cats, causing intense itching, dark discharge, and potential secondary infections.',
+    'Eye Infection in Cat' => 'Bacterial or viral infections affecting cats eyes, often causing discharge, redness, and discomfort that requires medical treatment.',
+    'Eye Infection in Dog' => 'Infections affecting dogs eyes, commonly caused by bacteria, viruses, or foreign objects, leading to discharge and irritation.',
+    'Feline Leukemia' => 'Viral infection that suppresses the immune system in cats and can lead to anemia, cancer, and secondary infections.',
+    'Feline Panleukopenia' => 'Highly contagious and often fatal viral disease in cats, also known as feline distemper, affecting the digestive system.',
+    'Fungal Infection in Cat' => 'Fungal infections like ringworm that affect cats skin, hair, or nails, causing itching, hair loss, and skin lesions.',
+    'Fungal Infection in Dog' => 'Fungal infections in dogs including ringworm and yeast infections that cause skin irritation, itching, and hair loss.',
+    'Healthy' => 'Your pet appears to be in good health with no visible signs of disease or infection in the analyzed image.',
+    'Hot Spots in Dog' => 'Acute moist dermatitis in dogs, causing red, moist, irritated skin patches that can spread quickly.',
+    'Kennel Cough in Dog' => 'Highly contagious respiratory infection in dogs causing a persistent, forceful cough and respiratory distress.',
+    'Mange in Dog' => 'Skin disease caused by mites that leads to severe itching, hair loss, and skin infections in dogs.',
+    'Parvovirus in Dog' => 'Highly contagious and often fatal viral disease in dogs, causing severe vomiting, diarrhea, and dehydration.',
+    'Ringworm in Cat' => 'Fungal infection affecting cats skin, causing circular bald patches, scaling, and potential spread to humans.',
+    'Scabies in Cat' => 'Contagious skin condition caused by mites, resulting in intense itching, hair loss, and skin crusting.',
+    'Skin Allergy in Cat' => 'Allergic reactions in cats causing itching, skin redness, hair loss, and potential secondary infections.',
+    'Skin Allergy in Dog' => 'Allergic conditions in dogs leading to itching, skin inflammation, ear infections, and hot spots.',
+    'Tick Infestation in Dog' => 'Presence of ticks on dogs that can cause skin irritation, anemia, and transmit serious diseases.',
+    'Urinary Tract Infection in Cat' => 'Bacterial infection in cats urinary system causing painful urination, frequent attempts, and blood in urine.',
+    'Worm Infection in Cat' => 'Internal parasites like roundworms, tapeworms, or hookworms affecting cats digestive health and overall condition.',
+    'Worm Infection in Dog' => 'Internal parasitic infections in dogs causing digestive issues, weight loss, and potential anemia.'
+];
+
 // ✅ 3. Fetch user's pets & medical records
 $pets = [];
 $totalPets = 0;
@@ -625,6 +651,21 @@ if (isset($_POST['cancel_appointment'])) {
             border-radius: 4px;
             display: inline-block;
             font-size: 0.8rem;
+        }
+        
+        /* ADDED: Disease info card styles */
+        .disease-info-card {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-left: 4px solid var(--primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        
+        .disease-description {
+            color: #4b5563;
+            font-size: 0.95rem;
+            line-height: 1.5;
         }
         
         @media (max-width: 768px) {
@@ -1227,6 +1268,9 @@ if (isset($_POST['cancel_appointment'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+    // ADDED: Disease information from PHP
+    const diseaseInfo = <?php echo json_encode($disease_info); ?>;
+
     document.addEventListener('DOMContentLoaded', function() {
         // Set current date and time
         updateDateTime();
@@ -1458,8 +1502,11 @@ if (isset($_POST['cancel_appointment'])) {
         }
     }
 
+    // UPDATED: Only added disease description to this function
     function displayAnalysisResults(data) {
         const resultDiv = document.getElementById('analysisResult');
+        const primaryDisease = data.primary_prediction.class;
+        const diseaseDescription = diseaseInfo[primaryDisease] || 'No detailed information available for this condition.';
         
         let html = `
             <div class="alert alert-success alert-custom">
@@ -1475,12 +1522,18 @@ if (isset($_POST['cancel_appointment'])) {
                 </div>
             </div>
             
+            <!-- ADDED: Disease Information Card -->
+            <div class="disease-info-card">
+                <h6><i class="fas fa-info-circle me-2"></i>About ${primaryDisease}</h6>
+                <p class="disease-description mb-0">${diseaseDescription}</p>
+            </div>
+            
             <div class="row">
                 <div class="col-md-6">
                     <div class="card-custom" style="background: linear-gradient(135deg, #d4edda, #c3e6cb);">
                         <h6><i class="fas fa-stethoscope me-2"></i>Primary Diagnosis</h6>
                         <div class="text-center py-3">
-                            <h3 class="text-success mb-2">${data.primary_prediction.class}</h3>
+                            <h3 class="text-success mb-2">${primaryDisease}</h3>
                             <div class="progress" style="height: 20px;">
                                 <div class="progress-bar bg-success" role="progressbar" 
                                      style="width: ${data.primary_prediction.confidence}%" 
