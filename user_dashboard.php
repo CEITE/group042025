@@ -1272,7 +1272,7 @@ if (isset($_POST['cancel_appointment'])) {
 
 <script>
     // ✅ CORRECT - Your workflow is working!
-    const apiUrl = "https://serverless.roboflow.com/custom-workflow-2";
+    const apiUrl = "const apiUrl = "https://serverless.roboflow.com/vetcarepredictionapi/custom-workflow-2";";
     const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3";
 
     async function analyzeWithRoboflow() {
@@ -1601,3 +1601,4 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
