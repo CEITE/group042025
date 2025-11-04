@@ -1269,10 +1269,158 @@ if (isset($_POST['cancel_appointment'])) {
 <!-- Bootstrap & jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    // ✅ CORRECT URL with your workspace name
+
+<script>
+    // ✅ CORRECT Roboflow Configuration with your workspace name
     const apiUrl = "https://serverless.roboflow.com/vetcarepredictionapi/custom-workflow-2";
     const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3";
 
+    document.addEventListener('DOMContentLoaded', function() {
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+        
+        initializeHealthCharts();
+        
+        console.log('✅ Roboflow workflow integration ready!');
+        console.log('🌐 API URL:', apiUrl);
+        console.log('🔑 API Key:', apiKey.substring(0, 15) + '...');
+    });
+
+    function updateDateTime() {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
+        document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US');
+    }
+
+    function initializeHealthCharts() {
+        // Vaccination Status Chart
+        const vaccinationCtx = document.getElementById('vaccinationChart')?.getContext('2d');
+        if (vaccinationCtx) {
+            new Chart(vaccinationCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Vaccinated', 'Not Vaccinated'],
+                    datasets: [{
+                        data: [<?php echo $vaccinatedPets; ?>, <?php echo $totalPets - $vaccinatedPets; ?>],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        // Health Score Chart
+        const healthScoreCtx = document.getElementById('healthScoreChart')?.getContext('2d');
+        if (healthScoreCtx) {
+            new Chart(healthScoreCtx, {
+                type: 'bar',
+                data: {
+                    labels: <?php echo json_encode(array_keys($healthData['health_scores'])); ?>,
+                    datasets: [{
+                        label: 'Health Score (%)',
+                        data: <?php echo json_encode(array_values($healthData['health_scores'])); ?>,
+                        backgroundColor: '#0ea5e9',
+                        borderColor: '#0284c7',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 100 }
+                    }
+                }
+            });
+        }
+
+        // Visit Frequency Chart
+        const visitCtx = document.getElementById('visitChart')?.getContext('2d');
+        if (visitCtx) {
+            new Chart(visitCtx, {
+                type: 'line',
+                data: {
+                    labels: <?php echo json_encode(array_keys($healthData['visit_frequency'])); ?>,
+                    datasets: [{
+                        label: 'Visits (Last 30 Days)',
+                        data: <?php echo json_encode(array_values($healthData['visit_frequency'])); ?>,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // Weight Distribution Chart
+        const weightCtx = document.getElementById('weightChart')?.getContext('2d');
+        if (weightCtx) {
+            new Chart(weightCtx, {
+                type: 'pie',
+                data: {
+                    labels: <?php echo json_encode(array_keys($healthData['weight_trends'])); ?>,
+                    datasets: [{
+                        data: <?php echo json_encode(array_values($healthData['weight_trends'])); ?>,
+                        backgroundColor: [
+                            '#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444',
+                            '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+    }
+
+    // Image preview function
+    function previewImage() {
+        const fileInput = document.getElementById('petImageInput');
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const preview = document.getElementById('imagePreview');
+        
+        if (fileInput.files && fileInput.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                previewContainer.style.display = 'block';
+            }
+            
+            reader.readAsDataURL(fileInput.files[0]);
+        } else {
+            previewContainer.style.display = 'none';
+        }
+    }
+
+    // Roboflow analysis function using FormData
     async function analyzeWithRoboflow() {
         const fileInput = document.getElementById('petImageInput');
         const resultDiv = document.getElementById('analysisResult');
@@ -1309,7 +1457,7 @@ if (isset($_POST['cancel_appointment'])) {
                     <div class="spinner-border spinner-border-sm me-3" role="status"></div>
                     <div>
                         <strong>Analyzing with Roboflow Workflow...</strong><br>
-                        <small>Using workspace: vetcarepredictionapi</small>
+                        <small>Processing image for pet disease detection</small>
                         ${selectedPet ? `<br><small><strong>Pet:</strong> ${petName}</small>` : ''}
                     </div>
                 </div>
@@ -1321,7 +1469,8 @@ if (isset($_POST['cancel_appointment'])) {
             const formData = new FormData();
             formData.append("image", file);
 
-            console.log("🚀 Sending to:", apiUrl);
+            console.log("🚀 Sending request to Roboflow...");
+            console.log("📁 File:", file.name, file.type, file.size);
 
             // Make the API request using FormData
             const response = await fetch(apiUrl, {
@@ -1340,25 +1489,33 @@ if (isset($_POST['cancel_appointment'])) {
             }
             
             const result = await response.json();
-            console.log("✅ Workflow Result:", result);
-            
-            // Process the successful response
+            console.log("✅ Workflow Prediction Success:", result);
             displayRoboflowResults(result, file.name, petName);
             
         } catch (error) {
             console.error('❌ Roboflow analysis error:', error);
             
+            let errorMessage = error.message || 'Unable to connect to Roboflow API.';
+            
+            if (error.message.includes('401')) {
+                errorMessage = `
+                    <strong>API Authentication Failed (401)</strong><br><br>
+                    Please check that your workflow is published and accessible.
+                    <small class="text-muted d-block mt-2">
+                        URL: ${apiUrl}<br>
+                        Make sure the workflow is set to "Public" in Roboflow settings.
+                    </small>
+                `;
+            } else if (error.message.includes('404')) {
+                errorMessage = 'Workflow not found. Please check your workflow URL.';
+            } else if (error.message.includes('Network Error')) {
+                errorMessage = 'Network error. Please check your internet connection.';
+            }
+            
             resultDiv.innerHTML = `
                 <div class="alert alert-danger alert-custom">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Connection Error</strong><br>
-                    <small>${error.message}</small>
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            URL: ${apiUrl}<br>
-                            Please check your workspace name and try again.
-                        </small>
-                    </div>
+                    <div>${errorMessage}</div>
                 </div>
             `;
         } finally {
@@ -1373,7 +1530,7 @@ if (isset($_POST['cancel_appointment'])) {
         
         console.log('📊 Raw response data:', data);
         
-        // ✅ FIXED: Handle the actual response format from your workflow
+        // Handle the actual response format from your workflow
         let predictions = [];
         let topPrediction = {};
         let confidence = 0;
@@ -1399,7 +1556,7 @@ if (isset($_POST['cancel_appointment'])) {
         
         const confidencePercent = (confidence * 100).toFixed(1);
         
-        // Determine severity and recommendation based on detection
+        // Determine insights based on detection
         const { severity, recommendation } = getConditionInfo(className);
         
         let html = `
@@ -1409,7 +1566,7 @@ if (isset($_POST['cancel_appointment'])) {
                         <h5><i class="fas fa-check-circle me-2"></i>AI Analysis Complete!</h5>
                         <p class="mb-1"><strong>File:</strong> ${fileName}</p>
                         ${petName ? `<p class="mb-1"><strong>Pet:</strong> ${petName}</p>` : ''}
-                        <p class="mb-0"><strong>Workflow:</strong> custom-workflow-2</p>
+                        <p class="mb-0"><strong>Confidence:</strong> ${confidencePercent}%</p>
                     </div>
                     <button class="btn btn-sm btn-outline-primary" onclick="clearAnalysis()">
                         <i class="fas fa-times me-1"></i> Clear
@@ -1444,7 +1601,7 @@ if (isset($_POST['cancel_appointment'])) {
                         <h6><i class="fas fa-lightbulb me-2"></i>Health Insights</h6>
                         <div class="alert alert-info">
                             <p class="mb-2"><strong>${className} Detected</strong></p>
-                            <p class="mb-0">The AI has identified this as a ${className.toLowerCase()}. For specific health concerns, please consult with your veterinarian.</p>
+                            <p class="mb-0">${recommendation}</p>
                         </div>
                         
                         <div class="mt-3">
@@ -1519,12 +1676,12 @@ if (isset($_POST['cancel_appointment'])) {
         html += `
             <div class="alert alert-success mt-3">
                 <i class="fas fa-robot me-2"></i>
-                <strong>AI Analysis Successful!</strong> Your image has been processed by the Roboflow AI workflow and animal classification has been completed.
+                <strong>AI Analysis Successful!</strong> Your image has been processed by the Roboflow AI workflow.
             </div>
             
             <div class="alert alert-warning mt-2">
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Medical Disclaimer:</strong> This AI analysis provides animal classification only. For health-specific diagnoses, always consult with a qualified veterinarian.
+                <strong>Medical Disclaimer:</strong> This AI analysis provides animal classification. For health-specific diagnoses, always consult with a qualified veterinarian.
             </div>
         `;
         
@@ -1597,8 +1754,15 @@ if (isset($_POST['cancel_appointment'])) {
             }
         }, 5000);
     }
+
+    // Search functionality
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            const searchInput = document.querySelector('.input-group input');
+            if (searchInput) searchInput.focus();
+        }
+    });
 </script>
 </body>
 </html>
-
-
