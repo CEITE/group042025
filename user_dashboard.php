@@ -28,32 +28,6 @@ try {
     die("Error fetching user data: " . $e->getMessage());
 }
 
-// ✅ Disease Information Database (Descriptions Only)
-$disease_info = [
-    'Dental Disease in Cat' => 'Common oral health issues in cats including gingivitis, periodontitis, and tooth resorption that can cause pain and difficulty eating.',
-    'Dental Disease in Dog' => 'Oral health problems in dogs such as periodontal disease, broken teeth, and gum infections that can lead to pain and systemic health issues.',
-    'Ear Mites in Cat' => 'Tiny parasites that live in the ear canals of cats, causing intense itching, dark discharge, and potential secondary infections.',
-    'Eye Infection in Cat' => 'Bacterial or viral infections affecting cats eyes, often causing discharge, redness, and discomfort that requires medical treatment.',
-    'Eye Infection in Dog' => 'Infections affecting dogs eyes, commonly caused by bacteria, viruses, or foreign objects, leading to discharge and irritation.',
-    'Feline Leukemia' => 'Viral infection that suppresses the immune system in cats and can lead to anemia, cancer, and secondary infections.',
-    'Feline Panleukopenia' => 'Highly contagious and often fatal viral disease in cats, also known as feline distemper, affecting the digestive system.',
-    'Fungal Infection in Cat' => 'Fungal infections like ringworm that affect cats skin, hair, or nails, causing itching, hair loss, and skin lesions.',
-    'Fungal Infection in Dog' => 'Fungal infections in dogs including ringworm and yeast infections that cause skin irritation, itching, and hair loss.',
-    'Healthy' => 'Your pet appears to be in good health with no visible signs of disease or infection in the analyzed image.',
-    'Hot Spots in Dog' => 'Acute moist dermatitis in dogs, causing red, moist, irritated skin patches that can spread quickly.',
-    'Kennel Cough in Dog' => 'Highly contagious respiratory infection in dogs causing a persistent, forceful cough and respiratory distress.',
-    'Mange in Dog' => 'Skin disease caused by mites that leads to severe itching, hair loss, and skin infections in dogs.',
-    'Parvovirus in Dog' => 'Highly contagious and often fatal viral disease in dogs, causing severe vomiting, diarrhea, and dehydration.',
-    'Ringworm in Cat' => 'Fungal infection affecting cats skin, causing circular bald patches, scaling, and potential spread to humans.',
-    'Scabies in Cat' => 'Contagious skin condition caused by mites, resulting in intense itching, hair loss, and skin crusting.',
-    'Skin Allergy in Cat' => 'Allergic reactions in cats causing itching, skin redness, hair loss, and potential secondary infections.',
-    'Skin Allergy in Dog' => 'Allergic conditions in dogs leading to itching, skin inflammation, ear infections, and hot spots.',
-    'Tick Infestation in Dog' => 'Presence of ticks on dogs that can cause skin irritation, anemia, and transmit serious diseases.',
-    'Urinary Tract Infection in Cat' => 'Bacterial infection in cats urinary system causing painful urination, frequent attempts, and blood in urine.',
-    'Worm Infection in Cat' => 'Internal parasites like roundworms, tapeworms, or hookworms affecting cats digestive health and overall condition.',
-    'Worm Infection in Dog' => 'Internal parasitic infections in dogs causing digestive issues, weight loss, and potential anemia.'
-];
-
 // ✅ 3. Fetch user's pets & medical records
 $pets = [];
 $totalPets = 0;
@@ -653,20 +627,6 @@ if (isset($_POST['cancel_appointment'])) {
             font-size: 0.8rem;
         }
         
-        .disease-info-card {
-            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-            border-left: 4px solid var(--primary);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1rem 0;
-        }
-        
-        .disease-description {
-            color: #4b5563;
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-        
         @media (max-width: 768px) {
             .wrapper {
                 flex-direction: column;
@@ -939,42 +899,19 @@ if (isset($_POST['cancel_appointment'])) {
             
             <div class="row">
                 <div class="col-md-6">
-                    <div class="upload-area" id="uploadArea">
+                    <div class="upload-area">
                         <h5><i class="fa-solid fa-camera me-2"></i>Upload Pet Image</h5>
                         <p class="text-muted mb-3">Get instant AI analysis for common pet diseases</p>
                         
-                        <!-- Image Preview -->
-                        <div id="imagePreview" class="mb-3 text-center" style="display: none;">
-                            <img id="previewImage" src="" alt="Preview" class="img-fluid rounded" style="max-height: 200px;">
-                            <div class="mt-2">
-                                <small id="fileInfo" class="text-muted"></small>
-                                <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearImage()">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Upload Controls -->
-                        <div class="mb-3">
-                            <input type="file" id="petImageInput" accept="image/*" class="form-control" 
-                                   onchange="previewImage(this)">
-                            <small class="text-muted">Supports: JPG, PNG, JPEG • Max 2MB</small>
-                        </div>
-                        
-                        <!-- Analysis Button with Loading State -->
-                        <button id="analyzeBtn" onclick="analyzePetImage()" class="btn btn-primary w-100" disabled>
-                            <i class="fa-solid fa-magnifying-glass me-2"></i> 
-                            <span id="analyzeText">Select Image First</span>
+                        <input type="file" id="petImageInput" accept="image/*" class="form-control mb-3">
+                        <button onclick="analyzePetImage()" class="btn btn-primary w-100">
+                            <i class="fa-solid fa-magnifying-glass me-2"></i> Analyze Image
                         </button>
                         
-                        <!-- Progress Bar -->
-                        <div id="progressContainer" class="mt-3" style="display: none;">
-                            <div class="progress" style="height: 8px;">
-                                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                                     role="progressbar" style="width: 0%"></div>
-                            </div>
-                            <small id="progressText" class="text-muted">Preparing analysis...</small>
-                        </div>
+                        <small class="text-muted">
+                            Supports: JPG, PNG, JPEG • Max 10MB<br>
+                            <i class="fa-solid fa-lightbulb me-1"></i> Best results with clear, well-lit images
+                        </small>
                     </div>
                 </div>
                 
@@ -1290,9 +1227,6 @@ if (isset($_POST['cancel_appointment'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Disease information from PHP
-    const diseaseInfo = <?php echo json_encode($disease_info); ?>;
-
     document.addEventListener('DOMContentLoaded', function() {
         // Set current date and time
         updateDateTime();
@@ -1463,108 +1397,42 @@ if (isset($_POST['cancel_appointment'])) {
             });
     }
 
-    function previewImage(input) {
-        const file = input.files[0];
-        const preview = document.getElementById('imagePreview');
-        const previewImg = document.getElementById('previewImage');
-        const fileInfo = document.getElementById('fileInfo');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const analyzeText = document.getElementById('analyzeText');
-        
-        if (file) {
-            // Validate file size (2MB limit for faster uploads)
-            if (file.size > 2 * 1024 * 1024) {
-                showAlert('File size too large. Please select an image under 2MB for faster analysis.', 'warning');
-                input.value = '';
-                return;
-            }
-            
-            // Validate file type
-            if (!file.type.match('image/jpeg') && !file.type.match('image/png') && !file.type.match('image/jpg')) {
-                showAlert('Please select a valid image file (JPEG, PNG, JPG).', 'warning');
-                input.value = '';
-                return;
-            }
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                previewImg.src = e.target.result;
-                preview.style.display = 'block';
-                fileInfo.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-                
-                // Enable analyze button
-                analyzeBtn.disabled = false;
-                analyzeText.textContent = 'Analyze Image';
-            };
-            reader.readAsDataURL(file);
-        } else {
-            preview.style.display = 'none';
-            analyzeBtn.disabled = true;
-            analyzeText.textContent = 'Select Image First';
-        }
-    }
-
-    function clearImage() {
-        document.getElementById('petImageInput').value = '';
-        document.getElementById('imagePreview').style.display = 'none';
-        document.getElementById('analyzeBtn').disabled = true;
-        document.getElementById('analyzeText').textContent = 'Select Image First';
-        document.getElementById('analysisResult').innerHTML = '';
-    }
-
     async function analyzePetImage() {
         const fileInput = document.getElementById('petImageInput');
         const resultDiv = document.getElementById('analysisResult');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const analyzeText = document.getElementById('analyzeText');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
         
         if (!fileInput.files[0]) {
             showAlert('Please select an image file first!', 'warning');
             return;
         }
         
-        const file = fileInput.files[0];
-        
-        // Compress image before upload (for files > 500KB)
-        let imageBlob = file;
-        if (file.size > 500 * 1024) {
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '25%';
-            progressText.textContent = 'Compressing image...';
-            
-            imageBlob = await compressImage(file, 0.7); // 70% quality
+        // Validate file size (10MB limit)
+        if (fileInput.files[0].size > 10 * 1024 * 1024) {
+            showAlert('File size too large. Please select an image under 10MB.', 'warning');
+            return;
         }
         
         const formData = new FormData();
-        formData.append('file', imageBlob, file.name);
+        formData.append('file', fileInput.files[0]);
         
-        // Update UI for analysis state
-        analyzeBtn.disabled = true;
-        analyzeText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Analyzing...';
-        progressBar.style.width = '50%';
-        progressText.textContent = 'Uploading to AI service...';
-        
-        // Clear previous results
-        resultDiv.innerHTML = '';
+        // Show loading state
+        resultDiv.innerHTML = `
+            <div class="alert alert-info alert-custom">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                    <div>
+                        <strong>Analyzing Image...</strong><br>
+                        <small>Our AI is examining your pet's image for disease detection</small>
+                    </div>
+                </div>
+            </div>
+        `;
         
         try {
-            // Add timeout for the fetch request (30 seconds)
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
-            
             const response = await fetch('https://vetcare-predictive-production.up.railway.app/predict', {
                 method: 'POST',
-                body: formData,
-                signal: controller.signal
+                body: formData
             });
-            
-            clearTimeout(timeoutId);
-            
-            progressBar.style.width = '75%';
-            progressText.textContent = 'Processing results...';
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -1572,83 +1440,26 @@ if (isset($_POST['cancel_appointment'])) {
             
             const data = await response.json();
             
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Analysis complete!';
-            
             if (data.success) {
-                setTimeout(() => {
-                    displayAnalysisResults(data);
-                    progressContainer.style.display = 'none';
-                }, 500);
+                displayAnalysisResults(data);
             } else {
                 throw new Error(data.error || 'Analysis failed');
             }
             
         } catch (error) {
             console.error('Analysis error:', error);
-            progressContainer.style.display = 'none';
-            
-            let errorMessage = 'Unable to connect to AI service. Please try again.';
-            if (error.name === 'AbortError') {
-                errorMessage = 'Analysis timed out. Please try with a smaller image.';
-            } else if (error.message.includes('HTTP error')) {
-                errorMessage = 'AI service is temporarily unavailable. Please try again later.';
-            }
-            
             resultDiv.innerHTML = `
                 <div class="alert alert-danger alert-custom">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <strong>Analysis Failed</strong><br>
-                    <small>${errorMessage}</small>
+                    <small>${error.message || 'Unable to connect to AI service. Please try again.'}</small>
                 </div>
             `;
-        } finally {
-            // Reset button state
-            setTimeout(() => {
-                analyzeBtn.disabled = false;
-                analyzeText.innerHTML = '<i class="fa-solid fa-magnifying-glass me-2"></i> Analyze Again';
-                progressBar.style.width = '0%';
-            }, 1000);
         }
-    }
-
-    // Image compression function
-    function compressImage(file, quality = 0.8) {
-        return new Promise((resolve) => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-            
-            img.onload = function() {
-                // Calculate new dimensions (max 800px on longest side)
-                let width = img.width;
-                let height = img.height;
-                const maxDimension = 800;
-                
-                if (width > height && width > maxDimension) {
-                    height = (height * maxDimension) / width;
-                    width = maxDimension;
-                } else if (height > maxDimension) {
-                    width = (width * maxDimension) / height;
-                    height = maxDimension;
-                }
-                
-                canvas.width = width;
-                canvas.height = height;
-                
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                canvas.toBlob(resolve, 'image/jpeg', quality);
-            };
-            
-            img.src = URL.createObjectURL(file);
-        });
     }
 
     function displayAnalysisResults(data) {
         const resultDiv = document.getElementById('analysisResult');
-        const primaryDisease = data.primary_prediction.class;
-        const diseaseDescription = diseaseInfo[primaryDisease] || 'No detailed information available for this condition.';
         
         let html = `
             <div class="alert alert-success alert-custom">
@@ -1664,18 +1475,12 @@ if (isset($_POST['cancel_appointment'])) {
                 </div>
             </div>
             
-            <!-- Disease Information Card -->
-            <div class="disease-info-card">
-                <h6><i class="fas fa-info-circle me-2"></i>About ${primaryDisease}</h6>
-                <p class="disease-description mb-0">${diseaseDescription}</p>
-            </div>
-            
             <div class="row">
                 <div class="col-md-6">
                     <div class="card-custom" style="background: linear-gradient(135deg, #d4edda, #c3e6cb);">
                         <h6><i class="fas fa-stethoscope me-2"></i>Primary Diagnosis</h6>
                         <div class="text-center py-3">
-                            <h3 class="text-success mb-2">${primaryDisease}</h3>
+                            <h3 class="text-success mb-2">${data.primary_prediction.class}</h3>
                             <div class="progress" style="height: 20px;">
                                 <div class="progress-bar bg-success" role="progressbar" 
                                      style="width: ${data.primary_prediction.confidence}%" 
@@ -1695,17 +1500,13 @@ if (isset($_POST['cancel_appointment'])) {
                         <div style="max-height: 200px; overflow-y: auto;">
         `;
         
-        if (data.predictions && data.predictions.length > 1) {
+        if (data.predictions.length > 1) {
             data.predictions.slice(1, 5).forEach((pred, index) => {
                 const confidenceColor = pred.confidence > 30 ? 'warning' : 'secondary';
-                const altDiseaseDescription = diseaseInfo[pred.class] || 'No additional information available.';
                 html += `
-                    <div class="border-bottom py-2">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <small><strong>${index + 1}. ${pred.class}</strong></small>
-                            <span class="badge bg-${confidenceColor}">${pred.confidence}%</span>
-                        </div>
-                        <small class="text-muted">${altDiseaseDescription}</small>
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <small>${index + 1}. ${pred.class}</small>
+                        <span class="badge bg-${confidenceColor}">${pred.confidence}%</span>
                     </div>
                 `;
             });
@@ -1749,7 +1550,7 @@ if (isset($_POST['cancel_appointment'])) {
     }
 
     function clearAnalysis() {
-        clearImage();
+        document.getElementById('petImageInput').value = '';
         document.getElementById('analysisResult').innerHTML = '';
     }
 
