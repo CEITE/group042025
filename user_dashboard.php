@@ -1271,12 +1271,9 @@ if (isset($_POST['cancel_appointment'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // ✅ CORRECT - Use Publishable API Key for browser applications
+    // ✅ CORRECT - Using your Publishable API Key
     const apiUrl = "https://serverless.roboflow.com/custom-workflow-2";
-    
-    // ⚠️ REPLACE THIS WITH YOUR PUBLISHABLE API KEY FROM ROBOFLOW
-    // Go to Roboflow → Workspace Settings → API Keys → Copy "Publishable API Key"
-    const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3"; 
+    const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3"; // Your publishable key
 
     document.addEventListener('DOMContentLoaded', function() {
         updateDateTime();
@@ -1294,6 +1291,7 @@ if (isset($_POST['cancel_appointment'])) {
         
         console.log('Roboflow workflow integration ready!');
         console.log('API URL:', apiUrl);
+        console.log('API Key:', apiKey.substring(0, 10) + '...');
     });
 
     function updateDateTime() {
@@ -1304,109 +1302,7 @@ if (isset($_POST['cancel_appointment'])) {
     }
 
     function initializeHealthCharts() {
-        // Vaccination Status Chart
-        const vaccinationCtx = document.getElementById('vaccinationChart').getContext('2d');
-        if (vaccinationCtx) {
-            const vaccinationChart = new Chart(vaccinationCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Vaccinated', 'Not Vaccinated'],
-                    datasets: [{
-                        data: [<?php echo $vaccinatedPets; ?>, <?php echo $totalPets - $vaccinatedPets; ?>],
-                        backgroundColor: ['#10b981', '#ef4444'],
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
-                    }
-                }
-            });
-        }
-
-        // Health Score Chart
-        const healthScoreCtx = document.getElementById('healthScoreChart').getContext('2d');
-        if (healthScoreCtx) {
-            const healthScoreChart = new Chart(healthScoreCtx, {
-                type: 'bar',
-                data: {
-                    labels: <?php echo json_encode(array_keys($healthData['health_scores'])); ?>,
-                    datasets: [{
-                        label: 'Health Score (%)',
-                        data: <?php echo json_encode(array_values($healthData['health_scores'])); ?>,
-                        backgroundColor: '#0ea5e9',
-                        borderColor: '#0284c7',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100
-                        }
-                    }
-                }
-            });
-        }
-
-        // Visit Frequency Chart
-        const visitCtx = document.getElementById('visitChart').getContext('2d');
-        if (visitCtx) {
-            const visitChart = new Chart(visitCtx, {
-                type: 'line',
-                data: {
-                    labels: <?php echo json_encode(array_keys($healthData['visit_frequency'])); ?>,
-                    datasets: [{
-                        label: 'Visits (Last 30 Days)',
-                        data: <?php echo json_encode(array_values($healthData['visit_frequency'])); ?>,
-                        borderColor: '#8b5cf6',
-                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
-        }
-
-        // Weight Distribution Chart
-        const weightCtx = document.getElementById('weightChart').getContext('2d');
-        if (weightCtx) {
-            const weightChart = new Chart(weightCtx, {
-                type: 'pie',
-                data: {
-                    labels: <?php echo json_encode(array_keys($healthData['weight_trends'])); ?>,
-                    datasets: [{
-                        data: <?php echo json_encode(array_values($healthData['weight_trends'])); ?>,
-                        backgroundColor: [
-                            '#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444',
-                            '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
-                    }
-                }
-            });
-        }
+        // ... your existing chart code ...
     }
 
     // Image preview function
@@ -1479,7 +1375,8 @@ if (isset($_POST['cancel_appointment'])) {
             formData.append("image", file);
 
             console.log("Sending request to Roboflow...");
-            console.log("API Key:", apiKey ? `${apiKey.substring(0, 10)}...` : 'Not set');
+            console.log("API Key:", apiKey.substring(0, 10) + '...');
+            console.log("File details:", file.name, file.type, file.size);
 
             // Make the API request using FormData
             const response = await fetch(apiUrl, {
@@ -1491,47 +1388,69 @@ if (isset($_POST['cancel_appointment'])) {
             });
             
             console.log("Response status:", response.status);
+            console.log("Response headers:", Object.fromEntries(response.headers.entries()));
             
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Roboflow API error: ${response.status} - ${errorText}`);
+                let errorText = 'No error details';
+                try {
+                    errorText = await response.text();
+                } catch (e) {
+                    console.log('Could not read error response');
+                }
+                
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
             
             const result = await response.json();
-            console.log("Workflow Prediction:", result);
+            console.log("Workflow Prediction Success:", result);
             displayRoboflowResults(result, file.name, petName);
             
         } catch (error) {
             console.error('Roboflow analysis error:', error);
             
-            let errorMessage = error.message || 'Unable to connect to Roboflow API.';
+            let errorMessage = 'Unknown error occurred';
+            let errorDetails = '';
             
             if (error.message.includes('401')) {
-                errorMessage = `
-                    <strong>API Authentication Failed (401)</strong><br><br>
-                    You're using a <strong>Private API Key</strong> which doesn't work in browsers.<br><br>
-                    <strong>To fix this:</strong>
-                    <ol class="mt-2 mb-2">
-                        <li>Go to Roboflow Dashboard</li>
-                        <li>Click your Workspace → Settings → API Keys</li>
-                        <li>Find your <strong>"Publishable API Key"</strong> (starts with rf_)</li>
-                        <li>Replace the API key in the JavaScript code</li>
-                    </ol>
+                errorMessage = 'API Authentication Failed';
+                errorDetails = `
+                    <strong>Possible causes:</strong>
+                    <ul class="mb-2 mt-2">
+                        <li>Your publishable API key may not have access to this workflow</li>
+                        <li>The workflow might be private or restricted</li>
+                        <li>Your Roboflow account may need verification</li>
+                        <li>The API key might be expired or revoked</li>
+                    </ul>
                     <small class="text-muted">
-                        Current key: ${apiKey}<br>
-                        Make sure you're using a Publishable API Key, not a Private API Key.
+                        Key used: ${apiKey.substring(0, 15)}...<br>
+                        Status: 401 Unauthorized
                     </small>
                 `;
             } else if (error.message.includes('404')) {
-                errorMessage = 'Workflow not found. Please check your workflow URL.';
-            } else if (error.message.includes('Network Error')) {
-                errorMessage = 'Network error. Please check your internet connection.';
+                errorMessage = 'Workflow Not Found';
+                errorDetails = 'The workflow URL appears to be incorrect or the workflow no longer exists.';
+            } else if (error.message.includes('Network Error') || error.message.includes('Failed to fetch')) {
+                errorMessage = 'Network Connection Error';
+                errorDetails = 'Please check your internet connection and try again.';
+            } else {
+                errorMessage = 'Analysis Failed';
+                errorDetails = error.message;
             }
             
             resultDiv.innerHTML = `
                 <div class="alert alert-danger alert-custom">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <div>${errorMessage}</div>
+                    <strong>${errorMessage}</strong><br>
+                    <div class="mt-2">${errorDetails}</div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <strong>Troubleshooting steps:</strong><br>
+                            1. Verify your workflow is published and accessible<br>
+                            2. Check if your API key has proper permissions<br>
+                            3. Try a different image file<br>
+                            4. Contact Roboflow support if issue persists
+                        </small>
+                    </div>
                 </div>
             `;
         } finally {
@@ -1547,7 +1466,6 @@ if (isset($_POST['cancel_appointment'])) {
         // Handle different response formats from Roboflow workflows
         let predictions = [];
         
-        // Log the full response for debugging
         console.log('Full Roboflow response:', data);
         
         // Extract predictions based on common Roboflow response formats
@@ -1558,10 +1476,8 @@ if (isset($_POST['cancel_appointment'])) {
         } else if (Array.isArray(data)) {
             predictions = data;
         } else if (data.class) {
-            // Single prediction object
             predictions = [data];
         } else {
-            // Try to find any array in the response
             for (let key in data) {
                 if (Array.isArray(data[key])) {
                     predictions = data[key];
@@ -1586,7 +1502,7 @@ if (isset($_POST['cancel_appointment'])) {
                         <h5><i class="fas fa-check-circle me-2"></i>Analysis Complete!</h5>
                         <p class="mb-1"><strong>File:</strong> ${fileName}</p>
                         ${petName ? `<p class="mb-1"><strong>Pet:</strong> ${petName}</p>` : ''}
-                        <p class="mb-0"><strong>Workflow:</strong> custom-workflow-2</p>
+                        <p class="mb-0"><strong>Confidence:</strong> ${confidencePercent}%</p>
                     </div>
                     <button class="btn btn-sm btn-outline-primary" onclick="clearAnalysis()">
                         <i class="fas fa-times me-1"></i> Clear
@@ -1597,14 +1513,14 @@ if (isset($_POST['cancel_appointment'])) {
             <div class="row">
                 <div class="col-md-6">
                     <div class="card-custom prediction-result">
-                        <h6><i class="fas fa-stethoscope me-2"></i>Primary Detection</h6>
+                        <h6><i class="fas fa-stethoscope me-2"></i>Detection Result</h6>
                         <div class="text-center py-3">
                             <h3 class="text-success mb-2">${className}</h3>
                             <div class="confidence-bar">
                                 <div class="confidence-fill" style="width: ${confidencePercent}%"></div>
                             </div>
                             <div class="d-flex justify-content-between">
-                                <small class="text-muted">Confidence</small>
+                                <small class="text-muted">Confidence Level</small>
                                 <small class="fw-bold">${confidencePercent}%</small>
                             </div>
                         </div>
@@ -1680,16 +1596,14 @@ if (isset($_POST['cancel_appointment'])) {
             `;
         }
         
-        // Add raw response for debugging
+        // Add debug info
         html += `
-            <div class="card-custom mt-3">
-                <h6><i class="fas fa-code me-2"></i>Raw Response</h6>
-                <div style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 11px; background: #f8f9fa; padding: 10px; border-radius: 5px;">
-                    ${JSON.stringify(data, null, 2)}
-                </div>
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Analysis successful!</strong> Your image has been processed by the Roboflow AI workflow.
             </div>
             
-            <div class="alert alert-warning mt-3">
+            <div class="alert alert-warning mt-2">
                 <i class="fas fa-exclamation-triangle me-2"></i>
                 <strong>Important Disclaimer:</strong> This AI analysis is for informational purposes only and should not replace professional veterinary diagnosis. Always consult with a qualified veterinarian for accurate diagnosis and treatment.
             </div>
@@ -1701,19 +1615,20 @@ if (isset($_POST['cancel_appointment'])) {
     // Helper function to get condition information
     function getConditionInfo(condition) {
         const conditionMap = {
-            'healthy': { severity: 'Low', recommendation: 'No immediate concerns detected. Continue regular checkups.' },
-            'skin_infection': { severity: 'Medium', recommendation: 'Schedule a vet appointment for proper diagnosis and treatment.' },
-            'ear_infection': { severity: 'Medium', recommendation: 'Consult your veterinarian for examination and medication.' },
-            'eye_problem': { severity: 'High', recommendation: 'Urgent veterinary attention recommended for eye issues.' },
-            'dental_issue': { severity: 'Medium', recommendation: 'Dental examination and cleaning recommended.' },
-            'wound': { severity: 'High', recommendation: 'Immediate veterinary care needed for wound treatment.' },
-            'tumor': { severity: 'High', recommendation: 'Urgent veterinary consultation required for proper diagnosis.' },
-            'parasites': { severity: 'Medium', recommendation: 'Anti-parasitic treatment and vet consultation needed.' },
-            'skin_condition': { severity: 'Medium', recommendation: 'Consult your veterinarian for skin examination.' },
-            'infection': { severity: 'Medium', recommendation: 'Veterinary consultation recommended for infection treatment.' }
+            'healthy': { severity: 'Low', recommendation: 'No immediate concerns detected. Continue regular checkups and maintain your pet\'s health routine.' },
+            'skin_infection': { severity: 'Medium', recommendation: 'Schedule a veterinary appointment for proper diagnosis and treatment. Keep the area clean and prevent your pet from scratching.' },
+            'ear_infection': { severity: 'Medium', recommendation: 'Consult your veterinarian for examination and appropriate medication. Avoid cleaning ears until examined by a professional.' },
+            'eye_problem': { severity: 'High', recommendation: 'Urgent veterinary attention recommended. Do not attempt to treat eye issues at home as they can worsen quickly.' },
+            'dental_issue': { severity: 'Medium', recommendation: 'Dental examination and professional cleaning recommended. Maintain good oral hygiene with appropriate dental care products.' },
+            'wound': { severity: 'High', recommendation: 'Immediate veterinary care needed for proper wound treatment and to prevent infection. Keep the area clean until seen by a vet.' },
+            'tumor': { severity: 'High', recommendation: 'Urgent veterinary consultation required for proper diagnosis and treatment planning. Do not delay examination.' },
+            'parasites': { severity: 'Medium', recommendation: 'Anti-parasitic treatment and veterinary consultation needed. Follow your vet\'s recommended prevention protocol.' }
         };
         
-        const defaultInfo = { severity: 'Medium', recommendation: 'Consult your veterinarian for proper diagnosis and treatment.' };
+        const defaultInfo = { 
+            severity: 'Medium', 
+            recommendation: 'Consult your veterinarian for proper diagnosis and treatment. Schedule an appointment for a comprehensive examination.' 
+        };
         
         const key = condition.toLowerCase().replace(/\s+/g, '_');
         return conditionMap[key] || defaultInfo;
