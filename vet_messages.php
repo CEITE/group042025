@@ -113,6 +113,67 @@ if (isset($_GET['mark_read'])) {
     exit();
 }
 
+// Handle view message (get full message content)
+if (isset($_GET['view_message'])) {
+    $email_id = $_GET['view_message'];
+    
+    // Mark as read when viewing
+    $mark_stmt = $conn->prepare("UPDATE email_logs SET is_read = 1 WHERE id = ? AND vet_id = ?");
+    if ($mark_stmt) {
+        $mark_stmt->bind_param("ii", $email_id, $vet_id);
+        $mark_stmt->execute();
+        $mark_stmt->close();
+    }
+    
+    // Get the full message details
+    if ($has_recipient_column) {
+        $view_stmt = $conn->prepare("
+            SELECT el.*, 
+                   u.name as sender_name,
+                   u.role as sender_role,
+                   u.email as sender_email,
+                   r.name as recipient_name,
+                   r.role as recipient_role,
+                   r.email as recipient_email
+            FROM email_logs el 
+            LEFT JOIN users u ON el.sent_by = u.user_id 
+            LEFT JOIN users r ON el.recipient_id = r.user_id
+            WHERE el.id = ? AND el.vet_id = ?
+        ");
+    } else {
+        $view_stmt = $conn->prepare("
+            SELECT el.*, 
+                   u.name as sender_name,
+                   u.role as sender_role,
+                   u.email as sender_email
+            FROM email_logs el 
+            LEFT JOIN users u ON el.sent_by = u.user_id 
+            WHERE el.id = ? AND el.vet_id = ?
+        ");
+    }
+    
+    if ($view_stmt) {
+        $view_stmt->bind_param("ii", $email_id, $vet_id);
+        $view_stmt->execute();
+        $message_details = $view_stmt->get_result()->fetch_assoc();
+        $view_stmt->close();
+        
+        if ($message_details) {
+            // Return JSON response for AJAX
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'message' => $message_details
+            ]);
+            exit();
+        }
+    }
+    
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false]);
+    exit();
+}
+
 // Handle delete message
 if (isset($_GET['delete'])) {
     $email_id = $_GET['delete'];
@@ -342,6 +403,7 @@ if ($users_stmt) {
         
         .message-item:hover {
             transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         
         .message-item.read {
@@ -370,6 +432,26 @@ if ($users_stmt) {
             font-size: 4rem;
             margin-bottom: 1rem;
             opacity: 0.5;
+        }
+        
+        .message-preview {
+            color: var(--gray);
+            line-height: 1.4;
+        }
+        
+        .message-content {
+            white-space: pre-wrap;
+            line-height: 1.6;
+            padding: 1rem;
+            background: var(--light);
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+        
+        .message-header {
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
         }
         
         @media (max-width: 768px) {
@@ -488,8 +570,11 @@ if ($users_stmt) {
                                                     <span class="badge bg-danger">New</span>
                                                 <?php endif; ?>
                                             </div>
-                                            <p class="mb-2 text-muted"><?php echo htmlspecialchars(substr($message['message'], 0, 150)); ?><?php echo strlen($message['message']) > 150 ? '...' : ''; ?></p>
-                                            <div class="d-flex align-items-center gap-3">
+                                            <p class="message-preview mb-2">
+                                                <?php echo htmlspecialchars(substr($message['message'], 0, 150)); ?>
+                                                <?php echo strlen($message['message']) > 150 ? '...' : ''; ?>
+                                            </p>
+                                            <div class="d-flex align-items-center gap-3 flex-wrap">
                                                 <small class="text-muted">
                                                     <strong>From:</strong> 
                                                     <?php echo htmlspecialchars($message['sender_name'] ?? 'System'); ?>
@@ -517,11 +602,13 @@ if ($users_stmt) {
                                                 <i class="fas fa-ellipsis-v"></i>
                                             </button>
                                             <ul class="dropdown-menu">
-                                                <li>
-                                                    <a class="dropdown-item" href="vet_messages.php?mark_read=<?php echo $message['id']; ?>">
-                                                        <i class="fas fa-check me-2"></i>Mark as Read
-                                                    </a>
-                                                </li>
+                                                <?php if ($message['is_read'] == 0): ?>
+                                                    <li>
+                                                        <a class="dropdown-item" href="vet_messages.php?mark_read=<?php echo $message['id']; ?>">
+                                                            <i class="fas fa-check me-2"></i>Mark as Read
+                                                        </a>
+                                                    </li>
+                                                <?php endif; ?>
                                                 <li>
                                                     <a class="dropdown-item text-danger" 
                                                        href="vet_messages.php?delete=<?php echo $message['id']; ?>" 
@@ -611,12 +698,36 @@ if ($users_stmt) {
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="messageModalTitle">Message</h5>
+                <h5 class="modal-title" id="messageModalTitle">Message Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div id="messageModalContent">
-                    <!-- Message content will be loaded here -->
+                    <div class="message-header">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 id="messageSubject" class="mb-1"></h6>
+                                <div class="d-flex align-items-center gap-3 flex-wrap">
+                                    <small class="text-muted">
+                                        <strong>From:</strong> 
+                                        <span id="messageSender"></span>
+                                        <span id="messageSenderBadge" class="badge ms-2"></span>
+                                    </small>
+                                    <small class="text-muted">
+                                        <strong>To:</strong> 
+                                        <span id="messageRecipient">You</span>
+                                    </small>
+                                    <small class="text-muted">
+                                        <i class="far fa-clock me-1"></i>
+                                        <span id="messageDate"></span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message-content" id="messageFullContent">
+                        <!-- Message content will be loaded here -->
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -644,21 +755,78 @@ if ($users_stmt) {
     }
 
     function viewMessage(messageId) {
-        // Mark message as read
-        window.location.href = 'vet_messages.php?mark_read=' + messageId;
+        // Show loading state
+        document.getElementById('messageModalTitle').textContent = 'Loading Message...';
+        document.getElementById('messageFullContent').innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Loading message...</p></div>';
         
-        // In a real implementation, you would fetch the message content via AJAX
-        // and display it in the modal
-        console.log('Viewing message:', messageId);
+        // Show modal immediately
+        const modal = new bootstrap.Modal(document.getElementById('messageViewModal'));
+        modal.show();
         
-        // For now, we'll just mark it as read and refresh
-        // You can implement AJAX to load the full message without page refresh
+        // Fetch message details via AJAX
+        fetch(`vet_messages.php?view_message=${messageId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.message) {
+                    const message = data.message;
+                    
+                    // Update modal content
+                    document.getElementById('messageModalTitle').textContent = 'Message Details';
+                    document.getElementById('messageSubject').textContent = message.subject;
+                    document.getElementById('messageSender').textContent = message.sender_name || 'System';
+                    document.getElementById('messageDate').textContent = new Date(message.sent_at).toLocaleString();
+                    document.getElementById('messageFullContent').textContent = message.message;
+                    
+                    // Update sender badge
+                    const senderBadge = document.getElementById('messageSenderBadge');
+                    senderBadge.textContent = message.sender_role ? message.sender_role.charAt(0).toUpperCase() + message.sender_role.slice(1) : 'Admin';
+                    senderBadge.className = 'badge ms-2 badge-' + (message.sender_role || 'admin');
+                    
+                    // Update recipient if available
+                    if (message.recipient_name) {
+                        document.getElementById('messageRecipient').textContent = message.recipient_name;
+                    }
+                    
+                    // Remove "New" badge from the message item in the list
+                    const messageItem = document.querySelector(`.message-item[onclick="viewMessage(${messageId})"]`);
+                    if (messageItem) {
+                        messageItem.classList.remove('unread');
+                        messageItem.classList.add('read');
+                        const newBadge = messageItem.querySelector('.badge.bg-danger');
+                        if (newBadge) {
+                            newBadge.remove();
+                        }
+                    }
+                } else {
+                    document.getElementById('messageModalTitle').textContent = 'Error';
+                    document.getElementById('messageFullContent').innerHTML = '<div class="alert alert-danger">Failed to load message. Please try again.</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('messageModalTitle').textContent = 'Error';
+                document.getElementById('messageFullContent').innerHTML = '<div class="alert alert-danger">An error occurred while loading the message.</div>';
+            });
     }
 
     function replyToMessage() {
-        // This would typically pre-fill the compose form with the recipient
-        alert('Reply functionality would be implemented here');
-        // You could implement this by setting the recipient dropdown and adding "Re: " to subject
+        const modal = bootstrap.Modal.getInstance(document.getElementById('messageViewModal'));
+        modal.hide();
+        
+        // Get message details for reply
+        const subject = document.getElementById('messageSubject').textContent;
+        const sender = document.getElementById('messageSender').textContent;
+        
+        // Set the recipient (the original sender)
+        // This would need additional logic to get the sender's user_id
+        // For now, we'll just focus the compose form
+        document.getElementById('subject').value = 'Re: ' + subject;
+        document.getElementById('message').focus();
+        
+        // Scroll to compose form
+        document.querySelector('.card-custom form').scrollIntoView({ 
+            behavior: 'smooth' 
+        });
     }
 
     // Auto-close alerts after 5 seconds
