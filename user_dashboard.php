@@ -1272,8 +1272,9 @@ if (isset($_POST['cancel_appointment'])) {
 
 <script>
     // ✅ CORRECT Roboflow Configuration with your workspace name
-    const apiUrl = "https://serverless.roboflow.com/vetcarepredictionapi/custom-workflow-2";
-    const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3";
+    // ✅ UPDATED Roboflow Configuration - Use this format:
+const apiUrl = "https://vetcarepredictionapi-custom-workflow-2.hf.space";
+const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3";
 
     document.addEventListener('DOMContentLoaded', function() {
         updateDateTime();
@@ -1766,3 +1767,4 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
