@@ -1268,7 +1268,7 @@ if (isset($_POST['analyze_image'])) {
 <script>
     // Roboflow Configuration - Updated with your exact details
     const ROBOFLOW_CONFIG = {
-        apiKey: 'HKh4FfDexdGHtMtqv6Zc',
+        apiKey: 'rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3',
         workflowUrl: 'https://serverless.roboflow.com/custom-workflow-2'
     };
 
@@ -1710,3 +1710,4 @@ if (isset($_POST['analyze_image'])) {
 </script>
 </body>
 </html>
+
