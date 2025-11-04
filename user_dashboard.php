@@ -1273,7 +1273,7 @@ if (isset($_POST['cancel_appointment'])) {
 <script>
     // ✅ CORRECT ROBOFLOW WORKFLOW CONFIGURATION FROM YOUR DASHBOARD
     const apiUrl = "https://serverless.roboflow.com";
-    const apiKey = "HKh4FfDexdGHtMtqv6Zc"; // Your actual API key from Roboflow
+    const apiKey = "rf_RvHpzRUm2YcZUmW7IKmQ0jvY6hB3"; // Your actual API key from Roboflow
     const workspaceName = "vetcarepredictionapi";
     const workflowId = "custom-workflow-2";
 
@@ -1764,3 +1764,4 @@ if (isset($_POST['cancel_appointment'])) {
 </script>
 </body>
 </html>
+
