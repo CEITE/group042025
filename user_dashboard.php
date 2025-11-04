@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Roboflow API details
-    $api_key = "YOUR_API_KEY"; // 🔑 Replace with your Roboflow API key
+    $api_key = "HKh4FfDexdGHtMtqv6Zc"; // 🔑 Replace with your Roboflow API key
     $workspace_name = "vetcarepredictionapi"; // ✅ Replace with your workspace
     $workflow_id = "custom-workflow-2"; // ⚙️ Replace with your workflow ID
 
@@ -144,3 +144,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 </body>
 </html>
+
