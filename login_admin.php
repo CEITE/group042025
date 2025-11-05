@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administrator Login - VetCare</title>
+    <title>Administrator Login - VetCareQR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -272,21 +272,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transform: translateY(-2px);
         }
         
-        .btn-outline-secondary {
-            border: 2px solid #6c757d;
-            color: #6c757d;
-            border-radius: 12px;
-            padding: 12px 28px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-outline-secondary:hover {
-            background: #6c757d;
-            color: white;
-            transform: translateY(-2px);
-        }
-        
         .register-link {
             color: var(--primary);
             text-decoration: none;
@@ -399,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="login-left">
                         <div class="logo">
                             <i class="fas fa-user-shield"></i>
-                            VetCare
+                            VetCareQR
                         </div>
                         <h2 class="mb-3 fw-bold">Administrator Access</h2>
                         <p class="mb-4" style="font-size: 1.1rem; opacity: 0.95;">
@@ -511,14 +496,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </a>
                             </div>
                             
-                            <button type="submit" class="btn btn-primary w-100 py-3 mb-3 fw-bold">
+                            <button type="submit" class="btn btn-primary w-100 py-3 mb-4 fw-bold">
                                 <i class="fas fa-sign-in-alt me-2"></i> Login to Admin Dashboard
                             </button>
-
-                            <!-- Back to Home Button -->
-                            <a href="front_page.php" class="btn btn-outline-secondary w-100 py-3 mb-4">
-                                <i class="fas fa-arrow-left me-2"></i> Back to Home Page
-                            </a>
                             
                             <div class="divider">
                                 <span class="divider-text">Secure Login</span>
@@ -600,5 +580,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
 </body>
-</html>
 
+</html>
